@@ -18,9 +18,9 @@ const config: Config = {
         pending: 'var(--pending)'
       },
       fontFamily: {
-        mono: ['IBM Plex Mono', 'ui-monospace', 'monospace'],
-        display: ['Space Grotesk', 'Inter', 'sans-serif'],
-        sans: ['Inter', 'system-ui', 'sans-serif']
+        mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
+        display: ['var(--font-display)', 'Inter', 'sans-serif'],
+        sans: ['var(--font-sans)', 'system-ui', 'sans-serif']
       },
       borderRadius: {
         card: '16px',

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ArrowDownLeft, ArrowUpRight, SlidersHorizontal, ArrowRightLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { formatMoney } from '@/lib/currency'
 import { getAccountBalances, convertToDisplayCurrency } from '@/lib/networth'
@@ -61,79 +62,156 @@ export default async function DashboardPage() {
   const budgetPct = estimatedTotal > 0 ? Math.min(100, Math.round((realSpent / estimatedTotal) * 100)) : 0
 
   return (
-    <main className="max-w-md mx-auto p-4 space-y-4">
-      <div className="bg-surface-1 border border-border rounded-card p-4">
-        <p className="text-sm text-text-secondary">Patrimonio neto</p>
-        <p className="font-mono amount text-3xl font-medium">
-          {formatMoney(netWorth, displayCurrency)}
-        </p>
-      </div>
-
-      {estimatedTotal > 0 && (
-        <div className="bg-surface-2 border border-border rounded-card p-4">
-          <div className="flex justify-between mb-2">
-            <span className="text-sm text-text-secondary">Presupuesto del mes</span>
-            <span className="text-sm font-medium">{budgetPct}%</span>
+    <main className="max-w-6xl mx-auto p-4 md:p-6 lg:p-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* Columna 1: Balance y Presupuesto */}
+        <div className="space-y-4">
+          <div className="bg-surface-1 border border-border rounded-card p-4">
+            <p className="text-sm font-medium text-text-secondary">Patrimonio neto</p>
+            <p className="font-mono amount text-3xl font-medium mt-1">
+              {formatMoney(netWorth, displayCurrency)}
+            </p>
           </div>
-          <div className="h-1.5 bg-surface-1 rounded-full overflow-hidden">
-            <div className="h-full bg-accent" style={{ width: `${budgetPct}%` }} />
-          </div>
-          <p className="text-xs text-text-muted mt-2">
-            {formatMoney(realSpent, estimates?.[0]?.currency ?? displayCurrency)} gastados de{' '}
-            {formatMoney(estimatedTotal, estimates?.[0]?.currency ?? displayCurrency)} proyectados
-          </p>
-        </div>
-      )}
 
-      <div>
-        <p className="font-display text-base font-medium mb-2">Cuentas</p>
-        <div className="grid grid-cols-2 gap-2">
-          {(accounts ?? []).map((a) => (
-            <div key={a.id} className="bg-surface-1 rounded-card p-3">
-              <p className="text-xs text-text-muted">{a.institutions?.name} · {a.name}</p>
-              <p className="font-mono amount text-base">
-                {formatMoney(balanceByAccount.get(a.id) ?? 0, a.currency_native)}
+          {estimatedTotal > 0 && (
+            <div className="bg-surface-1 border border-border rounded-card p-4">
+              <div className="flex justify-between mb-2">
+                <span className="text-sm font-medium text-text-secondary">Presupuesto del mes</span>
+                <span className="text-sm font-mono font-medium">{budgetPct}%</span>
+              </div>
+              <div className="h-1.5 bg-surface-0 rounded-full overflow-hidden">
+                <div className="h-full bg-accent" style={{ width: `${budgetPct}%` }} />
+              </div>
+              <p className="text-xs text-text-muted mt-2">
+                {formatMoney(realSpent, estimates?.[0]?.currency ?? displayCurrency)} gastados de{' '}
+                {formatMoney(estimatedTotal, estimates?.[0]?.currency ?? displayCurrency)} proyectados
               </p>
             </div>
-          ))}
-          {(!accounts || accounts.length === 0) && (
-            <p className="text-sm text-text-muted col-span-2">
-              No tenés cuentas cargadas. Corré supabase/seed.sql para arrancar.
-            </p>
           )}
         </div>
-      </div>
 
-      <div>
-        <div className="flex justify-between items-center mb-2">
-          <p className="font-display text-base font-medium">Movimientos</p>
-          <Link href="/transactions/new" className="text-sm text-accent font-medium">
-            Cargar movimiento
-          </Link>
-        </div>
-        {(!transactions || transactions.length === 0) && (
-          <p className="text-sm text-text-muted">
-            Todavía no cargaste movimientos este mes.{' '}
-            <Link href="/transactions/new" className="text-accent font-medium">
-              Cargá el primero.
-            </Link>
-          </p>
-        )}
-        {(transactions ?? []).map((t) => (
-          <div key={t.id} className="flex justify-between items-center py-2 border-b border-border">
-            <div>
-              <p className="text-sm">{t.notes ?? 'Movimiento'}</p>
-              {t.installment_total > 1 && (
-                <span className="text-xs bg-pending/15 text-pending px-2 py-0.5 rounded-full">
-                  {t.installment_current} de {t.installment_total}
-                </span>
-              )}
-            </div>
-            <p className={`font-mono amount text-sm ${t.type === 'OUTCOME' ? 'text-expense' : 'text-income'}`}>
-              {t.type === 'OUTCOME' ? '-' : '+'}{formatMoney(t.amount_account, t.currency_account)}
-            </p>
+        {/* Columna 2: Cuentas */}
+        <div>
+          <p className="font-display text-base font-medium mb-3">Cuentas</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
+            {(accounts ?? []).map((a) => (
+              <div key={a.id} className="bg-surface-1 border border-border rounded-card p-3">
+                <p className="text-xs text-text-muted truncate">{a.institutions?.name} · {a.name}</p>
+                <p className="font-mono amount text-base mt-1">
+                  {formatMoney(balanceByAccount.get(a.id) ?? 0, a.currency_native)}
+                </p>
+              </div>
+            ))}
+            {(!accounts || accounts.length === 0) && (
+              <div className="bg-surface-1 border border-border rounded-card p-4 col-span-full">
+                <p className="text-sm text-text-muted">
+                  No tenés cuentas activas todavía. Creá una para empezar.
+                </p>
+              </div>
+            )}
           </div>
-        ))}
+        </div>
+
+        {/* Columna 3: Movimientos */}
+        <div>
+          <div className="flex justify-between items-center mb-3">
+            <p className="font-display text-base font-medium">Movimientos</p>
+            <Link href="/transactions/new" className="text-sm text-accent font-medium hover:underline">
+              Cargar movimiento
+            </Link>
+          </div>
+          <div className="bg-surface-1 border border-border rounded-card p-4 divide-y divide-border">
+            {(!transactions || transactions.length === 0) && (
+              <p className="text-sm text-text-muted py-2">
+                Todavía no cargaste movimientos este mes.{' '}
+                <Link href="/transactions/new" className="text-accent font-medium hover:underline">
+                  Cargá el primero.
+                </Link>
+              </p>
+            )}
+            {(transactions ?? []).map((t) => {
+              const isOutcome = t.type === 'OUTCOME'
+              const isIncome = t.type === 'INCOME'
+              const isAdjustment = t.type === 'ADJUSTMENT'
+              const isTransfer = t.type === 'TRANSFER'
+              const isPositiveAdj = isAdjustment && t.amount_account >= 0
+              const isTransferIn = isTransfer && t.amount_account >= 0
+
+              return (
+                <div key={t.id} className="flex justify-between items-center py-2.5 first:pt-0 last:pb-0">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={`p-1.5 rounded-full ${
+                        isOutcome
+                          ? 'bg-expense/10 text-expense'
+                          : isIncome
+                          ? 'bg-income/10 text-income'
+                          : isAdjustment
+                          ? 'bg-pending/15 text-pending'
+                          : 'bg-accent/15 text-accent'
+                      }`}
+                    >
+                      {isOutcome && <ArrowUpRight size={14} />}
+                      {isIncome && <ArrowDownLeft size={14} />}
+                      {isAdjustment && <SlidersHorizontal size={12} />}
+                      {isTransfer && <ArrowRightLeft size={12} />}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm">
+                          {t.notes ??
+                            (isAdjustment
+                              ? 'Ajuste de saldo'
+                              : isTransfer
+                              ? 'Transferencia'
+                              : 'Movimiento')}
+                        </p>
+                        {isAdjustment && (
+                          <span className="text-[10px] px-1 py-0.1 rounded bg-surface-2 text-text-muted font-medium">
+                            Ajuste
+                          </span>
+                        )}
+                        {isTransfer && (
+                          <span className="text-[10px] px-1 py-0.1 rounded bg-surface-2 text-accent font-medium">
+                            Transferencia
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-text-muted">{t.date}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p
+                      className={`font-mono amount text-sm ${
+                        isOutcome || (isAdjustment && !isPositiveAdj) || (isTransfer && !isTransferIn)
+                          ? 'text-expense'
+                          : 'text-income'
+                      }`}
+                    >
+                      {isOutcome
+                        ? '-'
+                        : isAdjustment
+                        ? isPositiveAdj
+                          ? '+'
+                          : '-'
+                        : isTransfer
+                        ? isTransferIn
+                          ? '+'
+                          : '-'
+                        : '+'}
+                      {formatMoney(Math.abs(t.amount_account), t.currency_account)}
+                    </p>
+                    {t.installment_total > 1 && (
+                      <span className="text-[11px] bg-pending/15 text-pending px-2 py-0.5 rounded-full">
+                        {t.installment_current} de {t.installment_total}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       </div>
     </main>
   )

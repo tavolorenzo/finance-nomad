@@ -6,11 +6,11 @@ Fecha: 27 ago 2026.
 
 | Cobertura ponderada | Hecho | Parcial | Falta |
 |---|---|---|---|
-| 61% | 11 | 6 | 6 |
+| 78% | 16 | 4 | 3 |
 
 Ponderación: hecho = 1, parcial = 0.5, falta = 0. Sobre 23 requisitos (arquitectura + pantallas).
 
-El núcleo del ledger multi-moneda ya corre: cotización, override, cuotas básicas, patrimonio neto, cuentas por institución, personas con cobro y WhatsApp, y presupuesto con «ejecutar pago». Auth y RLS están en pie. Lo que falta es sobre todo flujos de transferencia/tarjeta, el modelo contable de extensiones, y las dos pantallas de fase 4 (préstamos y portafolio).
+El núcleo del ledger multi-moneda ya corre: cotización, override, cuotas básicas, patrimonio neto, cuentas por institución con detalle y ajuste express, transferencias inter-cuenta y pago de tarjeta de crédito (2 filas ligadas), personas con cobro y WhatsApp, y presupuesto con «ejecutar pago». Auth y RLS están en pie. Lo que falta es sobre todo el modelo contable de extensiones, y las dos pantallas de fase 4 (préstamos y portafolio).
 
 El PRD en `docs/PRD.md` es un índice: el detalle de pantallas vive en `design-system.md` §6 y las reglas de asientos en `.claude/skills/fx-ledger-rules`.
 
@@ -25,10 +25,10 @@ El PRD en `docs/PRD.md` es un índice: el detalle de pantallas vive en `design-s
 | 3.1 FX | Toda transacción guarda amount_original + amount_account | Hecho | `master_transactions` + `createTransaction` + `calculateAccountAmount` |
 | 3.1 FX | Tipo de cambio API + override manual persistente | Hecho | frankfurter.app + `rate_overridden` en el formulario |
 | 3.2 Jerarquía | Institución → Cuentas / Créditos / Inversiones | Parcial | CRUD instituciones y cuentas (incl. `credit_card` e `investing`). Sin UI de créditos ni inversiones. |
-| 3.2 Jerarquía | Cuenta Cash por defecto | Parcial | Está en `seed.sql`; no se crea automáticamente al registrar usuario |
+| 3.2 Jerarquía | Cuenta Cash por defecto | Hecho | `createInstitution` crea una cuenta "Efectivo" por institución nueva |
 | 3.3 Cuotas | N cuotas = N registros ligados, un mes cada uno | Parcial | `splitInstallments` genera N filas con fecha +1 mes. No ligan `parent_transaction_id`. Todas `COMPLETED`, no `PENDING`. |
 | 3.3 Extensiones | Gasto a persona incrementa CxC sin alterar deuda con el banco | Parcial | `person_id` + `settled_at`. El mismo `OUTCOME` baja el saldo de la cuenta; no hay asiento de cuenta por cobrar separado. |
-| 3.3 Tarjetas | Pagos de tarjeta = transferencias inter-cuenta | Falta | El formulario solo emite `INCOME`/`OUTCOME`. No hay flujo `TRANSFER` ni pago de tarjeta. |
+| 3.3 Tarjetas | Pagos de tarjeta = transferencias inter-cuenta | Hecho | `createTransferTransaction` genera 2 filas ligadas por `parent_transaction_id`. Modal en `/accounts/[id]` para tarjetas. |
 | 3.4 Ledger | `master_transactions` es fuente de verdad | Hecho | Dashboard, presupuesto, personas y patrimonio leen el ledger |
 | 2 Workbook | Import del Excel Finances_2026.xlsx | Falta | `SETUP.md` lo deja pendiente. Hoy se usa `seed.sql` de prueba. |
 
@@ -40,9 +40,9 @@ El PRD en `docs/PRD.md` es un índice: el detalle de pantallas vive en `design-s
 |---|---|---|---|
 | Dashboard | `/dashboard` | Hecho | Patrimonio, presupuesto del mes, cuentas, feed. Layout mobile 1 col; falta grilla web 3 col del design system. |
 | Cuentas y bancos | `/accounts` | Hecho | Acordeón por institución, CRUD, baja lógica `is_active`. |
-| Detalle de cuenta | `/accounts/[id]` | Falta | Solo existe `/accounts/[id]/edit`. Sin feed filtrado ni ajuste express. |
-| Formulario universal | `/transactions/new` | Parcial | Gasto/ingreso, FX, fees, cuotas, persona. Faltan transferencia, ajuste y pago de tarjeta. |
-| Transferencias | — | Falta | Regla de 2 filas ligadas por `parent_transaction_id` está en el skill, no en UI ni actions. |
+| Detalle de cuenta | `/accounts/[id]` | Hecho | Header con saldo nominal, feed filtrado, métricas del mes, Ajuste Express y Registrar pago en tarjetas. |
+| Formulario universal | `/transactions/new` | Hecho | Gasto/ingreso/transferencia, FX en vivo, fees, cuotas, persona y cuentas origen/destino. |
+| Transferencias | — | Hecho | Regla de 2 filas ligadas por `parent_transaction_id` en `createTransferTransaction` e integrada en UI. |
 | Personas | `/people` | Hecho | Saldos pendientes por moneda. |
 | Ficha de persona | `/people/[id]` | Hecho | Pendiente / cuotas futuras / historial, WhatsApp y registrar cobro. |
 | Gastos fijos / Presupuesto | `/budget` | Hecho | Estimados vs real + Ejecutar pago. Sin alta/edición de estimados en UI. |

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { rethrowIfRedirect } from '@/lib/next/rethrow-redirect'
 import { executeBudgetPayment } from '@/app/(protected)/budget/actions'
 
 export function ExecutePaymentButton({ estimateId, disabled }: { estimateId: string; disabled: boolean }) {
@@ -16,6 +17,7 @@ export function ExecutePaymentButton({ estimateId, disabled }: { estimateId: str
       await executeBudgetPayment(estimateId)
       router.refresh()
     } catch (err) {
+      rethrowIfRedirect(err)
       setError(err instanceof Error ? err.message : 'No se pudo ejecutar el pago')
     }
     setLoading(false)

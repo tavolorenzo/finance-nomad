@@ -45,36 +45,40 @@ export function UpdatePasswordForm({ afterSave = '/dashboard' }: { afterSave?: s
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <label className="block text-xs text-text-muted">Nueva contraseña</label>
-      <input
-        type="password"
-        required
-        minLength={6}
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        className="w-full"
-        autoComplete="new-password"
-      />
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-text-secondary mb-1">Nueva contraseña</label>
+        <input
+          type="password"
+          required
+          minLength={6}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full"
+          autoComplete="new-password"
+        />
+      </div>
 
-      <label className="block text-xs text-text-muted">Repetí la contraseña</label>
-      <input
-        type="password"
-        required
-        minLength={6}
-        value={confirm}
-        onChange={(e) => setConfirm(e.target.value)}
-        className="w-full"
-        autoComplete="new-password"
-      />
+      <div>
+        <label className="block text-sm font-medium text-text-secondary mb-1">Repetí la contraseña</label>
+        <input
+          type="password"
+          required
+          minLength={6}
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          className="w-full"
+          autoComplete="new-password"
+        />
+      </div>
 
-      {error && <p className="text-sm text-expense">{error}</p>}
-      {notice && <p className="text-sm text-income">{notice}</p>}
+      {error && <p className="text-sm text-expense font-medium">{error}</p>}
+      {notice && <p className="text-sm text-income font-medium">{notice}</p>}
 
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-accent text-[color:var(--on-accent)] py-3 rounded-control font-medium disabled:opacity-50"
+        className="w-full bg-accent text-[color:var(--on-accent)] py-3 rounded-control font-medium hover:opacity-90 transition disabled:opacity-50"
       >
         {loading ? 'Un momento...' : 'Guardar contraseña'}
       </button>

@@ -40,40 +40,51 @@ export default async function BudgetPage() {
   const expenseEstimates = (estimates ?? []).filter((e) => e.type === 'EXPENSE_ESTIMATE')
 
   return (
-    <main className="max-w-md mx-auto p-4 space-y-4">
-      <h1 className="font-display text-xl font-medium">Presupuesto</h1>
+    <main className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
+      <div>
+        <h1 className="font-display text-2xl font-bold tracking-tight">Presupuesto</h1>
+        <p className="text-xs text-text-muted mt-0.5">Control de gastos fijos e ingresos proyectados del mes</p>
+      </div>
 
       {(!estimates || estimates.length === 0) && (
-        <p className="text-sm text-text-muted">
-          Definí tus gastos fijos para ver el avance del mes.
-        </p>
+        <div className="bg-surface-1 border border-border rounded-card p-8 text-center text-sm text-text-muted">
+          Definí tus gastos fijos para ver el avance y control del mes.
+        </div>
       )}
 
       {expenseEstimates.length > 0 && (
-        <section>
-          <p className="font-display text-base font-medium mb-2">Gastos fijos</p>
-          <div className="space-y-2">
+        <section className="space-y-3">
+          <h2 className="font-display text-base font-semibold tracking-tight text-text-primary">Gastos fijos</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {expenseEstimates.map((e) => {
               const real = realByCategory.get(e.category_id) ?? 0
               const pct = Math.min(100, Math.round((real / e.estimated_amount) * 100))
               const done = real >= e.estimated_amount
               return (
-                <div key={e.id} className="bg-surface-1 border border-border rounded-card p-3">
-                  <div className="flex justify-between items-start mb-2">
+                <div key={e.id} className="bg-surface-1 border border-border rounded-card p-4 space-y-3">
+                  <div className="flex justify-between items-start">
                     <div>
-                      <p className="text-sm font-medium">{e.name}</p>
+                      <p className="text-sm font-semibold text-text-primary">{e.name}</p>
                       <p className="text-xs text-text-muted">
                         {(e as any).categories?.name} · vence el {e.due_day}
                       </p>
                     </div>
                     <ExecutePaymentButton estimateId={e.id} disabled={done} />
                   </div>
-                  <div className="h-1.5 bg-surface-0 rounded-full overflow-hidden">
-                    <div className="h-full bg-accent" style={{ width: `${pct}%` }} />
+                  <div>
+                    <div className="h-2 bg-surface-2 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-300 ${done ? 'bg-income' : 'bg-accent'}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-text-muted mt-1.5 font-mono">
+                      <span>{pct}% cubierto</span>
+                      <span>
+                        {formatMoney(real, e.currency)} / {formatMoney(e.estimated_amount, e.currency)}
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-xs text-text-muted mt-1">
-                    {formatMoney(real, e.currency)} de {formatMoney(e.estimated_amount, e.currency)}
-                  </p>
                 </div>
               )
             })}
@@ -82,16 +93,16 @@ export default async function BudgetPage() {
       )}
 
       {incomeEstimates.length > 0 && (
-        <section>
-          <p className="font-display text-base font-medium mb-2">Ingresos proyectados</p>
-          <div className="space-y-2">
+        <section className="space-y-3">
+          <h2 className="font-display text-base font-semibold tracking-tight text-text-primary">Ingresos proyectados</h2>
+          <div className="bg-surface-1 border border-border rounded-card divide-y divide-border px-4 py-1">
             {incomeEstimates.map((e) => (
-              <div key={e.id} className="flex justify-between items-center bg-surface-1 border border-border rounded-card p-3">
+              <div key={e.id} className="flex justify-between items-center py-3">
                 <div>
-                  <p className="text-sm font-medium">{e.name}</p>
-                  <p className="text-xs text-text-muted">día {e.due_day}</p>
+                  <p className="text-sm font-medium text-text-primary">{e.name}</p>
+                  <p className="text-xs text-text-muted">Día de acreditación: {e.due_day}</p>
                 </div>
-                <span className="font-mono amount text-sm text-income">
+                <span className="font-mono text-sm font-semibold text-income">
                   {formatMoney(e.estimated_amount, e.currency)}
                 </span>
               </div>

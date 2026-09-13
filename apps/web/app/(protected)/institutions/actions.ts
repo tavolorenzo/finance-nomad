@@ -1,7 +1,6 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 
 async function requireUser() {
@@ -15,11 +14,28 @@ export async function createInstitution(name: string) {
   const { supabase, user } = await requireUser()
   if (!name.trim()) throw new Error('Completá este campo para continuar.')
 
-  const { error } = await supabase.from('institutions').insert({ user_id: user.id, name: name.trim() })
-  if (error) throw new Error('No se pudo guardar. Intentá de nuevo.')
+  const { data: institution, error } = await supabase
+    .from('institutions')
+    .insert({ user_id: user.id, name: name.trim() })
+    .select('id')
+    .single()
+  if (error || !institution) throw new Error('No se pudo guardar. Intentá de nuevo.')
+
+  const { data: settings } = await supabase
+    .from('user_settings')
+    .select('display_currency')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  await supabase.from('accounts').insert({
+    user_id: user.id,
+    institution_id: institution.id,
+    name: 'Efectivo',
+    type: 'cash',
+    currency_native: settings?.display_currency ?? 'EUR'
+  })
 
   revalidatePath('/accounts')
-  redirect('/accounts')
 }
 
 export async function updateInstitution(id: string, name: string) {
@@ -34,7 +50,6 @@ export async function updateInstitution(id: string, name: string) {
   if (error) throw new Error('No se pudo guardar. Intentá de nuevo.')
 
   revalidatePath('/accounts')
-  redirect('/accounts')
 }
 
 // Baja lógica: nunca DELETE. Primero se desactivan las cuentas y después
@@ -61,5 +76,4 @@ export async function setInstitutionActive(id: string, isActive: boolean) {
 
   revalidatePath('/accounts')
   revalidatePath('/dashboard')
-  redirect('/accounts')
 }

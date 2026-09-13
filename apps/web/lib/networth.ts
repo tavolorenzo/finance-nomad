@@ -7,10 +7,8 @@ export interface AccountBalance {
   balance: number // en moneda nativa de la cuenta
 }
 
-// Balance por cuenta = suma de amount_account hasta la fecha, con OUTCOME en
-// negativo. TRANSFER y ADJUSTMENT se asumen ya firmados correctamente en la
-// fila (ver fx-ledger-rules/SKILL.md) -- hoy el formulario solo genera
-// INCOME/OUTCOME, así que ese caso se cubre completo.
+// Balance por cuenta = suma de amount_account hasta la fecha.
+// OUTCOME resta, INCOME suma, ADJUSTMENT y TRANSFER aplican el signo directo de la fila.
 export async function getAccountBalances(
   supabase: SupabaseClient,
   asOfDate: string
@@ -24,8 +22,13 @@ export async function getAccountBalances(
   const currency = new Map<string, string>()
 
   for (const t of data ?? []) {
-    const sign = t.type === 'OUTCOME' ? -1 : 1
-    balance.set(t.account_id, (balance.get(t.account_id) ?? 0) + sign * t.amount_account)
+    let delta = Number(t.amount_account)
+    if (t.type === 'OUTCOME') {
+      delta = -Math.abs(delta)
+    } else if (t.type === 'INCOME') {
+      delta = Math.abs(delta)
+    }
+    balance.set(t.account_id, Math.round(((balance.get(t.account_id) ?? 0) + delta) * 100) / 100)
     currency.set(t.account_id, t.currency_account)
   }
 
@@ -34,6 +37,32 @@ export async function getAccountBalances(
     balance: bal,
     currency: currency.get(accountId)!
   }))
+}
+
+// Obtiene el saldo y moneda de una cuenta individual a una fecha dada.
+export async function getSingleAccountBalance(
+  supabase: SupabaseClient,
+  accountId: string,
+  asOfDate: string
+): Promise<number> {
+  const { data } = await supabase
+    .from('master_transactions')
+    .select('amount_account, type')
+    .eq('account_id', accountId)
+    .lte('date', asOfDate)
+
+  let balance = 0
+  for (const t of data ?? []) {
+    let delta = Number(t.amount_account)
+    if (t.type === 'OUTCOME') {
+      delta = -Math.abs(delta)
+    } else if (t.type === 'INCOME') {
+      delta = Math.abs(delta)
+    }
+    balance += delta
+  }
+
+  return Math.round(balance * 100) / 100
 }
 
 // Convierte una lista de balances en distintas monedas a una sola moneda de

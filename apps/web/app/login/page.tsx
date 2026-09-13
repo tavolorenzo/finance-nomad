@@ -79,9 +79,11 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center p-4">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm bg-surface-1 border border-border rounded-card p-6 space-y-3">
-        <p className="font-display text-xl font-medium">Finance Nomad</p>
-        <p className="text-sm text-text-secondary mb-2">{title}</p>
+      <form onSubmit={handleSubmit} className="w-full max-w-sm bg-surface-1 border border-border rounded-card p-6 space-y-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-text-primary">Finance Nomad</h1>
+          <p className="text-sm text-text-secondary mt-1">{title}</p>
+        </div>
 
         {mode === 'reset' && (
           <p className="text-sm text-text-muted">
@@ -89,28 +91,47 @@ export default function LoginPage() {
           </p>
         )}
 
-        <label className="block text-xs text-text-muted">Email</label>
-        <input
-          type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-          className="w-full" autoComplete="email"
-        />
+        <div>
+          <label htmlFor="login-email" className="block text-sm font-medium text-text-secondary mb-1">
+            Email
+          </label>
+          <input
+            id="login-email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full"
+            autoComplete="email"
+          />
+        </div>
 
         {mode !== 'reset' && (
-          <>
-            <label className="block text-xs text-text-muted">Contraseña</label>
+          <div>
+            <label htmlFor="login-password" className="block text-sm font-medium text-text-secondary mb-1">
+              Contraseña
+            </label>
             <input
-              type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-              className="w-full" autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              id="login-password"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full"
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               minLength={6}
             />
-          </>
+          </div>
         )}
 
-        {error && <p className="text-sm text-expense">{error}</p>}
-        {notice && <p className="text-sm text-income">{notice}</p>}
+        {error && <p className="text-sm text-expense font-medium">{error}</p>}
+        {notice && <p className="text-sm text-income font-medium">{notice}</p>}
 
-        <button type="submit" disabled={loading}
-          className="w-full bg-accent text-[color:var(--on-accent)] py-3 rounded-control font-medium disabled:opacity-50">
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-accent text-[color:var(--on-accent)] py-3 rounded-control font-medium hover:opacity-90 transition disabled:opacity-50"
+        >
           {loading ? 'Un momento...' : submitLabel}
         </button>
 
@@ -118,7 +139,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => switchMode('reset')}
-            className="w-full text-sm text-text-secondary py-1"
+            className="w-full text-xs text-text-muted hover:text-text-primary py-1 transition"
           >
             Olvidé la contraseña
           </button>
@@ -128,7 +149,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => switchMode('login')}
-            className="w-full text-sm text-text-secondary py-1"
+            className="w-full text-xs text-text-muted hover:text-text-primary py-1 transition"
           >
             Volver al inicio de sesión
           </button>
@@ -136,9 +157,9 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => switchMode(mode === 'login' ? 'signup' : 'login')}
-            className="w-full text-sm text-text-secondary py-1"
+            className="w-full text-xs text-text-muted hover:text-text-primary py-1 transition"
           >
-            {mode === 'login' ? 'No tenés cuenta? Creá una' : 'Ya tenés cuenta? Entrá'}
+            {mode === 'login' ? '¿No tenés cuenta? Creá una' : '¿Ya tenés cuenta? Entrá'}
           </button>
         )}
       </form>

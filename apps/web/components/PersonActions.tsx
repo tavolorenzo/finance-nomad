@@ -41,14 +41,14 @@ export function PersonActions({
       <button
         onClick={handleNotify}
         disabled={pending.length === 0}
-        className="flex-1 border border-border text-text-primary py-2.5 rounded-control text-sm font-medium disabled:opacity-40"
+        className="flex-1 border border-border text-text-primary py-2.5 rounded-control text-sm font-medium hover:bg-surface-2 transition disabled:opacity-40"
       >
         Notificar por WhatsApp
       </button>
       <button
         onClick={handleCollect}
         disabled={pending.length === 0 || loading}
-        className="flex-1 bg-accent text-[color:var(--on-accent)] py-2.5 rounded-control text-sm font-medium disabled:opacity-40"
+        className="flex-1 bg-accent text-[color:var(--on-accent)] py-2.5 rounded-control text-sm font-medium hover:opacity-90 transition disabled:opacity-40"
       >
         {loading ? 'Registrando...' : 'Registrar cobro'}
       </button>

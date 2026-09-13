@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useModal } from '@/components/Modal'
 import { createAccount, updateAccount, setAccountActive } from '@/app/(protected)/accounts/actions'
 import type { Account, AccountType, Institution } from '@/lib/types'
 
@@ -22,11 +24,13 @@ export function AccountForm({
   account?: Account
   defaultInstitutionId?: string
 }) {
+  const router = useRouter()
+  const { isModal, close } = useModal()
   const [institutionId, setInstitutionId] = useState(
     account?.institution_id
-      ?? (institutions.some((i) => i.id === defaultInstitutionId) ? defaultInstitutionId : undefined)
-      ?? institutions[0]?.id
-      ?? ''
+    ?? (institutions.some((i) => i.id === defaultInstitutionId) ? defaultInstitutionId : undefined)
+    ?? institutions[0]?.id
+    ?? ''
   )
   const [name, setName] = useState(account?.name ?? '')
   const [type, setType] = useState<AccountType>(account?.type ?? 'checking')
@@ -51,6 +55,12 @@ export function AccountForm({
       } else {
         await createAccount({ ...input, institutionId })
       }
+      if (isModal) {
+        close()
+      } else {
+        router.push('/accounts')
+      }
+      router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar. Intentá de nuevo.')
       setLoading(false)
@@ -62,6 +72,12 @@ export function AccountForm({
     setLoading(true)
     try {
       await setAccountActive(account.id, !account.is_active)
+      if (isModal) {
+        close()
+      } else {
+        router.push('/accounts')
+      }
+      router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo desactivar. Intentá de nuevo.')
       setLoading(false)
@@ -71,60 +87,73 @@ export function AccountForm({
   return (
     <form onSubmit={handleSubmit} className="p-4 space-y-3">
       {!account && (
-        <>
-          <label className="block text-xs text-text-muted">Institución</label>
+        <div>
+          <label className="block text-sm font-medium text-text-secondary mb-1">Institución</label>
           <select value={institutionId} onChange={(e) => setInstitutionId(e.target.value)} className="w-full" required>
             {institutions.map((i) => (
               <option key={i.id} value={i.id}>{i.name}</option>
             ))}
           </select>
-        </>
+        </div>
       )}
 
-      <label className="block text-xs text-text-muted">Nombre del producto</label>
-      <input
-        type="text" value={name} onChange={(e) => setName(e.target.value)}
-        placeholder="Ej. Everyday, Amex, Cash..." className="w-full" required autoFocus
-      />
+      <div>
+        <label className="block text-sm font-medium text-text-secondary mb-1">Nombre de la cuenta / producto</label>
+        <input
+          type="text" value={name} onChange={(e) => setName(e.target.value)}
+          placeholder="Ej. Cuenta Corriente, Visa Gold, Efectivo..." className="w-full" required autoFocus
+        />
+      </div>
 
-      <label className="block text-xs text-text-muted">Tipo</label>
-      <select value={type} onChange={(e) => setType(e.target.value as AccountType)} className="w-full">
-        {TYPES.map((t) => (
-          <option key={t.value} value={t.value}>{t.label}</option>
-        ))}
-      </select>
+      <div>
+        <label className="block text-sm font-medium text-text-secondary mb-1">Tipo de cuenta</label>
+        <select value={type} onChange={(e) => setType(e.target.value as AccountType)} className="w-full">
+          {TYPES.map((t) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
+      </div>
 
-      <label className="block text-xs text-text-muted">Moneda nativa</label>
-      <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-full">
-        {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-      </select>
+      <div>
+        <label className="block text-sm font-medium text-text-secondary mb-1">Moneda nativa</label>
+        <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-full">
+          {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
 
       {type === 'credit_card' && (
-        <>
-          <label className="block text-xs text-text-muted">Límite de crédito</label>
+        <div>
+          <label className="block text-sm font-medium text-text-secondary mb-1">Límite de crédito</label>
           <input
             type="number" step="0.01" value={creditLimit}
             onChange={(e) => setCreditLimit(e.target.value)} className="w-full"
           />
-        </>
+        </div>
       )}
 
-      {error && <p className="text-sm text-expense">{error}</p>}
+      {error && <p className="text-sm text-expense font-medium">{error}</p>}
 
-      <button type="submit" disabled={loading}
-        className="w-full bg-accent text-[color:var(--on-accent)] py-3 rounded-control font-medium disabled:opacity-50">
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full bg-accent text-[color:var(--on-accent)] py-3 rounded-control font-medium hover:opacity-90 transition disabled:opacity-50"
+      >
         {loading ? 'Guardando...' : account ? 'Guardar cambios' : 'Crear cuenta'}
       </button>
 
       {account && (
-        <button type="button" onClick={handleToggleActive} disabled={loading}
-          className="w-full border border-border text-text-primary py-3 rounded-control font-medium disabled:opacity-50">
+        <button
+          type="button"
+          onClick={handleToggleActive}
+          disabled={loading}
+          className="w-full border border-border text-text-primary py-3 rounded-control font-medium hover:bg-surface-2 transition disabled:opacity-50"
+        >
           {account.is_active ? 'Desactivar cuenta' : 'Reactivar cuenta'}
         </button>
       )}
 
       {account?.is_active === false && (
-        <p className="text-xs text-text-muted">
+        <p className="text-xs text-text-muted text-center">
           Está desactivada — no aparece como opción para cargar movimientos nuevos, pero su historial se conserva.
         </p>
       )}

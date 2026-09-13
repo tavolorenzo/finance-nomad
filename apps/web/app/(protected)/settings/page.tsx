@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { CurrencySelector } from '@/components/CurrencySelector'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import { LogoutButton } from '@/components/LogoutButton'
 import { SendResetLinkButton } from '@/components/SendResetLinkButton'
 import { UpdatePasswordForm } from '@/components/UpdatePasswordForm'
@@ -14,11 +15,19 @@ export default async function SettingsPage() {
     .maybeSingle()
 
   return (
-    <main className="max-w-md mx-auto p-4 space-y-4">
+    <main className="max-w-2xl mx-auto p-4 md:p-6 space-y-4">
       <h1 className="font-display text-xl font-medium">Ajustes</h1>
 
       <div className="bg-surface-1 border border-border rounded-card p-4">
-        <p className="text-sm text-text-secondary mb-2">Moneda global</p>
+        <p className="text-sm font-medium text-text-secondary mb-2">Apariencia</p>
+        <ThemeToggle />
+        <p className="text-xs text-text-muted mt-2">
+          Elegí entre tema claro, oscuro o según la preferencia de tu sistema.
+        </p>
+      </div>
+
+      <div className="bg-surface-1 border border-border rounded-card p-4">
+        <p className="text-sm font-medium text-text-secondary mb-2">Moneda global</p>
         <CurrencySelector current={settings?.display_currency ?? 'EUR'} />
         <p className="text-xs text-text-muted mt-2">
           El patrimonio neto y los totales del dashboard se muestran en esta moneda.

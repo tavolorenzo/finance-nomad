@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { TransactionForm } from '@/components/TransactionForm'
 import type { Account, Category, Person } from '@/lib/types'
@@ -19,8 +20,15 @@ export default async function NewTransactionPage() {
   const { data: people } = await supabase.from('people').select('*').returns<Person[]>()
 
   return (
-    <main className="max-w-md mx-auto py-4">
-      <h1 className="font-display text-xl font-medium px-4 mb-3">Nuevo movimiento</h1>
+    <main className="max-w-md mx-auto p-4 space-y-4">
+      <Link
+        href="/transactions"
+        className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition"
+      >
+        <span>←</span>
+        <span>Volver a Movimientos</span>
+      </Link>
+      <h1 className="font-display text-xl font-bold tracking-tight">Nuevo movimiento</h1>
       <div className="bg-surface-2 border border-border rounded-card">
         <TransactionForm
           accounts={accounts ?? []}

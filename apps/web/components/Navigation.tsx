@@ -99,7 +99,7 @@ export function Navigation() {
         <Link
           href="/transactions/new"
           aria-label="Nuevo movimiento"
-          className="flex items-center justify-center w-12 h-12 -mt-6 rounded-full bg-accent text-[color:var(--on-accent)] shadow-md"
+          className="flex items-center justify-center w-12 h-12 -mt-6 rounded-full bg-accent text-[color:var(--on-accent)] border-2 border-surface-0"
         >
           <Plus size={22} />
         </Link>

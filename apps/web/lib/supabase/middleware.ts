@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const PROTECTED_PREFIXES = [
   '/dashboard', '/accounts', '/transactions', '/people', '/budget',
-  '/loans', '/portfolio', '/settings'
+  '/loans', '/portfolio', '/settings', '/institutions'
 ]
 
 export async function updateSession(request: NextRequest) {
@@ -15,7 +15,7 @@ export async function updateSession(request: NextRequest) {
     {
       cookies: {
         getAll: () => request.cookies.getAll(),
-        setAll: (cookiesToSet) => {
+        setAll: (cookiesToSet: { name: string; value: string; options?: any }[]) => {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>

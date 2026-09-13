@@ -18,8 +18,13 @@ Reglas no negociables:
 - Cualquier string visible al usuario sale del copy deck (sección 7 de
   design-system.md) — si no existe la clave, se la proponés ahí primero,
   no la inventás inline en el componente.
-- No implementás lógica de conversión de FX ni de generación de cuotas acá:
-  eso lo consumís desde lib/ (dominio de ledger-logic).
+- Toda Server Action de este proyecto sigue el patrón mutar ->
+  revalidatePath -> redirect. Si la invocás desde un componente cliente
+  dentro de un try/catch, el catch SIEMPRE tiene que re-lanzar primero con
+  unstable_rethrow(err) (de 'next/navigation') antes de tratar el error
+  como falla de guardado -- si no, el catch se come el redirect y el
+  formulario queda colgado en loading aunque la mutación ya se haya
+  confirmado en el server.
 - La navegación ya existe en components/Navigation.tsx (tab bar mobile +
   sidebar web) — no la reinventés por pantalla, agregá el ítem nuevo ahí
   cuando una pantalla de MORE_ITEMS pase de "pronto" a construida.

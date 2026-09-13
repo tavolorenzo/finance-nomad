@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { InstitutionForm } from '@/components/InstitutionForm'
@@ -10,8 +11,15 @@ export default async function EditInstitutionPage({ params }: { params: Promise<
   if (!institution) notFound()
 
   return (
-    <main className="max-w-md mx-auto py-4">
-      <h1 className="font-display text-xl font-medium px-4 mb-3">Editar institución</h1>
+    <main className="max-w-md mx-auto p-4 space-y-4">
+      <Link
+        href="/accounts"
+        className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition"
+      >
+        <span>←</span>
+        <span>Volver a Cuentas</span>
+      </Link>
+      <h1 className="font-display text-xl font-bold tracking-tight">Editar institución</h1>
       <div className="bg-surface-2 border border-border rounded-card">
         <InstitutionForm institution={institution} />
       </div>

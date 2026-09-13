@@ -1,4 +1,4 @@
-// Tipo de cambio via frankfurter.app (gratis, sin API key, actualiza diario).
+// Tipo de cambio via Google Finance con fallback a frankfurter.app.
 // Ver .claude/skills/fx-ledger-rules/SKILL.md para las reglas de negocio.
 
 interface FrankfurterResponse {
@@ -10,25 +10,61 @@ interface FrankfurterResponse {
 
 const cache = new Map<string, number>()
 
+export async function getGoogleFinanceRate(from: string, to: string): Promise<number> {
+  if (from === to) return 1
+
+  const key = `gf_${from}_${to}`
+  if (cache.has(key)) return cache.get(key)!
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 6000)
+
+  try {
+    const res = await fetch(`https://www.google.com/finance/quote/${from}-${to}`, {
+      signal: controller.signal,
+      next: { revalidate: 3600 }
+    })
+    if (!res.ok) throw new Error(`Google Finance respondió ${res.status}`)
+    const html = await res.text()
+    const match = html.match(/data-last-price="([^"]+)"/)
+    if (!match || !match[1]) throw new Error(`Sin cotización en Google Finance para ${from} -> ${to}`)
+    const rate = parseFloat(match[1])
+    if (isNaN(rate) || rate <= 0) throw new Error(`Cotización inválida para ${from} -> ${to}`)
+    cache.set(key, rate)
+    return rate
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+export async function getFrankfurterRate(date: string, from: string, to: string): Promise<number> {
+  if (from === to) return 1
+
+  const key = `ff_${date}_${from}_${to}`
+  if (cache.has(key)) return cache.get(key)!
+
+  const res = await fetch(`https://api.frankfurter.app/${date}?from=${from}&to=${to}`)
+  if (!res.ok) throw new Error(`Frankfurter respondió ${res.status}`)
+  const data: FrankfurterResponse = await res.json()
+  const rate = data.rates[to]
+  if (!rate) throw new Error(`Sin cotización en Frankfurter para ${from} -> ${to}`)
+  cache.set(key, rate)
+  return rate
+}
+
 export async function getRate(date: string, from: string, to: string): Promise<number> {
   if (from === to) return 1
 
-  const key = `${date}_${from}_${to}`
-  if (cache.has(key)) return cache.get(key)!
-
+  // 1. Intentar primero Google Finance (soporta UYU, AUD, EUR, USD, NZD en tiempo real)
   try {
-    const res = await fetch(`https://api.frankfurter.app/${date}?from=${from}&to=${to}`)
-    if (!res.ok) throw new Error(`FX API respondió ${res.status}`)
-    const data: FrankfurterResponse = await res.json()
-    const rate = data.rates[to]
-    if (!rate) throw new Error(`Sin cotización para ${from} -> ${to}`)
-    cache.set(key, rate)
-    return rate
-  } catch (err) {
-    // Ver error.rate_unavailable en el copy deck — el componente que llama
-    // esto debe capturar el throw y dejar el campo de tipo de cambio editable
-    // a mano en vez de romper el formulario.
-    throw err
+    return await getGoogleFinanceRate(from, to)
+  } catch (gfErr) {
+    // 2. Si Google Finance falla, intentar Frankfurter (para monedas ECB / histórico)
+    try {
+      return await getFrankfurterRate(date, from, to)
+    } catch {
+      throw gfErr instanceof Error ? gfErr : new Error(`Sin cotización para ${from} -> ${to}`)
+    }
   }
 }
 
