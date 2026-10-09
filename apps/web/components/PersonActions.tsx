@@ -8,6 +8,8 @@ import { registerCollection } from '@/app/(protected)/people/actions'
 import { formatMoney } from '@/lib/currency'
 import { formatWhatsAppMessage } from '@/lib/whatsapp'
 import { WhatsAppNotifyModal } from '@/components/WhatsAppNotifyModal'
+import { useOptionalLedger } from '@/lib/ledger/ledger-context'
+import { useOnlineStatus } from '@/lib/hooks/use-online-status'
 import type { MasterTransaction, Person } from '@/lib/types'
 
 export function PersonActions({
@@ -20,14 +22,21 @@ export function PersonActions({
   whatsappTemplate?: string | null
 }) {
   const router = useRouter()
+  const ledger = useOptionalLedger()
+  const isOnline = useOnlineStatus()
   const [loading, setLoading] = useState(false)
   const [isNotifyModalOpen, setIsNotifyModalOpen] = useState(false)
 
   async function handleCollect() {
+    if (!isOnline) return
     setLoading(true)
-    await registerCollection(person.id)
-    router.refresh()
-    setLoading(false)
+    try {
+      await registerCollection(person.id)
+      await ledger?.refresh().catch(() => {})
+      router.refresh()
+    } finally {
+      setLoading(false)
+    }
   }
 
   const total = pending.reduce((sum, t) => sum + t.amount_account, 0)
@@ -66,10 +75,11 @@ export function PersonActions({
         </Link>
         <button
           onClick={handleCollect}
-          disabled={pending.length === 0 || loading}
+          disabled={pending.length === 0 || loading || !isOnline}
+          title={!isOnline ? 'Conectate a internet para registrar la liquidación' : undefined}
           className="flex-1 bg-accent text-[color:var(--on-accent)] py-2.5 rounded-control text-sm font-medium hover:opacity-90 transition disabled:opacity-40"
         >
-          {loading ? 'Registrando...' : 'Registrar cobro'}
+          {!isOnline ? 'Sin conexión' : loading ? 'Registrando...' : 'Registrar cobro'}
         </button>
       </div>
 

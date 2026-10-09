@@ -12,19 +12,28 @@ export default async function BudgetPage() {
   const supabase = await createClient()
   const { start, end } = monthRange()
 
-  const [{ data: estimates }, { data: monthTx }] = await Promise.all([
-    supabase
-      .from('budget_estimates')
-      .select('*, categories(name)')
-      .eq('is_active', true)
-      .order('due_day', { ascending: true }),
-    supabase
-      .from('master_transactions')
-      .select('amount_account, category_id, type')
-      .not('category_id', 'is', null)
-      .gte('date', start)
-      .lte('date', end)
-  ])
+  let estimates: any[] = []
+  let monthTx: any[] = []
+
+  try {
+    const [{ data: estData }, { data: txData }] = await Promise.all([
+      supabase
+        .from('budget_estimates')
+        .select('*, categories(name)')
+        .eq('is_active', true)
+        .order('due_day', { ascending: true }),
+      supabase
+        .from('master_transactions')
+        .select('amount_account, category_id, type')
+        .not('category_id', 'is', null)
+        .gte('date', start)
+        .lte('date', end)
+    ])
+    estimates = estData ?? []
+    monthTx = txData ?? []
+  } catch {
+    // Si la conexión falla (offline), mostramos estado seguro
+  }
 
   const categoryIds = new Set((estimates ?? []).map((e) => e.category_id))
   const realByCategory = new Map<string, number>()
@@ -68,7 +77,7 @@ export default async function BudgetPage() {
                         {(e as any).categories?.name} · vence el {e.due_day}
                       </p>
                     </div>
-                    <ExecutePaymentButton estimateId={e.id} disabled={done} />
+                    <ExecutePaymentButton estimateId={e.id} estimate={e} disabled={done} />
                   </div>
                   <div>
                     <div className="h-2 bg-surface-2 rounded-full overflow-hidden">

@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getAuthenticatedUser } from './auth-helper'
 
 const PROTECTED_PREFIXES = [
   '/dashboard', '/accounts', '/transactions', '/people', '/budget',
@@ -53,8 +54,8 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Revalidar sesión contra el servidor de Supabase y refrescar cookies de ser necesario
-  const { data: { user } } = await supabase.auth.getUser()
+  // Revalidar sesión contra el servidor de Supabase (o resolver offline mediante la cookie de sesión)
+  const user = await getAuthenticatedUser(supabase, cookies)
 
   if (!user && isProtected) {
     const url = request.nextUrl.clone()

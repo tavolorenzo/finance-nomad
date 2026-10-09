@@ -8,6 +8,7 @@ import {
   Users, PiggyBank, Landmark, TrendingUp, Settings
 } from 'lucide-react'
 import { LogoutButton } from './LogoutButton'
+import { SyncStatusBadge } from './SyncStatusBadge'
 import { getEnvironmentInfo } from '@/lib/version'
 
 const MAIN_ITEMS = [
@@ -55,9 +56,18 @@ export function Navigation() {
 
   return (
     <div>
+      {/* ── Top bar mobile (< md) ── */}
+      <header className="md:hidden sticky top-0 inset-x-0 h-12 bg-surface-1/90 backdrop-blur border-b border-border flex items-center justify-between px-4 z-30">
+        <div className="font-display text-base font-medium">Finance Nomad</div>
+        <SyncStatusBadge />
+      </header>
+
       {/* ── Sidebar web (>= md) ── */}
       <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-56 md:border-r md:border-border md:bg-surface-1 md:p-4">
-        <div className="font-display text-lg font-medium mb-6 px-2">Finance Nomad</div>
+        <div className="flex items-center justify-between mb-6 px-2">
+          <div className="font-display text-lg font-medium">Finance Nomad</div>
+          <SyncStatusBadge />
+        </div>
         <Link
           href="/transactions/new"
           className="flex items-center justify-center gap-2 w-full mb-4 bg-accent text-[color:var(--on-accent)] py-2.5 rounded-control text-sm font-medium"

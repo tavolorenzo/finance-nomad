@@ -1,18 +1,16 @@
-# PRD vs. implementación
+# PRD vs. Implementación
 
-Comparación de `docs/PRD.md` (pilares 3.1–3.4 y pantallas de la sección 4, cruzadas con el inventario de `docs/design-system.md` §6) contra el código en `apps/web` y `supabase/migrations`.
+Comparación de [`docs/PRD.md`](PRD.md) (pilares 3.1–3.4 y pantallas de la sección 4, cruzadas con el inventario de [`docs/design-system.md`](design-system.md) y [`docs/architecture.md`](architecture.md)) contra el código actual en `apps/web` y `supabase/migrations`.
 
-Fecha: 27 ago 2026.
+Fecha: 10 oct 2026.
 
 | Cobertura ponderada | Hecho | Parcial | Falta |
 |---|---|---|---|
-| 78% | 16 | 4 | 3 |
+| **84%** | 20 | 2 | 3 |
 
-Ponderación: hecho = 1, parcial = 0.5, falta = 0. Sobre 23 requisitos (arquitectura + pantallas).
+Ponderación: hecho = 1, parcial = 0.5, falta = 0. Sobre 25 requisitos (arquitectura, resilencia + pantallas).
 
-El núcleo del ledger multi-moneda ya corre: cotización, override, cuotas básicas, patrimonio neto, cuentas por institución con detalle y ajuste express, transferencias inter-cuenta y pago de tarjeta de crédito (2 filas ligadas), personas con cobro y WhatsApp, y presupuesto con «ejecutar pago». Auth y RLS están en pie. Lo que falta es sobre todo el modelo contable de extensiones, y las dos pantallas de fase 4 (préstamos y portafolio).
-
-El PRD en `docs/PRD.md` es un índice: el detalle de pantallas vive en `design-system.md` §6 y las reglas de asientos en `.claude/skills/fx-ledger-rules`.
+El núcleo del ledger multi-moneda opera en producción con arquitectura **Local-First / Optimistic-First (Zero-Wait UI)**: cotizaciones FX concurrentes con caché y fallback, cuotas automáticas distribuidas (cuota 1 `COMPLETED`, 2..N `PENDING`), patrimonio neto consolidado, detalle por cuenta con métricas y modales de Ajuste Express y Pago de Tarjeta (2 filas ligadas), directorio y ficha de personas con baja lógica condicional a saldo 0, editor interactivo de WhatsApp (`WhatsAppNotifyModal`), configuración de plantilla dinámica (`/people/template`), y ejecución 1-tap de presupuestos. Todo el ledger se persiste localmente en IndexedDB y se sincroniza en segundo plano con PostgreSQL mediante RPCs indexadas.
 
 ---
 
@@ -20,17 +18,18 @@ El PRD en `docs/PRD.md` es un índice: el detalle de pantallas vive en `design-s
 
 | Área | Requisito | Estado | En el código |
 |---|---|---|---|
-| 3.1 FX | Moneda global configurable + conversión en dashboard | Hecho | `user_settings.display_currency`, Ajustes, `convertToDisplayCurrency` |
-| 3.1 FX | Saldos nominales por producto, sin conversión forzada en Cuentas | Hecho | `getAccountBalances` usa `amount_account` en `currency_native` |
-| 3.1 FX | Toda transacción guarda amount_original + amount_account | Hecho | `master_transactions` + `createTransaction` + `calculateAccountAmount` |
-| 3.1 FX | Tipo de cambio API + override manual persistente | Hecho | frankfurter.app + `rate_overridden` en el formulario |
-| 3.2 Jerarquía | Institución → Cuentas / Créditos / Inversiones | Parcial | CRUD instituciones y cuentas (incl. `credit_card` e `investing`). Sin UI de créditos ni inversiones. |
-| 3.2 Jerarquía | Cuenta Cash por defecto | Hecho | `createInstitution` crea una cuenta "Efectivo" por institución nueva |
-| 3.3 Cuotas | N cuotas = N registros ligados, un mes cada uno | Hecho | N cuotas ligadas mediante `parent_transaction_id`. Cuota 1 `COMPLETED` y cuotas 2..N `PENDING`; no restan saldo nominal anticipado. |
-| 3.3 Extensiones | Gasto a persona incrementa CxC sin alterar deuda con el banco | Parcial | `person_id` + `settled_at`. El mismo `OUTCOME` baja el saldo de la cuenta; no hay asiento de cuenta por cobrar separado. |
-| 3.3 Tarjetas | Pagos de tarjeta = transferencias inter-cuenta | Hecho | `createTransferTransaction` genera 2 filas ligadas por `parent_transaction_id`. Modal en `/accounts/[id]` para tarjetas. |
-| 3.4 Ledger | `master_transactions` es fuente de verdad | Hecho | Dashboard, presupuesto, personas y patrimonio leen el ledger |
-| 2 Workbook | Import del Excel Finances_2026.xlsx | Falta | `SETUP.md` lo deja pendiente. Hoy se usa `seed.sql` de prueba. |
+| 3.1 FX | Moneda global configurable + conversión en dashboard | Hecho | `user_settings.display_currency`, Ajustes, `convertToDisplayCurrency` con `Promise.all` |
+| 3.1 FX | Saldos nominales por producto, sin conversión forzada en Cuentas | Hecho | `getAccountBalances` y RPC `get_account_balances_summary` en moneda nativa |
+| 3.1 FX | Toda transacción guarda amount_original + amount_account | Hecho | `master_transactions` + `buildTransactionBundle` + `calculateAccountAmount` |
+| 3.1 FX | Tipo de cambio en tiempo real + override manual persistente | Hecho | `open.er-api.com` + Frankfurter API, caché 1h TTL, y flag `rate_overridden` |
+| 3.2 Jerarquía | Institución → Cuentas / Créditos / Inversiones | Hecho | CRUD instituciones y cuentas (`checking`, `savings`, `credit_card`, `cash`, `investing`) con soft deletes |
+| 3.2 Jerarquía | Cuenta Cash por defecto | Hecho | `createInstitution` crea automáticamente cuenta "Efectivo" |
+| 3.3 Cuotas | N cuotas = N registros ligados, un mes cada uno | Hecho | `buildTransactionBundle`: cuota 1 `COMPLETED` y cuotas 2..N `PENDING` ligadas por `parent_transaction_id` sin descontar saldo nominal anticipado |
+| 3.3 Extensiones | Gasto a persona incrementa CxC sin alterar deuda con el banco | Parcial | `person_id` + `settled_at`. El `OUTCOME` descuenta de la cuenta seleccionada; falta separar el asiento contable de cuentas por cobrar puro |
+| 3.3 Tarjetas | Pagos de tarjeta = transferencias inter-cuenta | Hecho | `buildTransferBundle` y `RegisterCardPaymentModal` generan 2 filas atómicas ligadas |
+| 3.4 Ledger | `master_transactions` es fuente de verdad con Ledger Bundles | Hecho | Lotes atómicos e idempotentes persistidos mediante RPC `commit_ledger_bundle` |
+| 3.5 Sync | Arquitectura Local-First y Zero-Wait UI | Hecho | Cola Outbox en IndexedDB (`outbox-db.ts`), `sync-engine.ts`, y `useLedger()` (< 16ms en UI) |
+| 2 Workbook | Import del Excel Finances_2026.xlsx | Falta | `SETUP.md` utiliza `seed.sql` por ahora; script de migración masiva pendiente |
 
 ---
 
@@ -38,56 +37,47 @@ El PRD en `docs/PRD.md` es un índice: el detalle de pantallas vive en `design-s
 
 | Pantalla | Ruta | Estado | Notas |
 |---|---|---|---|
-| Dashboard | `/dashboard` | Hecho | Patrimonio, presupuesto del mes, cuentas, feed. Enlaces directos a cuentas. |
-| Cuentas y bancos | `/accounts` | Hecho | Acordeón por institución, CRUD, baja lógica `is_active`. |
-| Detalle de cuenta | `/accounts/[id]` | Hecho | Header con saldo nominal, feed filtrado, métricas del mes, Ajuste Express y Registrar pago en tarjetas. |
-| Formulario universal | `/transactions/new` | Hecho | Gasto/ingreso/transferencia, FX en vivo, fees, cuotas (1 hoy + N-1 pendientes), persona y cuentas origen/destino. |
-| Transferencias | — | Hecho | Regla de 2 filas ligadas por `parent_transaction_id` en `createTransferTransaction` e integrada en UI. |
-| Personas | `/people` | Hecho | Directorio, saldos pendientes por moneda, CRUD completo (alta, edición de nombre y teléfono, y baja lógica condicional a saldo 0). |
-| Ficha de persona | `/people/[id]` | Hecho | Pendiente / cuotas futuras / historial, WhatsApp, registrar cobro, acceso a edición y estado activo/desactivado. |
-| Gastos fijos / Presupuesto | `/budget` | Hecho | Estimados vs real + Ejecutar pago. Sin alta/edición de estimados en UI. |
-| Préstamos | `/loans` | Falta | Tablas `loans` + `loan_installments` y RLS. Nav dice «pronto». |
-| Portafolio | `/portfolio` | Falta | Tabla `portfolio_transactions` y RLS. Nav dice «pronto». |
-| Ajustes | `/settings` | Hecho | Moneda global y selector de tema claro / oscuro persistente. |
-| Movimientos | `/transactions` | Hecho | Lista con badges de cuotas y estado PENDING, y botón de confirmación. |
+| Dashboard | `/dashboard` | Hecho | Patrimonio neto consolidado, presupuesto mensual, carrusel de cuentas, feed y `SyncStatusBadge`. |
+| Cuentas y bancos | `/accounts` | Hecho | Acordeón por institución, CRUD con modales interceptados, totales y baja lógica `is_active`. |
+| Detalle de cuenta | `/accounts/[id]` | Hecho | Saldo nominal, balance disponible y compromisos de cuotas diferidas, métricas mensuales, `ExpressAdjustModal` y `RegisterCardPaymentModal`. |
+| Formulario universal | `/transactions/new` | Hecho | Gasto/ingreso/transferencia, Zero-Wait UI, FX en vivo, fees, cuotas (1 hoy + N-1 diferidas), persona y cuentas origen/destino. |
+| Transferencias | — | Hecho | Generación de 2 filas complementarias ligadas por `parent_transaction_id` integrada en UI y modal. |
+| Personas | `/people` | Hecho | Directorio con saldo pendiente por moneda, CRUD completo (`/people/new`, `/people/[id]/edit`), baja lógica protegida a saldo 0. |
+| Ficha de persona | `/people/[id]` | Hecho | Saldo por cobrar, cuotas comprometidas futuras, historial filtrado, registrar cobro (`settled_at`) y botón "Notificar por WhatsApp". |
+| Notificación WhatsApp | `WhatsAppNotifyModal` | Hecho | Modal interactivo para verificar destinatario, editar mensaje y abrir en WhatsApp Web/App (`wa.me`). |
+| Plantilla WhatsApp | `/people/template` | Hecho | Editor con variables dinámicas (`$Nombre`, `$Total`, `$Detalle`, `$Cantidad`, `$Fecha`), live preview y persistencia en `user_settings`. |
+| Gastos fijos / Presupuesto | `/budget` | Parcial | Estimados vs. gasto real + botón 1-tap "Ejecutar pago". Falta formulario para crear y editar `budget_estimates` en UI. |
+| Préstamos | `/loans` | Falta | Tablas `loans` y `loan_installments` definidas en SQL con RLS. Navegación indica "pronto". |
+| Portafolio | `/portfolio` | Falta | Tabla `portfolio_transactions` definida en SQL con RLS. Navegación indica "pronto". |
+| Ajustes | `/settings` | Hecho | Moneda global, selector de tema claro/oscuro persistente, reseteo de contraseña e información del entorno (`SystemInfoCard`). |
+| Movimientos | `/transactions` | Hecho | Feed reactivo (`TransactionsList`) con badges de cuotas, confirmación de pendientes y paginación histórica cursor-based. |
 
 ---
 
-## Huecos de negocio pendientes
+## Implementado adicionalmente (fuera del PRD base)
 
-**Extensiones vs. deuda del banco.** Asignar persona etiqueta el mismo gasto. El saldo de la tarjeta baja igual. El PRD pide CxC sin tocar la deuda bancaria.
-
-
----
-
-## Schema sin pantalla
-
-| Estado | Qué | Detalle |
-|---|---|---|
-| Falta | Préstamos — `loans` / `loan_installments` | Principal, dirección `BORROWED`/`LENT`, tabla de amortización. Cero rutas ni actions. |
-| Falta | Portafolio — `portfolio_transactions` | `BUY`/`SELL`, ticker, units, `funding_account`. Cero rutas ni P&L. |
-| Parcial | Presupuesto — alta de estimados | Se leen y se ejecutan. No hay formulario para crear o editar `budget_estimates` (solo seed). |
-
----
-
-## Implementado además del PRD corto
-
-| Extra | Dónde |
+| Característica | Ubicación / Componente |
 |---|---|
-| Auth (login, middleware, confirm) | `apps/web/app/login`, `middleware.ts` |
-| Intercepting routes / modal de formularios | `app/(protected)/@modal` |
-| Registrar cobro (`settled_at`) | `people/actions.ts` |
-| Notificar por WhatsApp | `PersonActions.tsx` |
-| Ejecutar pago de estimado | `budget/actions.ts` |
+| Arquitectura Local-First & Zero-Wait UI | `apps/web/lib/ledger/`, `lib/storage/`, `lib/sync/`, `SyncStatusBadge.tsx` |
+| Agregación SQL Indexada de Balances | RPC `get_account_balances_summary` (`0008_ledger_sync_and_snapshot.sql`) |
+| Inserción atómica idempotente en BD | RPC `commit_ledger_bundle` (`0008_ledger_sync_and_snapshot.sql`) |
+| Endpoint snapshot unificado de arranque | `GET /api/bootstrap` (< 80 ms) |
+| Paginación cursor-based histórica | `GET /api/transactions` |
+| Motor FX con caché en memoria y concurrencia | `apps/web/lib/fx/index.ts` (open.er-api + frankfurter, TTL 1h) |
+| Editor interactivo de WhatsApp | `apps/web/components/WhatsAppNotifyModal.tsx` |
+| Configuración de plantilla dinámica con tokens | `apps/web/components/WhatsAppTemplateForm.tsx` (`/people/template`) |
+| Ficha de información técnica del sistema | `apps/web/components/SystemInfoCard.tsx` (versión, git hash, rama, entorno) |
+| Modo oscuro completo y switch en navegación | `apps/web/components/ThemeToggle.tsx` + `globals.css` (`data-theme`) |
+| Suite de pruebas unitarias automatizadas | Vitest (28 tests pasando en 5 suites) |
 
 ---
 
 ## Orden sugerido para cerrar el PRD
 
-1. Transferencias (2 filas ligadas) y pago de tarjeta como transferencia.
-2. Ligar cuotas con `parent_transaction_id` y marcar futuras `PENDING` hasta que venzan o se confirmen.
-3. Modelo de extensión: CxC sin duplicar la deuda de la tarjeta.
-4. Detalle de cuenta + ajuste express.
-5. CRUD de estimados de presupuesto.
-6. Fase 4: Préstamos y Portafolio (schema ya listo).
-7. Import del workbook Finances_2026.xlsx.
+1. **Modelo contable de extensiones**: Separar el asiento contable de cuentas por cobrar para atribuir gastos a terceros sin descontar la deuda bancaria de la tarjeta.
+2. **CRUD de estimados de presupuesto**: Agregar pantallas/modales para crear, editar y desactivar registros en `budget_estimates`.
+3. **Fase 4 — Préstamos (`/loans`)**: UI de tabla de amortización dinámica y registro de cuotas desglosando capital e intereses.
+4. **Fase 4 — Portafolio (`/portfolio`)**: UI de compras/ventas de activos, cotizaciones y cálculo de ganancias/pérdidas no realizadas (P&L).
+5. **Import masivo de Finances_2026.xlsx**: Script ETL para migrar el historial del Excel a las tablas de Supabase.
+6. **Fase 5 — Empaquetado Android (Capacitor)**: Compilación y validación de build nativo APK/AAB.
+

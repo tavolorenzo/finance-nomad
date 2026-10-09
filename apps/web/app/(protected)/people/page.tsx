@@ -7,20 +7,29 @@ import type { MasterTransaction, Person } from '@/lib/types'
 export default async function PeoplePage() {
   const supabase = await createClient()
 
-  const [{ data: people }, { data: pending }] = await Promise.all([
-    supabase
-      .from('people')
-      .select('*')
-      .neq('name', 'Personal')
-      .returns<Person[]>(),
-    supabase
-      .from('master_transactions')
-      .select('person_id, amount_account, currency_account')
-      .is('settled_at', null)
-      .eq('type', 'OUTCOME')
-      .not('person_id', 'is', null)
-      .returns<Pick<MasterTransaction, 'person_id' | 'amount_account' | 'currency_account'>[]>()
-  ])
+  let people: Person[] = []
+  let pending: Pick<MasterTransaction, 'person_id' | 'amount_account' | 'currency_account'>[] = []
+
+  try {
+    const [{ data: peopleData }, { data: pendingData }] = await Promise.all([
+      supabase
+        .from('people')
+        .select('*')
+        .neq('name', 'Personal')
+        .returns<Person[]>(),
+      supabase
+        .from('master_transactions')
+        .select('person_id, amount_account, currency_account')
+        .is('settled_at', null)
+        .eq('type', 'OUTCOME')
+        .not('person_id', 'is', null)
+        .returns<Pick<MasterTransaction, 'person_id' | 'amount_account' | 'currency_account'>[]>()
+    ])
+    people = peopleData ?? []
+    pending = pendingData ?? []
+  } catch {
+    // Si la conexión falla (offline), mostramos estado vacío seguro
+  }
 
   const totalsByPerson = new Map<string, Map<string, number>>()
   for (const t of pending ?? []) {

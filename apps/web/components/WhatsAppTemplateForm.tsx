@@ -2,9 +2,11 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, RotateCcw } from 'lucide-react'
+import { Check, RotateCcw, CloudOff } from 'lucide-react'
 import { useModal } from '@/components/Modal'
 import { updateWhatsAppTemplate } from '@/app/(protected)/people/actions'
+import { useOptionalLedger } from '@/lib/ledger/ledger-context'
+import { useOnlineStatus } from '@/lib/hooks/use-online-status'
 import {
   DEFAULT_WHATSAPP_TEMPLATE,
   WHATSAPP_VARIABLES,
@@ -18,6 +20,8 @@ export function WhatsAppTemplateForm({
 }) {
   const router = useRouter()
   const { isModal, close } = useModal()
+  const ledger = useOptionalLedger()
+  const isOnline = useOnlineStatus()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const [template, setTemplate] = useState(
@@ -63,11 +67,18 @@ export function WhatsAppTemplateForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+
+    if (!isOnline) {
+      setError('No tenés conexión a internet. Conectate para continuar.')
+      return
+    }
+
     setLoading(true)
     setSaved(false)
 
     try {
       await updateWhatsAppTemplate(template)
+      await ledger?.refresh().catch(() => {})
       setSaved(true)
       router.refresh()
 
@@ -97,6 +108,14 @@ export function WhatsAppTemplateForm({
 
   return (
     <form onSubmit={handleSubmit} className="p-4 md:p-5 space-y-5">
+      {!isOnline && (
+        <div className="bg-surface-2 border border-border rounded-control p-3 text-xs text-text-secondary flex items-start gap-2.5">
+          <CloudOff size={16} className="text-text-muted shrink-0 mt-0.5" />
+          <p>
+            Estás sin conexión a internet. Para modificar la plantilla de WhatsApp necesitás estar conectado para sincronizar con el servidor.
+          </p>
+        </div>
+      )}
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="block text-xs font-semibold text-text-primary uppercase tracking-wider">
@@ -176,10 +195,12 @@ export function WhatsAppTemplateForm({
       <div className="flex items-center gap-2 pt-1">
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !isOnline}
           className="flex-1 bg-accent text-[color:var(--on-accent)] py-2.5 rounded-control font-medium text-sm hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
         >
-          {loading ? (
+          {!isOnline ? (
+            'Sin conexión a internet'
+          ) : loading ? (
             'Guardando...'
           ) : saved ? (
             <>

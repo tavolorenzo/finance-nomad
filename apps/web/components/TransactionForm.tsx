@@ -1,13 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { ArrowRight, ArrowRightLeft } from 'lucide-react'
-import {
-  createTransaction,
-  createTransferTransaction,
-  fetchExchangeRate
-} from '@/app/(protected)/transactions/new/actions'
-import { rethrowIfRedirect } from '@/lib/next/rethrow-redirect'
+import { fetchExchangeRate } from '@/app/(protected)/transactions/new/actions'
+import { useModal } from '@/components/Modal'
+import { useLedger } from '@/lib/ledger/ledger-context'
+import { getCachedRate, setCachedRate } from '@/lib/storage/fx-cache'
+import { useOnlineStatus } from '@/lib/hooks/use-online-status'
 import type { Account, Category, Person } from '@/lib/types'
 
 const CURRENCIES = ['AUD', 'EUR', 'USD', 'UYU', 'NZD']
@@ -24,6 +24,7 @@ export function TransactionForm({
   people: Person[]
   defaultDate: string
 }) {
+  const isOnline = useOnlineStatus()
   const [type, setType] = useState<'OUTCOME' | 'INCOME' | 'TRANSFER'>('OUTCOME')
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? '')
   const [toAccountId, setToAccountId] = useState(
@@ -34,6 +35,7 @@ export function TransactionForm({
   const [fee, setFee] = useState('0')
   const [rate, setRate] = useState<number>(1)
   const [rateOverridden, setRateOverridden] = useState(false)
+  const [rateFetchedAt, setRateFetchedAt] = useState<string | null>(null)
   const [date, setDate] = useState(defaultDate)
   const [categoryId, setCategoryId] = useState<string | null>(categories[0]?.id ?? null)
   const [personId, setPersonId] = useState<string | null>(
@@ -42,7 +44,6 @@ export function TransactionForm({
   const [installments, setInstallments] = useState(1)
   const [notes, setNotes] = useState('')
   const [rateError, setRateError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
 
   const activePeople = people.filter((p) => p.is_active !== false || p.id === personId)
   const isTransfer = type === 'TRANSFER'
@@ -62,57 +63,103 @@ export function TransactionForm({
     }
   }, [accountId, account?.currency_native, isTransfer])
 
-  // Tipo de cambio automático
+  // Tipo de cambio local-first (0ms) con refresco en background
   useEffect(() => {
     if (rateOverridden) return
     if (currency === targetCurrency) {
       setRate(1)
+      setRateFetchedAt(null)
       setRateError(null)
       return
     }
+
+    // 1. Intentar resolver inmediatamente desde la caché local (24h TTL)
+    const cached = getCachedRate(currency, targetCurrency)
+    if (cached) {
+      setRate(cached.rate)
+      setRateFetchedAt(new Date(cached.timestamp).toISOString())
+      setRateError(null)
+
+      // Si la tasa local está expirada y tenemos conexión, refrescar en segundo plano
+      if (cached.isExpired && isOnline) {
+        fetchExchangeRate(currency, targetCurrency, date)
+          .then((freshRate) => {
+            if (!rateOverridden) {
+              setRate(freshRate)
+              setRateFetchedAt(new Date().toISOString())
+              setCachedRate(currency, targetCurrency, freshRate)
+            }
+          })
+          .catch(() => {
+            // Silencioso: mantenemos la cotización local existente
+          })
+      }
+      return
+    }
+
+    // 2. Si no hay cotización en caché local
+    if (!isOnline) {
+      setRateError('Sin conexión ni cotización guardada. Ingresá el tipo de cambio a mano.')
+      return
+    }
+
     fetchExchangeRate(currency, targetCurrency, date)
-      .then((r) => {
-        setRate(r)
-        setRateError(null)
+      .then((freshRate) => {
+        if (!rateOverridden) {
+          setRate(freshRate)
+          setRateFetchedAt(new Date().toISOString())
+          setCachedRate(currency, targetCurrency, freshRate)
+          setRateError(null)
+        }
       })
       .catch(() => setRateError('No pudimos obtener el tipo de cambio. Ingresalo a mano.'))
-  }, [date, currency, targetCurrency, rateOverridden])
+  }, [date, currency, targetCurrency, rateOverridden, isOnline])
 
   const amountNum = parseFloat(amount) || 0
   const feeNum = parseFloat(fee) || 0
   const converted = Math.max(0, amountNum - feeNum) * rate
 
+  const router = useRouter()
+  const { isModal, close } = useModal()
+  const ledger = useLedger()
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (amountNum <= 0) return
-    setSaving(true)
+
     try {
       if (isTransfer) {
         if (!toAccountId || accountId === toAccountId) {
           alert('Seleccioná una cuenta de destino diferente a la de origen.')
-          setSaving(false)
           return
         }
 
-        await createTransferTransaction({
-          fromAccountId: accountId,
-          toAccountId,
+        if (!account || !toAccount) {
+          alert('Seleccioná cuentas válidas.')
+          return
+        }
+
+        await ledger.addTransfer({
+          fromAccount: account,
+          toAccount,
           amountOriginal: amountNum,
           currencyOriginal: currency,
           feeAmount: feeNum,
           exchangeRate: rate,
           rateOverridden,
+          rateFetchedAt,
           date,
           notes: notes.trim() || null
         })
       } else {
-        await createTransaction({
+        await ledger.addTransaction({
           type,
           amountOriginal: amountNum,
           currencyOriginal: currency,
           feeAmount: feeNum,
           exchangeRate: rate,
           rateOverridden,
+          rateFetchedAt,
           currencyAccount: targetCurrency,
           date,
           institutionId: account?.institution_id ?? '',
@@ -123,9 +170,16 @@ export function TransactionForm({
           notes: notes.trim() || null
         })
       }
+
+      // Cierre y navegación inmediata (< 16ms)
+      if (isModal) {
+        close()
+      } else {
+        router.push('/dashboard')
+      }
     } catch (err) {
-      rethrowIfRedirect(err)
-      setSaving(false)
+      console.error('Error al registrar movimiento:', err)
+      alert('Ocurrió un error al registrar el movimiento.')
     }
   }
 
@@ -275,6 +329,15 @@ export function TransactionForm({
               1 {currency} = {rate.toFixed(4)} {targetCurrency}
             </p>
             {rateError && <p className="text-xs text-expense mt-1">{rateError}</p>}
+            {!rateError && (
+              <p className="text-[10px] text-text-muted mt-0.5">
+                {rateOverridden
+                  ? 'Cotización manual (personalizada)'
+                  : rateFetchedAt
+                  ? `Cotización de referencia (${new Date(rateFetchedAt).toLocaleDateString()})`
+                  : 'Cotización automática'}
+              </p>
+            )}
           </div>
           <input
             type="number"
@@ -283,6 +346,7 @@ export function TransactionForm({
             onChange={(e) => {
               setRate(parseFloat(e.target.value) || 0)
               setRateOverridden(true)
+              setRateFetchedAt(null)
             }}
             className="w-24 text-right font-mono text-sm"
           />
@@ -397,12 +461,10 @@ export function TransactionForm({
 
       <button
         type="submit"
-        disabled={saving || amountNum <= 0}
+        disabled={amountNum <= 0}
         className="w-full bg-accent text-[color:var(--on-accent)] py-3 rounded-control font-medium hover:opacity-90 transition disabled:opacity-50 text-sm"
       >
-        {saving
-          ? 'Guardando...'
-          : isTransfer
+        {isTransfer
           ? toAccount?.type === 'credit_card'
             ? 'Registrar pago de tarjeta'
             : 'Transferir entre cuentas'

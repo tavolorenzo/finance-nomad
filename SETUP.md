@@ -1,4 +1,4 @@
-npm# Setup en tu Mac — paso a paso
+# Setup en tu Mac — paso a paso
 
 Hacé esto en orden. Cada paso asume que terminaste el anterior.
 
@@ -49,15 +49,20 @@ estás parado en la raíz del proyecto (donde está la carpeta `.claude/`).
 ## 4. Crear el proyecto en Supabase (gratis)
 
 1. Andá a supabase.com → New project. Elegí una región cercana.
-2. Cuando esté listo, andá a **SQL Editor** → pegá el contenido completo de
-   `supabase/migrations/0001_init_schema.sql` → Run.
+2. Cuando esté listo, andá a **SQL Editor** → Corré en orden los scripts de migraciones completos:
+   - `supabase/migrations/0001_init_schema.sql`
+   - `supabase/migrations/0002_settlements_and_phone.sql`
+   - `supabase/migrations/0003_user_settings.sql`
+   - `supabase/migrations/0004_active_flags.sql`
+   - `supabase/migrations/0005_prevent_hard_delete.sql`
+   - `supabase/migrations/0006_people_is_active.sql`
+   - `supabase/migrations/0007_whatsapp_template.sql`
+   - `supabase/migrations/0008_ledger_sync_and_snapshot.sql`
 3. Andá a **Authentication → Users → Add user** y creá tu propio usuario
    (email + password). Copiá el UUID que te muestra la tabla.
 4. Abrí `supabase/seed.sql`, reemplazá `TU_USER_ID_ACA` por ese UUID, y
-   corré el script completo en el SQL Editor. Esto reemplaza el import del
-   Excel por ahora — te deja bancos, cuentas, personas y categorías básicas
-   para poder probar la app ya mismo. El import real del historial completo
-   queda pendiente como tarea separada de `db-architect`.
+   corré el script completo en el SQL Editor. Esto te deja bancos, cuentas,
+   personas y categorías básicas para poder probar la app ya mismo.
 5. Andá a **Project Settings → API** y copiá `Project URL` y `anon public key`.
 6. En **Authentication → URL Configuration**, agregá estos Redirect URLs (además de Site URL):
    - `http://localhost:3000/auth/confirm`
@@ -84,11 +89,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key
 
 ```bash
 npm install
+npm test          # corre la suite de 28 pruebas unitarias en Vitest
 npm run dev
 ```
 
 Abrí `http://localhost:3000/dashboard` — deberías ver la card de "Patrimonio
-neto" en `€ 0.00` con los tokens de color aplicados.
+neto" con los tokens de color aplicados.
 
 ## 7. Deploy a Vercel (gratis)
 
@@ -100,24 +106,19 @@ neto" en `€ 0.00` con los tokens de color aplicados.
 
 ## 8. Próximo paso de contenido (no de setup)
 
-Con esto instalado, el siguiente mensaje que le mandes a Claude Code puede
-ser directamente:
+Con esto instalado, podés avanzar en la implementación de las siguientes fases
+(ver `docs/agents-and-skills.md` y `docs/prd-gap-analysis.md` para el estado actual).
 
-> Usá el agente db-architect para escribir el script que lea
-> Finances_2026.xlsx y lo cargue en las tablas de Supabase respetando el
-> schema de 0001_init_schema.sql
+## 9. Empaquetado móvil (Capacitor / Android)
 
-Eso arranca la Fase 0 del plan (`docs/agents-and-skills.md`).
-
-## 9. Recién en la fase 5 — Android
-
-No hace falta ahora. Cuando llegues ahí:
+Las dependencias de `@capacitor/core`, `@capacitor/cli` y `@capacitor/android` ya
+están incluidas en `package.json`. Cuando vayas a generar la versión Android nativa:
 
 ```bash
-npm install -D @capacitor/core @capacitor/cli @capacitor/android
 npx cap init "Finance Nomad" "com.gustavo.financenomad"
 npx cap add android
 ```
 
 Requiere Android Studio instalado (Android SDK + un emulador o tu teléfono
 en modo desarrollador conectado por USB para probar el `.apk` real).
+

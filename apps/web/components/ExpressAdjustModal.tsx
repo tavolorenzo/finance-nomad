@@ -4,17 +4,20 @@ import { useState, useEffect } from 'react'
 import { SlidersHorizontal, X, ArrowUpRight, ArrowDownLeft, Check } from 'lucide-react'
 import { createBalanceAdjustment } from '@/app/(protected)/accounts/actions'
 import { formatMoney } from '@/lib/currency'
+import { useOptionalLedger } from '@/lib/ledger/ledger-context'
 
 interface ExpressAdjustModalProps {
   account: {
     id: string
     name: string
     currency_native: string
+    institution_id?: string
   }
   currentBalance: number
 }
 
 export function ExpressAdjustModal({ account, currentBalance }: ExpressAdjustModalProps) {
+  const ledger = useOptionalLedger()
   const [isOpen, setIsOpen] = useState(false)
   const [targetBalance, setTargetBalance] = useState('')
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
@@ -33,9 +36,10 @@ export function ExpressAdjustModal({ account, currentBalance }: ExpressAdjustMod
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [isOpen])
 
+  const effectiveBalance = ledger ? ledger.getBalance(account.id) : currentBalance
   const targetNum = parseFloat(targetBalance)
   const isValidTarget = !isNaN(targetNum)
-  const delta = isValidTarget ? Math.round((targetNum - currentBalance) * 100) / 100 : 0
+  const delta = isValidTarget ? Math.round((targetNum - effectiveBalance) * 100) / 100 : 0
   const isZeroDelta = isValidTarget && delta === 0
 
   function handleOpen() {
@@ -62,12 +66,36 @@ export function ExpressAdjustModal({ account, currentBalance }: ExpressAdjustMod
     setError(null)
 
     try {
-      await createBalanceAdjustment({
-        accountId: account.id,
-        targetBalance: targetNum,
-        date,
-        notes
-      })
+      if (ledger) {
+        const institutionId =
+          account.institution_id ||
+          ledger.accounts.find((a) => a.id === account.id)?.institution_id ||
+          ''
+        await ledger.addTransaction({
+          type: 'ADJUSTMENT',
+          amountOriginal: delta,
+          currencyOriginal: account.currency_native,
+          feeAmount: 0,
+          exchangeRate: 1,
+          rateOverridden: false,
+          amountAccount: delta,
+          currencyAccount: account.currency_native,
+          date,
+          institutionId,
+          accountId: account.id,
+          categoryId: null,
+          personId: null,
+          installmentTotal: 1,
+          notes: notes.trim() || 'Ajuste express de saldo'
+        })
+      } else {
+        await createBalanceAdjustment({
+          accountId: account.id,
+          targetBalance: targetNum,
+          date,
+          notes
+        })
+      }
       setSuccess(true)
       setTimeout(() => {
         setIsOpen(false)
@@ -137,7 +165,7 @@ export function ExpressAdjustModal({ account, currentBalance }: ExpressAdjustMod
               <div className="bg-surface-2/60 border border-border/80 rounded-control p-3 flex justify-between items-center">
                 <span className="text-xs text-text-secondary font-medium">Saldo actual en sistema</span>
                 <span className="font-mono text-sm font-semibold text-text-primary">
-                  {formatMoney(currentBalance, account.currency_native)}
+                  {formatMoney(effectiveBalance, account.currency_native)}
                 </span>
               </div>
 

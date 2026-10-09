@@ -44,3 +44,13 @@ Este archivo contiene las directivas y restricciones obligatorias para cualquier
 * **Integridad y Soft Deletes**: No realizar borrados físicos (`DELETE`) en `institutions` ni `accounts` (el trigger SQL `prevent_account_hard_delete` lanzará excepción). Utilizar siempre `is_active = false`.
 * **Migraciones**: Nuevas estructuras deben crearse en un archivo versionado `supabase/migrations/NNNN_descripcion.sql`. Nunca modificar migraciones ya aplicadas.
 * **Recordatorio Obligatorio de Scripts SQL**: En cada tarea, funcionalidad o bugfix que requiera una migración o actualización en la base de datos (`supabase/migrations/*.sql`), **es OBLIGATORIO recordar explícitamente al usuario ejecutar el script SQL** en el SQL Editor de Supabase, incluyendo siempre las instrucciones y el bloque de código SQL completo listo para copiar y ejecutar.
+
+---
+
+## 5. Directivas de Sincronización y Mutaciones en Cliente
+
+* **Ledger Bundles**: Toda operación contable generada en la UI debe encapsularse en un `LedgerBundle` con UUIDs asignados mediante `crypto.randomUUID()` en el cliente. Queda prohibido persistir o sincronizar filas huérfanas de cuotas o transferencias.
+* **Cálculo de Saldos (Baseline + Delta)**: No descargar historiales completos para computar saldos en memoria de Node o browser. Usar siempre el baseline provisto por el backend más los deltas de las filas locales `COMPLETED`.
+* **Zero-Wait UI (Exclusivo Ledger Transaccional)**: Los formularios y acciones de registro contable (`master_transactions`) no deben congelar la UI esperando respuestas de red. Las mutaciones se reflejan al instante en la memoria local y se encolan en el Outbox para su respaldo en background.
+* **Catálogos Maestros (Online-First)**: La creación y edición de instituciones, cuentas y personas se procesa de forma síncrona mediante Server Actions contra Supabase. En formularios de catálogo (`InstitutionForm`, `PersonForm`, `AccountForm`), se debe validar conectividad con `useOnlineStatus()` mostrando feedback preventivo y deshabilitando el botón de submit si el usuario está offline para evitar fallos de red silenciosos.
+

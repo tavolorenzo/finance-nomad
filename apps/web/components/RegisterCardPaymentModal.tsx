@@ -5,6 +5,7 @@ import { CreditCard, X, Check, ArrowDownLeft, AlertCircle } from 'lucide-react'
 import { createTransferTransaction, fetchExchangeRate } from '@/app/(protected)/transactions/new/actions'
 import { formatMoney } from '@/lib/currency'
 import type { Account } from '@/lib/types'
+import { useOptionalLedger } from '@/lib/ledger/ledger-context'
 
 interface RegisterCardPaymentModalProps {
   cardAccount: {
@@ -21,12 +22,14 @@ export function RegisterCardPaymentModal({
   currentBalance,
   fundingAccounts
 }: RegisterCardPaymentModalProps) {
+  const ledger = useOptionalLedger()
   const [isOpen, setIsOpen] = useState(false)
   const availableFunding = fundingAccounts.filter((a) => a.id !== cardAccount.id && a.is_active)
   const [sourceAccountId, setSourceAccountId] = useState(availableFunding[0]?.id ?? '')
 
   // Deuda actual si el saldo es negativo (en tarjetas, balance < 0 significa deuda acumulada)
-  const currentDebt = currentBalance < 0 ? Math.abs(currentBalance) : 0
+  const effectiveBalance = ledger ? ledger.getBalance(cardAccount.id) : currentBalance
+  const currentDebt = effectiveBalance < 0 ? Math.abs(effectiveBalance) : 0
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [notes, setNotes] = useState(`Pago de tarjeta ${cardAccount.name}`)
@@ -93,20 +96,52 @@ export function RegisterCardPaymentModal({
     setError(null)
 
     try {
-      await createTransferTransaction({
-        fromAccountId: sourceAccountId,
-        toAccountId: cardAccount.id,
-        amountOriginal: amountNum,
-        currencyOriginal: cardCurrency,
-        amountFrom: Math.round(sourceDebit * 100) / 100,
-        amountTo: amountNum,
-        feeAmount: 0,
-        exchangeRate: rate,
-        rateOverridden: false,
-        date,
-        notes: notes.trim() || `Pago de tarjeta ${cardAccount.name}`,
-        shouldRedirect: false
-      })
+      if (ledger && selectedSource) {
+        const cardInstitutionId =
+          (cardAccount as any).institution_id ||
+          ledger.accounts.find((a) => a.id === cardAccount.id)?.institution_id ||
+          ''
+        await ledger.addTransfer({
+          fromAccount: {
+            id: selectedSource.id,
+            name: selectedSource.name,
+            currency_native: sourceCurrency,
+            institution_id: selectedSource.institution_id,
+            type: selectedSource.type
+          },
+          toAccount: {
+            id: cardAccount.id,
+            name: cardAccount.name,
+            currency_native: cardCurrency,
+            institution_id: cardInstitutionId,
+            type: 'credit_card'
+          },
+          amountOriginal: amountNum,
+          currencyOriginal: cardCurrency,
+          amountFrom: Math.round(sourceDebit * 100) / 100,
+          amountTo: amountNum,
+          feeAmount: 0,
+          exchangeRate: rate,
+          rateOverridden: false,
+          date,
+          notes: notes.trim() || `Pago de tarjeta ${cardAccount.name}`
+        })
+      } else {
+        await createTransferTransaction({
+          fromAccountId: sourceAccountId,
+          toAccountId: cardAccount.id,
+          amountOriginal: amountNum,
+          currencyOriginal: cardCurrency,
+          amountFrom: Math.round(sourceDebit * 100) / 100,
+          amountTo: amountNum,
+          feeAmount: 0,
+          exchangeRate: rate,
+          rateOverridden: false,
+          date,
+          notes: notes.trim() || `Pago de tarjeta ${cardAccount.name}`,
+          shouldRedirect: false
+        })
+      }
 
       setSuccess(true)
       setTimeout(() => {

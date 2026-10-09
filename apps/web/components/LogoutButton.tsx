@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { clearLedgerDb } from '@/lib/storage/outbox-db'
 import { LogOut } from 'lucide-react'
 
 export function LogoutButton({ variant = 'row' }: { variant?: 'row' | 'icon' }) {
@@ -9,6 +10,7 @@ export function LogoutButton({ variant = 'row' }: { variant?: 'row' | 'icon' }) 
 
   async function handleLogout() {
     const supabase = createClient()
+    await clearLedgerDb().catch(() => {})
     await supabase.auth.signOut()
     router.push('/login')
     router.refresh()

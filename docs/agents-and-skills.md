@@ -18,7 +18,7 @@ Para un proyecto personal, 4 agentes alcanzan. Más que eso es overhead de coord
 |---|---|---|---|
 | **db-architect** | Schema SQL, migraciones, RLS policies, script de import del Excel a Supabase | `PRD.md` §5 (esquema), `Finances_2026.xlsx` | Componentes de UI |
 | **ui-builder** | Construye pantallas Next.js/Tailwind siguiendo el inventario de pantallas | `design-system.md` completo, mapa de rutas | Lógica de conversión de moneda, schema SQL |
-| **ledger-logic** | La lógica más delicada: conversión FX, generación de N cuotas, transferencias con `parent_transaction_id`, cálculo de patrimonio neto | `PRD.md` §3 (reglas de negocio) | Estilos, copy, layout |
+| **ledger-logic** | La lógica más delicada: conversión FX, generación de N cuotas, transferencias con `parent_transaction_id`, cálculo de patrimonio neto y lotes atómicos (Ledger Bundles) | `PRD.md` §3 (reglas de negocio), `architecture.md` (lotes, outbox y saldos) | Estilos, copy, layout |
 | **qa-reviewer** | Corre al cerrar cada fase del plan: casos límite de redondeo multi-moneda, cuotas mal generadas, RLS que filtra de más o de menos | Todo lo anterior + tests existentes | No escribe features nuevas, solo reporta y corrige bugs puntuales |
 
 Un quinto agente, **capacitor-release**, se suma recién en la fase 5 (empaquetado Android) — no vale la pena definirlo antes, cambiaría poco entre ahora y entonces.
@@ -33,9 +33,9 @@ tools: Read, Edit, Bash
 ---
 
 Sos responsable de la lógica de negocio del ledger financiero descripta en
-PRD.md sección 3. Reglas no negociables:
+PRD.md sección 3 y architecture.md. Reglas no negociables:
 - Toda transacción guarda amount_original + amount_account, nunca solo uno.
-- Las cuotas se generan como N filas atómicas (transacción SQL), nunca una por una.
+- Las cuotas se generan como N filas atómicas (transacción SQL o LedgerBundle), nunca una por una.
 - El tipo de cambio manual, una vez editado por el usuario, no se vuelve a
   pisar automáticamente (rateOverridden: true).
 - Nunca redondees un monto antes de guardarlo en la base — el redondeo es
@@ -51,10 +51,11 @@ Estas no son agentes — son documentos que cualquier agente (o vos en una sesi�
 | Skill | Contenido | Se dispara al... |
 |---|---|---|
 | `design-system/SKILL.md` | Apunta a `design-system.md`: tokens de color, tipografía, componentes | crear o editar cualquier archivo en `components/` o `app/**/page.tsx` |
-| `fx-ledger-rules/SKILL.md` | Reglas de conversión, redondeo, cuotas — resumen ejecutable de PRD §3 | tocar `lib/fx/`, `lib/currency.ts`, o cualquier hook de transacciones |
-| `supabase-conventions/SKILL.md` | Convención de nombres de tablas/columnas, patrón de RLS policy, cómo versionar migraciones | crear una migración nueva en `supabase/migrations/` |
+| `fx-ledger-rules/SKILL.md` | Reglas de conversión, redondeo, cuotas, LedgerBundles y saldos Baseline+Delta | tocar `lib/fx/`, `lib/currency.ts`, `lib/ledger/`, o hooks contables |
+| `supabase-conventions/SKILL.md` | Convención de nombres de tablas/columnas, soft deletes, RPCs, patrón de RLS | crear una migración nueva en `supabase/migrations/` |
 | `copy-style/SKILL.md` | El copy deck completo (sección 7 de `design-system.md`): tono vos, rioplatense, sin "por favor" | escribir cualquier string visible al usuario |
 | `changelog/SKILL.md` | Reglas y formato para actualizar `docs/CHANGELOG.md` tras cada cambio | completar cualquier tarea, bugfix o nueva funcionalidad |
+
 
 Cada `SKILL.md` es corto (media página) — el objetivo es que el agente no tenga que releer `design-system.md` entero por un cambio de un botón, solo la porción relevante.
 

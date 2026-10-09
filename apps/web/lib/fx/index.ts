@@ -125,3 +125,50 @@ export function splitInstallments(amountTotal: number, count: number): number[] 
   installments[count - 1] = Math.round((base + remainder) * 100) / 100
   return installments
 }
+
+export async function getRatesMatrix(
+  currencies: string[] = ['AUD', 'EUR', 'USD', 'UYU', 'NZD']
+): Promise<Record<string, number>> {
+  const matrix: Record<string, number> = {}
+
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 3500)
+    try {
+      const res = await fetch('https://open.er-api.com/v6/latest/USD', {
+        signal: controller.signal,
+        next: { revalidate: 3600 }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.result === 'success' && data.rates) {
+          const ratesAgainstUsd: Record<string, number> = { USD: 1 }
+          for (const c of currencies) {
+            if (typeof data.rates[c] === 'number' && data.rates[c] > 0) {
+              ratesAgainstUsd[c] = data.rates[c]
+            }
+          }
+
+          for (const from of currencies) {
+            for (const to of currencies) {
+              if (from === to) {
+                matrix[`${from}_${to}`] = 1
+              } else if (ratesAgainstUsd[from] && ratesAgainstUsd[to]) {
+                const crossRate = ratesAgainstUsd[to] / ratesAgainstUsd[from]
+                matrix[`${from}_${to}`] = Math.round(crossRate * 1000000) / 1000000
+              }
+            }
+          }
+          return matrix
+        }
+      }
+    } finally {
+      clearTimeout(timeoutId)
+    }
+  } catch {
+    // Si no hay red externa, retornar matriz vacía
+  }
+
+  return matrix
+}
+

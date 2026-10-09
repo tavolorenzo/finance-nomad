@@ -2,8 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { CloudOff } from 'lucide-react'
 import { useModal } from '@/components/Modal'
 import { createAccount, updateAccount, setAccountActive } from '@/app/(protected)/accounts/actions'
+import { useOptionalLedger } from '@/lib/ledger/ledger-context'
+import { useOnlineStatus } from '@/lib/hooks/use-online-status'
 import type { Account, AccountType, Institution } from '@/lib/types'
 
 const TYPES: { value: AccountType; label: string }[] = [
@@ -26,6 +29,8 @@ export function AccountForm({
 }) {
   const router = useRouter()
   const { isModal, close } = useModal()
+  const ledger = useOptionalLedger()
+  const isOnline = useOnlineStatus()
   const [institutionId, setInstitutionId] = useState(
     account?.institution_id
     ?? (institutions.some((i) => i.id === defaultInstitutionId) ? defaultInstitutionId : undefined)
@@ -42,6 +47,12 @@ export function AccountForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+
+    if (!isOnline) {
+      setError('No tenés conexión a internet. Conectate para continuar.')
+      return
+    }
+
     setLoading(true)
     try {
       const input = {
@@ -55,6 +66,7 @@ export function AccountForm({
       } else {
         await createAccount({ ...input, institutionId })
       }
+      await ledger?.refresh().catch(() => {})
       if (isModal) {
         close()
       } else {
@@ -69,9 +81,15 @@ export function AccountForm({
 
   async function handleToggleActive() {
     if (!account) return
+    if (!isOnline) {
+      setError('No tenés conexión a internet. Conectate para continuar.')
+      return
+    }
+
     setLoading(true)
     try {
       await setAccountActive(account.id, !account.is_active)
+      await ledger?.refresh().catch(() => {})
       if (isModal) {
         close()
       } else {
@@ -86,10 +104,27 @@ export function AccountForm({
 
   return (
     <form onSubmit={handleSubmit} className="p-4 space-y-3">
+      {!isOnline && (
+        <div className="bg-surface-2 border border-border rounded-control p-3 text-xs text-text-secondary flex items-start gap-2.5">
+          <CloudOff size={16} className="text-text-muted shrink-0 mt-0.5" />
+          <p>
+            Estás sin conexión. Para {account ? 'modificar' : 'crear'} una cuenta necesitás internet. Los movimientos contables ya registrados se siguen guardando offline normalmente.
+          </p>
+        </div>
+      )}
+
       {!account && (
         <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1">Institución</label>
-          <select value={institutionId} onChange={(e) => setInstitutionId(e.target.value)} className="w-full" required>
+          <label htmlFor="account-institution" className="block text-sm font-medium text-text-secondary mb-1">
+            Institución
+          </label>
+          <select
+            id="account-institution"
+            value={institutionId}
+            onChange={(e) => setInstitutionId(e.target.value)}
+            className="w-full"
+            required
+          >
             {institutions.map((i) => (
               <option key={i.id} value={i.id}>{i.name}</option>
             ))}
@@ -98,16 +133,31 @@ export function AccountForm({
       )}
 
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">Nombre de la cuenta / producto</label>
+        <label htmlFor="account-name" className="block text-sm font-medium text-text-secondary mb-1">
+          Nombre de la cuenta / producto
+        </label>
         <input
-          type="text" value={name} onChange={(e) => setName(e.target.value)}
-          placeholder="Ej. Cuenta Corriente, Visa Gold, Efectivo..." className="w-full" required autoFocus
+          id="account-name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Ej. Cuenta Corriente, Visa Gold, Efectivo..."
+          className="w-full"
+          required
+          autoFocus
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">Tipo de cuenta</label>
-        <select value={type} onChange={(e) => setType(e.target.value as AccountType)} className="w-full">
+        <label htmlFor="account-type" className="block text-sm font-medium text-text-secondary mb-1">
+          Tipo de cuenta
+        </label>
+        <select
+          id="account-type"
+          value={type}
+          onChange={(e) => setType(e.target.value as AccountType)}
+          className="w-full"
+        >
           {TYPES.map((t) => (
             <option key={t.value} value={t.value}>{t.label}</option>
           ))}
@@ -115,18 +165,31 @@ export function AccountForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">Moneda nativa</label>
-        <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-full">
+        <label htmlFor="account-currency" className="block text-sm font-medium text-text-secondary mb-1">
+          Moneda nativa
+        </label>
+        <select
+          id="account-currency"
+          value={currency}
+          onChange={(e) => setCurrency(e.target.value)}
+          className="w-full"
+        >
           {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
 
       {type === 'credit_card' && (
         <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1">Límite de crédito</label>
+          <label htmlFor="account-credit-limit" className="block text-sm font-medium text-text-secondary mb-1">
+            Límite de crédito
+          </label>
           <input
-            type="number" step="0.01" value={creditLimit}
-            onChange={(e) => setCreditLimit(e.target.value)} className="w-full"
+            id="account-credit-limit"
+            type="number"
+            step="0.01"
+            value={creditLimit}
+            onChange={(e) => setCreditLimit(e.target.value)}
+            className="w-full"
           />
         </div>
       )}
@@ -135,17 +198,17 @@ export function AccountForm({
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || !isOnline}
         className="w-full bg-accent text-[color:var(--on-accent)] py-3 rounded-control font-medium hover:opacity-90 transition disabled:opacity-50"
       >
-        {loading ? 'Guardando...' : account ? 'Guardar cambios' : 'Crear cuenta'}
+        {!isOnline ? 'Sin conexión a internet' : loading ? 'Guardando...' : account ? 'Guardar cambios' : 'Crear cuenta'}
       </button>
 
       {account && (
         <button
           type="button"
           onClick={handleToggleActive}
-          disabled={loading}
+          disabled={loading || !isOnline}
           className="w-full border border-border text-text-primary py-3 rounded-control font-medium hover:bg-surface-2 transition disabled:opacity-50"
         >
           {account.is_active ? 'Desactivar cuenta' : 'Reactivar cuenta'}

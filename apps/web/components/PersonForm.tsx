@@ -2,8 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { CloudOff } from 'lucide-react'
 import { useModal } from '@/components/Modal'
 import { createPerson, updatePerson, setPersonActive } from '@/app/(protected)/people/actions'
+import { useOptionalLedger } from '@/lib/ledger/ledger-context'
+import { useOnlineStatus } from '@/lib/hooks/use-online-status'
 import type { Person } from '@/lib/types'
 
 export function PersonForm({
@@ -15,6 +18,8 @@ export function PersonForm({
 }) {
   const router = useRouter()
   const { isModal, close } = useModal()
+  const ledger = useOptionalLedger()
+  const isOnline = useOnlineStatus()
   const [name, setName] = useState(person?.name ?? '')
   const [phone, setPhone] = useState(person?.phone ?? '')
   const [error, setError] = useState<string | null>(null)
@@ -26,6 +31,12 @@ export function PersonForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+
+    if (!isOnline) {
+      setError('No tenés conexión a internet. Conectate para continuar.')
+      return
+    }
+
     setLoading(true)
     try {
       if (person) {
@@ -33,6 +44,7 @@ export function PersonForm({
       } else {
         await createPerson(name, phone)
       }
+      await ledger?.refresh().catch(() => {})
       if (isModal) {
         close()
       } else {
@@ -47,10 +59,16 @@ export function PersonForm({
 
   async function handleToggleActive() {
     if (!person) return
+    if (!isOnline) {
+      setError('No tenés conexión a internet. Conectate para continuar.')
+      return
+    }
+
     setError(null)
     setLoading(true)
     try {
       await setPersonActive(person.id, isDeactivated)
+      await ledger?.refresh().catch(() => {})
       if (isModal) {
         close()
       } else {
@@ -65,9 +83,21 @@ export function PersonForm({
 
   return (
     <form onSubmit={handleSubmit} className="p-4 space-y-4">
+      {!isOnline && (
+        <div className="bg-surface-2 border border-border rounded-control p-3 text-xs text-text-secondary flex items-start gap-2.5">
+          <CloudOff size={16} className="text-text-muted shrink-0 mt-0.5" />
+          <p>
+            Estás sin conexión. Para {person ? 'modificar' : 'crear'} una persona necesitás internet. Los movimientos contables ya registrados se siguen guardando offline normalmente.
+          </p>
+        </div>
+      )}
+
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">Nombre</label>
+        <label htmlFor="person-name" className="block text-sm font-medium text-text-secondary mb-1">
+          Nombre
+        </label>
         <input
+          id="person-name"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -83,10 +113,11 @@ export function PersonForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">
+        <label htmlFor="person-phone" className="block text-sm font-medium text-text-secondary mb-1">
           Número de teléfono (WhatsApp)
         </label>
         <input
+          id="person-phone"
           type="tel"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
@@ -102,10 +133,10 @@ export function PersonForm({
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || !isOnline}
         className="w-full bg-accent text-[color:var(--on-accent)] py-3 rounded-control font-medium hover:opacity-90 transition disabled:opacity-50"
       >
-        {loading ? 'Guardando...' : person ? 'Guardar cambios' : 'Crear persona'}
+        {!isOnline ? 'Sin conexión a internet' : loading ? 'Guardando...' : person ? 'Guardar cambios' : 'Crear persona'}
       </button>
 
       {person && !isPersonal && (
@@ -113,7 +144,7 @@ export function PersonForm({
           <button
             type="button"
             onClick={handleToggleActive}
-            disabled={loading || (!isDeactivated && hasPendingBalance)}
+            disabled={loading || !isOnline || (!isDeactivated && hasPendingBalance)}
             className="w-full border border-border text-text-primary py-2.5 rounded-control text-sm font-medium hover:bg-surface-2 transition disabled:opacity-40"
           >
             {isDeactivated ? 'Reactivar persona' : 'Desactivar persona'}

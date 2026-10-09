@@ -14,6 +14,21 @@ export async function getAccountBalances(
   supabase: SupabaseClient,
   asOfDate: string
 ): Promise<AccountBalance[]> {
+  // 1. Intento rápido vía RPC optimizada en PostgreSQL indexada
+  const { data: rpcData, error: rpcError } = await supabase.rpc(
+    'get_account_balances_summary',
+    { p_as_of_date: asOfDate }
+  )
+
+  if (!rpcError && Array.isArray(rpcData)) {
+    return rpcData.map((r: { account_id: string; currency: string; balance: number | string }) => ({
+      accountId: r.account_id,
+      currency: r.currency,
+      balance: Number(r.balance)
+    }))
+  }
+
+  // 2. Fallback de compatibilidad si la RPC aún no fue migrada
   const { data } = await supabase
     .from('master_transactions')
     .select('account_id, currency_account, amount_account, type')
@@ -47,25 +62,9 @@ export async function getSingleAccountBalance(
   accountId: string,
   asOfDate: string
 ): Promise<number> {
-  const { data } = await supabase
-    .from('master_transactions')
-    .select('amount_account, type')
-    .eq('account_id', accountId)
-    .eq('status', 'COMPLETED')
-    .lte('date', asOfDate)
-
-  let balance = 0
-  for (const t of data ?? []) {
-    let delta = Number(t.amount_account)
-    if (t.type === 'OUTCOME') {
-      delta = -Math.abs(delta)
-    } else if (t.type === 'INCOME') {
-      delta = Math.abs(delta)
-    }
-    balance += delta
-  }
-
-  return Math.round(balance * 100) / 100
+  const balances = await getAccountBalances(supabase, asOfDate)
+  const match = balances.find((b) => b.accountId === accountId)
+  return match ? match.balance : 0
 }
 
 // Obtiene el total de compromisos diferidos/pendientes (status = PENDING) de una cuenta.

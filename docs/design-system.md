@@ -81,6 +81,33 @@ Stack de fallback: `'IBM Plex Mono', ui-monospace, monospace` / `'Space Grotesk'
 - **Badge de estado:** "Pendiente" = `--pending` sobre fondo al 12%; "Pagado"/"Cobrado" = `--income` sobre fondo al 12%.
 - **Inputs:** altura `44px`, fondo `--surface-1`, borde `--border`, foco = borde `--accent` + `box-shadow: 0 0 0 3px` accent al 20%.
 
+### Catálogo de Componentes UI (`apps/web/components`)
+
+| Componente | Tipo | Responsabilidad |
+|---|---|---|
+| `Navigation.tsx` | Layout | Barra de navegación responsive (sidebar en desktop, bottom bar en mobile) con selector de tema y badge de sync. |
+| `SyncStatusBadge.tsx` | Feedback | Indicador del Outbox local (Al día, Sincronizando, Guardado local, Error con botón Reintentar). |
+| `TransactionForm.tsx` | Formulario | Carga de gastos, ingresos, transferencias y cuotas con actualización zero-wait (< 16ms). |
+| `TransactionsList.tsx` | Lista | Feed reactivo de transacciones con carga inicial de 10 días y paginación histórica bajo demanda. |
+| `AccountForm.tsx` | Formulario | Alta y edición de productos financieros con validaciones de divisa y límite de crédito. |
+| `InstitutionForm.tsx` | Formulario | Alta y edición de entidades bancarias/brokers y baja lógica. |
+| `PersonForm.tsx` | Formulario | Alta y edición de contactos/personas y número de teléfono con código de país. |
+| `PersonActions.tsx` | Acciones | Barra de botones para registrar cobros, configurar plantilla y abrir WhatsApp. |
+| `WhatsAppNotifyModal.tsx` | Modal | Editor y previsualizador interactivo del mensaje antes de redirigir a WhatsApp Web/App. |
+| `WhatsAppTemplateForm.tsx` | Formulario | Configuración de plantilla dinámica con variables insertables (`$Nombre`, `$Total`, etc.) y vista previa en vivo. |
+| `ExpressAdjustModal.tsx` | Modal | Ajuste express de saldo nominal creando transacción contable de compensación. |
+| `RegisterCardPaymentModal.tsx` | Modal | Liquidación de saldo deudor en tarjeta de crédito generando transferencia inter-cuenta. |
+| `SystemInfoCard.tsx` | Visualización | Ficha de versión de software, commit hash, rama y entorno en `/settings`. |
+| `ThemeToggle.tsx` | Control | Selector de modo oscuro/claro con persistencia en `user_settings` y `data-theme`. |
+| `CurrencySelector.tsx` | Selector | Dropdown para selección rápida de divisa global o nativa. |
+| `ConfirmTransactionButton.tsx` | Acción | Confirmación de cuotas o movimientos pendientes (`PENDING` -> `COMPLETED`). |
+| `DeleteTransactionButton.tsx` | Acción | Eliminación lógica/física de movimientos con confirmación de usuario. |
+| `ExecutePaymentButton.tsx` | Acción | Ejecución 1-tap de gastos fijos presupuestados para convertirlos en transacciones reales. |
+| `SendResetLinkButton.tsx` | Acción | Envío de correo de recuperación de contraseña con feedback de estado. |
+| `UpdatePasswordForm.tsx` | Formulario | Actualización segura de contraseña en `/auth/update-password`. |
+| `Modal.tsx` | Primitiva | Contenedor de diálogo accesible para rutas interceptadas y modales flotantes. |
+| `LogoutButton.tsx` | Acción | Cierre de sesión de usuario autenticado. |
+
 ---
 
 ## 5. Navegación — mobile vs. web
@@ -95,19 +122,29 @@ Breakpoints: `sm 375px` (mobile base) · `md 768px` · `lg 1024px` · `xl 1440px
 
 ---
 
-## 6. Inventario de pantallas
+## 6. Inventario de pantallas y modales
 
-| Pantalla | Ruta | Mobile | Web |
+| Pantalla / Modal | Ruta | Mobile | Web |
 |---|---|---|---|
-| Dashboard | `/dashboard` | Scroll vertical: balance → acciones → presupuesto → cuentas (2 col) → feed | 3 columnas: balance+presupuesto / cuentas / feed, lado a lado |
-| Cuentas y bancos | `/accounts` | Acordeón por institución | Tabla con acordeón, saldo alineado a la derecha en mono |
-| Detalle de cuenta | `/accounts/[id]` | Header + feed filtrado + botón flotante "Ajuste express" | Header + feed + panel lateral con gráfico de evolución |
-| Formulario de transacción | `/transactions/new` | Bottom sheet full-screen | Modal centrado 480px |
-| Personas | `/people` | Lista con saldo pendiente a la derecha | Grilla de cards 3 columnas |
-| Ficha de persona | `/people/[id]` | Header + historial + botón "Notificar por WhatsApp" | Igual + panel de cuotas futuras a la derecha |
-| Presupuesto | `/budget` | Lista de estimados con barra de progreso c/u | Tabla comparativa real vs. proyectado |
+| Dashboard | `/dashboard` | Scroll vertical: balance → sync badge → acciones → presupuesto → cuentas → feed | 3 columnas: balance+presupuesto / cuentas / feed, lado a lado |
+| Cuentas y bancos | `/accounts` | Acordeón por institución con totales en mono | Tabla con acordeón, saldo alineado a la derecha en mono |
+| Detalle de cuenta | `/accounts/[id]` | Header + saldo nominal + compromisos diferidos + feed + acciones | Header + feed filtrado + panel de tarjetas con modales integrados |
+| Nueva cuenta | `/accounts/new` & `@modal/(.)accounts/new` | Bottom sheet | Modal centrado 480px |
+| Editar cuenta | `/accounts/[id]/edit` & `@modal/(.)accounts/[id]/edit` | Bottom sheet | Modal centrado 480px |
+| Nueva institución | `/institutions/new` & `@modal/(.)institutions/new` | Bottom sheet | Modal centrado 480px |
+| Editar institución | `/institutions/[id]/edit` & `@modal/(.)institutions/[id]/edit` | Bottom sheet | Modal centrado 480px |
+| Formulario de transacción | `/transactions/new` & `@modal/(.)transactions/new` | Bottom sheet full-screen | Modal centrado 520px |
+| Movimientos | `/transactions` | Lista con badges de cuotas y estado PENDING | Tabla con filtros y paginación histórica cursor-based |
+| Personas | `/people` | Lista con saldo pendiente a la derecha y acceso a plantilla | Grilla de cards 3 columnas con saldo y acciones rápidas |
+| Nueva persona | `/people/new` & `@modal/(.)people/new` | Bottom sheet | Modal centrado 480px |
+| Editar persona | `/people/[id]/edit` & `@modal/(.)people/[id]/edit` | Bottom sheet | Modal centrado 480px |
+| Ficha de persona | `/people/[id]` | Header + saldo por divisa + WhatsApp modal + historial | Igual + panel de cuotas comprometidas a la derecha |
+| Plantilla WhatsApp | `/people/template` & `@modal/(.)people/template` | Editor full-screen con chips dinámicos | Modal 640px con live preview y chips |
+| Presupuesto | `/budget` | Lista de estimados con barra de progreso c/u y 1-tap pagar | Tabla comparativa real vs. proyectado con botón ejecutar pago |
 | Préstamos | `/loans` | Cards apiladas con VTO próximo destacado | Tabla de amortización completa visible sin scroll |
 | Portafolio | `/portfolio` | Lista de tickers, tap para expandir P&L | Tabla con columnas fijas + gráfico de asignación |
+| Ajustes | `/settings` | Lista de ajustes: tema, moneda, reset password e info sistema | Panel estructurado con switch de tema e info técnica |
+| Restablecer contraseña | `/auth/update-password` | Formulario simple centrado | Formulario card centrado |
 
 ---
 
@@ -142,6 +179,13 @@ Breakpoints: `sm 375px` (mobile base) · `md 768px` · `lg 1024px` · `xl 1440px
 | action.save_transaction | Guardar transacción |
 | action.register_collection | Registrar cobro |
 | action.notify_whatsapp | Notificar por WhatsApp |
+| action.open_whatsapp | Abrir en WhatsApp |
+| action.whatsapp_template | Plantilla WhatsApp |
+| action.save_template | Guardar plantilla |
+| action.restore_default | Restablecer por defecto |
+| action.restore_original | Restablecer mensaje |
+| action.new_person | Nueva persona |
+| action.edit_person | Editar persona |
 | action.execute_payment | Ejecutar pago |
 | action.register_loan_payment | Registrar pago de cuota |
 | action.edit_rate | Editar |
@@ -154,6 +198,19 @@ Breakpoints: `sm 375px` (mobile base) · `md 768px` · `lg 1024px` · `xl 1440px
 | action.reactivate_institution | Reactivar institución |
 | action.deactivate_account | Desactivar cuenta |
 | action.reactivate_account | Reactivar cuenta |
+| action.deactivate_person | Desactivar contacto |
+| action.reactivate_person | Reactivar contacto |
+| action.load_more_transactions | Cargar movimientos anteriores |
+
+### Sincronización (Local-First)
+
+| Clave | Texto |
+|---|---|
+| sync.synced | Al día |
+| sync.syncing | Sincronizando... |
+| sync.pending | Guardado local |
+| sync.error | Error de sincronización |
+| sync.retry | Reintentar |
 
 ### Estados vacíos
 
@@ -173,6 +230,7 @@ Breakpoints: `sm 375px` (mobile base) · `md 768px` · `lg 1024px` · `xl 1440px
 | confirm.collection_registered | Cobro registrado |
 | confirm.payment_executed | Pago ejecutado |
 | confirm.adjustment_created | Ajuste creado |
+| confirm.template_saved | Plantilla guardada |
 | confirm.reset_email_sent | Te mandamos un link al email para restablecer la contraseña. |
 | confirm.password_updated | Contraseña actualizada |
 
@@ -194,6 +252,9 @@ Breakpoints: `sm 375px` (mobile base) · `md 768px` · `lg 1024px` · `xl 1440px
 | error.deactivate_failed | No se pudo desactivar. Intentá de nuevo. |
 | error.institution_inactive | Esta institución está desactivada. Reactivala para agregarle cuentas. |
 | error.account_parent_inactive | Reactivá la institución antes de reactivar esta cuenta. |
+| error.person_has_balance | No podés desactivar a un contacto con saldo pendiente. Registrá el cobro primero. |
+| error.system_person_protected | No podés modificar ni desactivar el contacto del sistema "Personal". |
+
 
 ---
 

@@ -4,9 +4,29 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { rethrowIfRedirect } from '@/lib/next/rethrow-redirect'
 import { executeBudgetPayment } from '@/app/(protected)/budget/actions'
+import { useOptionalLedger } from '@/lib/ledger/ledger-context'
 
-export function ExecutePaymentButton({ estimateId, disabled }: { estimateId: string; disabled: boolean }) {
+export interface EstimateSummary {
+  id: string
+  name: string
+  type: string
+  estimated_amount: number
+  currency: string
+  preferred_account_id: string | null
+  category_id: string | null
+}
+
+export function ExecutePaymentButton({
+  estimateId,
+  estimate,
+  disabled
+}: {
+  estimateId: string
+  estimate?: EstimateSummary
+  disabled: boolean
+}) {
   const router = useRouter()
+  const ledger = useOptionalLedger()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -14,13 +34,39 @@ export function ExecutePaymentButton({ estimateId, disabled }: { estimateId: str
     setLoading(true)
     setError(null)
     try {
-      await executeBudgetPayment(estimateId)
+      if (ledger && estimate && estimate.preferred_account_id) {
+        const targetAccount = ledger.accounts.find((a) => a.id === estimate.preferred_account_id)
+        if (!targetAccount) {
+          throw new Error('Cuenta preferida no encontrada en tus cuentas activas.')
+        }
+        await ledger.addTransaction({
+          type: estimate.type === 'INCOME_ESTIMATE' ? 'INCOME' : 'OUTCOME',
+          amountOriginal: estimate.estimated_amount,
+          currencyOriginal: estimate.currency,
+          feeAmount: 0,
+          exchangeRate: 1,
+          rateOverridden: false,
+          amountAccount: estimate.estimated_amount,
+          currencyAccount: targetAccount.currency_native,
+          date: new Date().toISOString().slice(0, 10),
+          institutionId: targetAccount.institution_id,
+          accountId: targetAccount.id,
+          categoryId: estimate.category_id,
+          personId: null,
+          installmentTotal: 1,
+          notes: estimate.name
+        })
+      } else {
+        await executeBudgetPayment(estimateId)
+        await ledger?.refresh().catch(() => {})
+      }
       router.refresh()
     } catch (err) {
       rethrowIfRedirect(err)
       setError(err instanceof Error ? err.message : 'No se pudo ejecutar el pago')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (

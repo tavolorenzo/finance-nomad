@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getAuthenticatedUser } from '@/lib/supabase/auth-helper'
 import { CurrencySelector } from '@/components/CurrencySelector'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { LogoutButton } from '@/components/LogoutButton'
@@ -8,12 +9,21 @@ import { SystemInfoCard } from '@/components/SystemInfoCard'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: settings } = await supabase
-    .from('user_settings')
-    .select('display_currency')
-    .eq('user_id', user!.id)
-    .maybeSingle()
+  const user = await getAuthenticatedUser(supabase)
+  let settings: { display_currency: string } | null = null
+
+  if (user) {
+    try {
+      const { data } = await supabase
+        .from('user_settings')
+        .select('display_currency')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      settings = data
+    } catch {
+      // Modo offline
+    }
+  }
 
   return (
     <main className="max-w-2xl mx-auto p-4 md:p-6 space-y-4">

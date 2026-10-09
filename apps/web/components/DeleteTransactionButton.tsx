@@ -1,11 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Trash2 } from 'lucide-react'
-import { deleteTransaction } from '@/app/(protected)/transactions/new/actions'
+import { Trash2, Loader2 } from 'lucide-react'
+import { useOptionalLedger } from '@/lib/ledger/ledger-context'
+import { deleteTransaction as deleteTransactionServer } from '@/app/(protected)/transactions/new/actions'
 
 export function DeleteTransactionButton({ transactionId }: { transactionId: string }) {
   const [loading, setLoading] = useState(false)
+  const ledger = useOptionalLedger()
 
   async function handleDelete() {
     if (!confirm('¿Seguro que querés eliminar este movimiento? Si es una transferencia, se eliminarán ambos lados.')) {
@@ -13,9 +15,14 @@ export function DeleteTransactionButton({ transactionId }: { transactionId: stri
     }
     setLoading(true)
     try {
-      await deleteTransaction(transactionId)
-    } catch (err: any) {
-      alert(err?.message || 'Error al eliminar el movimiento')
+      if (ledger) {
+        await ledger.deleteTransaction(transactionId)
+      } else {
+        await deleteTransactionServer(transactionId)
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al eliminar el movimiento'
+      alert(msg)
       setLoading(false)
     }
   }
@@ -28,7 +35,7 @@ export function DeleteTransactionButton({ transactionId }: { transactionId: stri
       title="Eliminar movimiento"
       className="text-text-muted hover:text-expense p-1 rounded transition opacity-60 hover:opacity-100 disabled:opacity-30"
     >
-      <Trash2 size={13} />
+      {loading ? <Loader2 size={13} className="animate-spin text-expense" /> : <Trash2 size={13} />}
     </button>
   )
 }

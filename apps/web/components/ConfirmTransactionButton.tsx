@@ -2,15 +2,21 @@
 
 import { useState } from 'react'
 import { Check, Loader2 } from 'lucide-react'
-import { confirmTransaction } from '@/app/(protected)/transactions/new/actions'
+import { useOptionalLedger } from '@/lib/ledger/ledger-context'
+import { confirmTransaction as confirmTransactionServer } from '@/app/(protected)/transactions/new/actions'
 
 export function ConfirmTransactionButton({ transactionId }: { transactionId: string }) {
   const [loading, setLoading] = useState(false)
+  const ledger = useOptionalLedger()
 
   async function handleConfirm() {
     try {
       setLoading(true)
-      await confirmTransaction(transactionId)
+      if (ledger) {
+        await ledger.confirmTransaction(transactionId)
+      } else {
+        await confirmTransactionServer(transactionId)
+      }
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error al confirmar la cuota')
     } finally {

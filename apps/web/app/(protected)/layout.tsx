@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getAuthenticatedUser } from '@/lib/supabase/auth-helper'
 import { Navigation } from '@/components/Navigation'
+import { LedgerProvider } from '@/lib/ledger/ledger-context'
 
 export default async function ProtectedLayout({
   children,
@@ -10,19 +12,21 @@ export default async function ProtectedLayout({
   modal: React.ReactNode
 }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthenticatedUser(supabase)
 
   // El middleware ya redirige, esto es defensa en profundidad por si el
   // layout se renderiza en un contexto donde el middleware no corrió.
   if (!user) redirect('/login')
 
   return (
-    <div>
-      <Navigation />
-      <div className="md:pl-56 pb-20 md:pb-0">{children}</div>
-      {/* Wrapper estable: @modal a veces es null y Next inyecta un placeholder
-          distinto en servidor vs cliente si el slot queda suelto. */}
-      <div>{modal}</div>
-    </div>
+    <LedgerProvider>
+      <div>
+        <Navigation />
+        <div className="md:pl-56 pb-20 md:pb-0">{children}</div>
+        {/* Wrapper estable: @modal a veces es null y Next inyecta un placeholder
+            distinto en servidor vs cliente si el slot queda suelto. */}
+        <div>{modal}</div>
+      </div>
+    </LedgerProvider>
   )
 }
