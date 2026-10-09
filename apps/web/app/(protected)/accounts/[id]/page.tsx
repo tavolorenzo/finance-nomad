@@ -11,11 +11,13 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { formatMoney } from '@/lib/currency'
-import { getSingleAccountBalance } from '@/lib/networth'
+import { getSingleAccountBalance, getAccountPendingAmount } from '@/lib/networth'
 import { ExpressAdjustModal } from '@/components/ExpressAdjustModal'
 import { RegisterCardPaymentModal } from '@/components/RegisterCardPaymentModal'
 import { DeleteTransactionButton } from '@/components/DeleteTransactionButton'
+import { ConfirmTransactionButton } from '@/components/ConfirmTransactionButton'
 import type { Account, Institution, MasterTransaction } from '@/lib/types'
+
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   checking: 'Cuenta corriente',
@@ -50,6 +52,7 @@ export default async function AccountDetailPage({
 
   const today = new Date().toISOString().slice(0, 10)
   const currentBalance = await getSingleAccountBalance(supabase, account.id, today)
+  const pendingAmount = await getAccountPendingAmount(supabase, account.id)
 
   // Consulta de todas las cuentas activas para el modal de pago de tarjeta
   const { data: allAccounts } = await supabase
@@ -66,9 +69,11 @@ export default async function AccountDetailPage({
     .order('date', { ascending: false })
     .returns<(MasterTransaction & { categories?: { name: string } | null; people?: { name: string } | null })[]>()
 
-  // Estadísticas del mes en curso
+  // Estadísticas del mes en curso (únicamente transacciones completadas)
   const { start, end } = monthRange()
-  const thisMonthTx = (transactions ?? []).filter((t) => t.date >= start && t.date <= end)
+  const thisMonthTx = (transactions ?? []).filter(
+    (t) => t.date >= start && t.date <= end && t.status === 'COMPLETED'
+  )
 
   let monthlyIncome = 0
   let monthlyExpense = 0
@@ -83,12 +88,14 @@ export default async function AccountDetailPage({
     }
   }
 
-  // Si es tarjeta de crédito: límites y disponible
+  // Si es tarjeta de crédito: límites, compromisos diferidos y disponible
   const isCreditCard = account.type === 'credit_card'
   const creditLimit = account.credit_limit ?? 0
   const usedCredit = currentBalance < 0 ? Math.abs(currentBalance) : 0
-  const availableCredit = isCreditCard ? Math.max(0, creditLimit - usedCredit) : 0
-  const creditPct = isCreditCard && creditLimit > 0 ? Math.min(100, Math.round((usedCredit / creditLimit) * 100)) : 0
+  const totalCommitted = usedCredit + pendingAmount
+  const availableCredit = isCreditCard ? Math.max(0, creditLimit - totalCommitted) : 0
+  const creditPct = isCreditCard && creditLimit > 0 ? Math.min(100, Math.round((totalCommitted / creditLimit) * 100)) : 0
+
 
   return (
     <main className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
@@ -151,14 +158,23 @@ export default async function AccountDetailPage({
         {/* Saldo Nominal */}
         <div className="pt-2 border-t border-border flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2">
           <div>
-            <p className="text-xs text-text-muted uppercase tracking-wider font-medium">Saldo actual</p>
-            <p
-              className={`font-mono text-3xl md:text-4xl font-semibold mt-0.5 ${
-                currentBalance < 0 ? 'text-expense' : 'text-text-primary'
-              }`}
-            >
-              {formatMoney(currentBalance, account.currency_native)}
+            <p className="text-xs text-text-muted uppercase tracking-wider font-medium">
+              {isCreditCard ? 'Deuda actual del mes' : 'Saldo actual'}
             </p>
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <p
+                className={`font-mono text-3xl md:text-4xl font-semibold mt-0.5 ${
+                  currentBalance < 0 ? 'text-expense' : 'text-text-primary'
+                }`}
+              >
+                {formatMoney(currentBalance, account.currency_native)}
+              </p>
+              {isCreditCard && pendingAmount > 0 && (
+                <span className="text-xs text-text-muted font-normal">
+                  (+ <span className="font-mono text-pending font-medium">{formatMoney(pendingAmount, account.currency_native)}</span> en cuotas futuras)
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Tarjeta de Crédito: métricas de límite */}
@@ -213,6 +229,7 @@ export default async function AccountDetailPage({
                 const isTransfer = t.type === 'TRANSFER'
                 const isPositiveAdj = isAdjustment && t.amount_account >= 0
                 const isTransferIn = isTransfer && t.amount_account >= 0
+                const isPending = t.status === 'PENDING'
 
                 return (
                   <div key={t.id} className="flex items-center justify-between py-3">
@@ -254,6 +271,11 @@ export default async function AccountDetailPage({
                               Transferencia
                             </span>
                           )}
+                          {isPending && (
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-pending/15 text-pending font-medium">
+                              Pendiente
+                            </span>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-2 text-xs text-text-muted">
@@ -280,14 +302,17 @@ export default async function AccountDetailPage({
                     </div>
 
                     <div className="flex items-center gap-2">
+                      {isPending && t.date <= today && (
+                        <ConfirmTransactionButton transactionId={t.id} />
+                      )}
                       <div className="text-right font-mono text-sm font-semibold">
                         {isOutcome && (
-                          <span className="text-expense">
+                          <span className={isPending ? 'text-expense/75' : 'text-expense'}>
                             -{formatMoney(t.amount_account, t.currency_account)}
                           </span>
                         )}
                         {isIncome && (
-                          <span className="text-income">
+                          <span className={isPending ? 'text-income/75' : 'text-income'}>
                             +{formatMoney(t.amount_account, t.currency_account)}
                           </span>
                         )}
@@ -340,8 +365,17 @@ export default async function AccountDetailPage({
                   {formatMoney(monthlyIncome - monthlyExpense, account.currency_native)}
                 </span>
               </div>
+              {pendingAmount > 0 && (
+                <div className="flex justify-between items-center py-1 border-t border-border/60">
+                  <span className="text-text-muted">Cuotas futuras pendientes</span>
+                  <span className="font-mono font-medium text-pending">
+                    {formatMoney(pendingAmount, account.currency_native)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
+
 
           <div className="bg-surface-1 border border-border rounded-card p-4 space-y-2 text-xs text-text-secondary">
             <h3 className="font-display text-sm font-semibold text-text-primary">Detalles técnicos</h3>

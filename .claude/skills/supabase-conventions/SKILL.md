@@ -10,6 +10,9 @@ description: Usar siempre que se cree una migración nueva en supabase/migration
   on delete cascade, RLS enabled, y policy "own rows only" using (auth.uid() = user_id).
 - Índices sobre toda FK que se use en filtros frecuentes (ver 0001_init_schema.sql
   como referencia de estilo).
+- Recordatorio de ejecución: Toda tarea que genere o altere migraciones SQL debe
+  recordar explícitamente al usuario ejecutar el script en el SQL Editor de Supabase
+  con el snippet de código listo para copiar.
 
 ## Auth y rutas protegidas
 - Las pantallas autenticadas viven en app/(protected)/ — el middleware

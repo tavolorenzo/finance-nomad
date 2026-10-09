@@ -8,6 +8,7 @@ import {
   Users, PiggyBank, Landmark, TrendingUp, Settings
 } from 'lucide-react'
 import { LogoutButton } from './LogoutButton'
+import { getEnvironmentInfo } from '@/lib/version'
 
 const MAIN_ITEMS = [
   { href: '/dashboard', label: 'Inicio', icon: Home },
@@ -42,6 +43,7 @@ function NavLink({ href, label, icon: Icon, active }: any) {
 export function Navigation() {
   const pathname = usePathname() ?? ''
   const [moreOpen, setMoreOpen] = useState(false)
+  const envInfo = getEnvironmentInfo()
 
   const isActive = (href: string) => {
     if (pathname === href) return true
@@ -80,7 +82,18 @@ export function Navigation() {
             )
           )}
         </nav>
-        <div className="border-t border-border pt-3">
+        <div className="border-t border-border pt-3 space-y-2">
+          <div className="flex items-center justify-between px-2 text-[11px] text-text-muted">
+            <span className="font-mono tabular-nums">v{envInfo.version}</span>
+            <span className={`inline-flex items-center gap-1 font-medium ${
+              envInfo.isProduction ? 'text-income' : 'text-accent'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                envInfo.isProduction ? 'bg-income' : 'bg-accent'
+              }`} />
+              {envInfo.label}
+            </span>
+          </div>
           <LogoutButton />
         </div>
       </aside>
@@ -149,7 +162,18 @@ export function Navigation() {
                 </div>
               )
             )}
-            <div className="border-t border-border pt-2 mt-2">
+            <div className="border-t border-border pt-3 mt-2 space-y-2">
+              <div className="flex items-center justify-between px-2 text-[11px] text-text-muted">
+                <span className="font-mono tabular-nums">v{envInfo.version}</span>
+                <span className={`inline-flex items-center gap-1 font-medium ${
+                  envInfo.isProduction ? 'text-income' : 'text-accent'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    envInfo.isProduction ? 'bg-income' : 'bg-accent'
+                  }`} />
+                  {envInfo.label}
+                </span>
+              </div>
               <LogoutButton />
             </div>
           </div>

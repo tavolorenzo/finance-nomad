@@ -26,7 +26,7 @@ El PRD en `docs/PRD.md` es un índice: el detalle de pantallas vive en `design-s
 | 3.1 FX | Tipo de cambio API + override manual persistente | Hecho | frankfurter.app + `rate_overridden` en el formulario |
 | 3.2 Jerarquía | Institución → Cuentas / Créditos / Inversiones | Parcial | CRUD instituciones y cuentas (incl. `credit_card` e `investing`). Sin UI de créditos ni inversiones. |
 | 3.2 Jerarquía | Cuenta Cash por defecto | Hecho | `createInstitution` crea una cuenta "Efectivo" por institución nueva |
-| 3.3 Cuotas | N cuotas = N registros ligados, un mes cada uno | Parcial | `splitInstallments` genera N filas con fecha +1 mes. No ligan `parent_transaction_id`. Todas `COMPLETED`, no `PENDING`. |
+| 3.3 Cuotas | N cuotas = N registros ligados, un mes cada uno | Hecho | N cuotas ligadas mediante `parent_transaction_id`. Cuota 1 `COMPLETED` y cuotas 2..N `PENDING`; no restan saldo nominal anticipado. |
 | 3.3 Extensiones | Gasto a persona incrementa CxC sin alterar deuda con el banco | Parcial | `person_id` + `settled_at`. El mismo `OUTCOME` baja el saldo de la cuenta; no hay asiento de cuenta por cobrar separado. |
 | 3.3 Tarjetas | Pagos de tarjeta = transferencias inter-cuenta | Hecho | `createTransferTransaction` genera 2 filas ligadas por `parent_transaction_id`. Modal en `/accounts/[id]` para tarjetas. |
 | 3.4 Ledger | `master_transactions` es fuente de verdad | Hecho | Dashboard, presupuesto, personas y patrimonio leen el ledger |
@@ -38,28 +38,25 @@ El PRD en `docs/PRD.md` es un índice: el detalle de pantallas vive en `design-s
 
 | Pantalla | Ruta | Estado | Notas |
 |---|---|---|---|
-| Dashboard | `/dashboard` | Hecho | Patrimonio, presupuesto del mes, cuentas, feed. Layout mobile 1 col; falta grilla web 3 col del design system. |
+| Dashboard | `/dashboard` | Hecho | Patrimonio, presupuesto del mes, cuentas, feed. Enlaces directos a cuentas. |
 | Cuentas y bancos | `/accounts` | Hecho | Acordeón por institución, CRUD, baja lógica `is_active`. |
 | Detalle de cuenta | `/accounts/[id]` | Hecho | Header con saldo nominal, feed filtrado, métricas del mes, Ajuste Express y Registrar pago en tarjetas. |
-| Formulario universal | `/transactions/new` | Hecho | Gasto/ingreso/transferencia, FX en vivo, fees, cuotas, persona y cuentas origen/destino. |
+| Formulario universal | `/transactions/new` | Hecho | Gasto/ingreso/transferencia, FX en vivo, fees, cuotas (1 hoy + N-1 pendientes), persona y cuentas origen/destino. |
 | Transferencias | — | Hecho | Regla de 2 filas ligadas por `parent_transaction_id` en `createTransferTransaction` e integrada en UI. |
-| Personas | `/people` | Hecho | Saldos pendientes por moneda. |
-| Ficha de persona | `/people/[id]` | Hecho | Pendiente / cuotas futuras / historial, WhatsApp y registrar cobro. |
+| Personas | `/people` | Hecho | Directorio, saldos pendientes por moneda, CRUD completo (alta, edición de nombre y teléfono, y baja lógica condicional a saldo 0). |
+| Ficha de persona | `/people/[id]` | Hecho | Pendiente / cuotas futuras / historial, WhatsApp, registrar cobro, acceso a edición y estado activo/desactivado. |
 | Gastos fijos / Presupuesto | `/budget` | Hecho | Estimados vs real + Ejecutar pago. Sin alta/edición de estimados en UI. |
 | Préstamos | `/loans` | Falta | Tablas `loans` + `loan_installments` y RLS. Nav dice «pronto». |
 | Portafolio | `/portfolio` | Falta | Tabla `portfolio_transactions` y RLS. Nav dice «pronto». |
-| Ajustes | `/settings` | Parcial | Moneda global. Columna `theme` existe; no hay selector de tema. |
-| Movimientos | `/transactions` | Hecho | Lista de 50. No está en el inventario corto del PRD; sí en nav del design system. |
+| Ajustes | `/settings` | Hecho | Moneda global y selector de tema claro / oscuro persistente. |
+| Movimientos | `/transactions` | Hecho | Lista con badges de cuotas y estado PENDING, y botón de confirmación. |
 
 ---
 
-## Huecos de negocio más caros
-
-**Transferencias y pago de tarjeta.** El schema ya admite type `TRANSFER` y `parent_transaction_id`. Sin UI, no se puede mover plata entre productos ni pagar una tarjeta sin distorsionar saldos (un `OUTCOME` baja una sola cuenta).
+## Huecos de negocio pendientes
 
 **Extensiones vs. deuda del banco.** Asignar persona etiqueta el mismo gasto. El saldo de la tarjeta baja igual. El PRD pide CxC sin tocar la deuda bancaria.
 
-**Cuotas no ligadas + status.** Las N filas no comparten parent y quedan `COMPLETED`. El patrimonio descuenta cuotas futuras como si ya hubieran salido.
 
 ---
 

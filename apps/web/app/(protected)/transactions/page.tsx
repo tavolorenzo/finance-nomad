@@ -2,16 +2,19 @@ import Link from 'next/link'
 import { Plus, ArrowDownLeft, ArrowUpRight, SlidersHorizontal, ArrowRightLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { formatMoney } from '@/lib/currency'
+import { ConfirmTransactionButton } from '@/components/ConfirmTransactionButton'
 import type { MasterTransaction } from '@/lib/types'
 
 export default async function TransactionsPage() {
   const supabase = await createClient()
+  const today = new Date().toISOString().slice(0, 10)
   const { data: transactions } = await supabase
     .from('master_transactions')
     .select('*')
     .order('date', { ascending: false })
     .limit(50)
     .returns<MasterTransaction[]>()
+
 
   const hasTransactions = transactions && transactions.length > 0
 
@@ -46,6 +49,7 @@ export default async function TransactionsPage() {
             const isTransfer = t.type === 'TRANSFER'
             const isPositiveAdj = isAdjustment && t.amount_account >= 0
             const isTransferIn = isTransfer && t.amount_account >= 0
+            const isPending = t.status === 'PENDING'
 
             return (
               <div key={t.id} className="flex items-center justify-between py-3">
@@ -86,6 +90,11 @@ export default async function TransactionsPage() {
                           Transferencia
                         </span>
                       )}
+                      {isPending && (
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-pending/15 text-pending font-medium">
+                          Pendiente
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <p className="text-xs text-text-muted">{t.date}</p>
@@ -97,26 +106,35 @@ export default async function TransactionsPage() {
                     </div>
                   </div>
                 </div>
-                <p
-                  className={`font-mono text-sm font-semibold ${
-                    isOutcome || (isAdjustment && !isPositiveAdj) || (isTransfer && !isTransferIn)
-                      ? 'text-expense'
-                      : 'text-income'
-                  }`}
-                >
-                  {isOutcome
-                    ? '-'
-                    : isAdjustment
-                    ? isPositiveAdj
-                      ? '+'
-                      : '-'
-                    : isTransfer
-                    ? isTransferIn
-                      ? '+'
-                      : '-'
-                    : '+'}
-                  {formatMoney(Math.abs(t.amount_account), t.currency_account)}
-                </p>
+                <div className="flex items-center gap-2">
+                  {isPending && t.date <= today && (
+                    <ConfirmTransactionButton transactionId={t.id} />
+                  )}
+                  <p
+                    className={`font-mono text-sm font-semibold ${
+                      isOutcome || (isAdjustment && !isPositiveAdj) || (isTransfer && !isTransferIn)
+                        ? isPending
+                          ? 'text-expense/75'
+                          : 'text-expense'
+                        : isPending
+                        ? 'text-income/75'
+                        : 'text-income'
+                    }`}
+                  >
+                    {isOutcome
+                      ? '-'
+                      : isAdjustment
+                      ? isPositiveAdj
+                        ? '+'
+                        : '-'
+                      : isTransfer
+                      ? isTransferIn
+                        ? '+'
+                        : '-'
+                      : '+'}
+                    {formatMoney(Math.abs(t.amount_account), t.currency_account)}
+                  </p>
+                </div>
               </div>
             )
           })}

@@ -27,6 +27,18 @@ export interface NewTransactionInput {
   notes: string | null
 }
 
+// Calcula la fecha de una cuota de manera segura evitando corrimientos por zona horaria o desbordes de fin de mes
+function calculateInstallmentDate(baseDateStr: string, monthOffset: number): string {
+  if (monthOffset === 0) return baseDateStr
+  const [y, m, d] = baseDateStr.split('-').map(Number)
+  const totalMonths = m - 1 + monthOffset
+  const targetYear = y + Math.floor(totalMonths / 12)
+  const targetMonth = (totalMonths % 12) + 1
+  const daysInTargetMonth = new Date(targetYear, targetMonth, 0).getDate()
+  const targetDay = Math.min(d, daysInTargetMonth)
+  return `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`
+}
+
 export async function createTransaction(input: NewTransactionInput) {
   const supabase = await createClient()
   const {
@@ -41,25 +53,61 @@ export async function createTransaction(input: NewTransactionInput) {
   )
 
   const installmentTotal = Math.max(1, input.installmentTotal)
-  const amounts =
+  const accountAmounts =
     installmentTotal === 1
       ? [totalAccountAmount]
       : splitInstallments(totalAccountAmount, installmentTotal)
+  const originalAmounts =
+    installmentTotal === 1
+      ? [input.amountOriginal]
+      : splitInstallments(input.amountOriginal, installmentTotal)
 
-  const rows = amounts.map((amount, i) => {
-    const installmentDate = new Date(input.date)
-    installmentDate.setMonth(installmentDate.getMonth() + i)
+  const today = new Date().toISOString().slice(0, 10)
+  const parentId = crypto.randomUUID()
 
-    return {
+  // Fila principal: Cuota 1 de N
+  const parentDate = calculateInstallmentDate(input.date, 0)
+  const parentStatus = parentDate <= today ? ('COMPLETED' as const) : ('PENDING' as const)
+
+  const parentRow = {
+    id: parentId,
+    user_id: user.id,
+    parent_transaction_id: null,
+    date: parentDate,
+    type: input.type,
+    amount_original: originalAmounts[0],
+    currency_original: input.currencyOriginal,
+    fee_amount: input.feeAmount,
+    exchange_rate: input.exchangeRate,
+    rate_overridden: input.rateOverridden,
+    amount_account: accountAmounts[0],
+    currency_account: input.currencyAccount,
+    institution_id: input.institutionId,
+    account_id: input.accountId,
+    category_id: input.categoryId,
+    person_id: input.personId,
+    installment_current: 1,
+    installment_total: installmentTotal,
+    status: parentStatus,
+    notes: input.notes
+  }
+
+  // Fila(s) hija(s): Cuotas 2..N ligadas mediante parent_transaction_id y con estado PENDING
+  const childRows = []
+  for (let i = 1; i < installmentTotal; i++) {
+    const instDate = calculateInstallmentDate(input.date, i)
+    childRows.push({
+      id: crypto.randomUUID(),
       user_id: user.id,
-      date: installmentDate.toISOString().slice(0, 10),
+      parent_transaction_id: parentId,
+      date: instDate,
       type: input.type,
-      amount_original: installmentTotal === 1 ? input.amountOriginal : amount,
+      amount_original: originalAmounts[i],
       currency_original: input.currencyOriginal,
-      fee_amount: i === 0 ? input.feeAmount : 0,
+      fee_amount: 0,
       exchange_rate: input.exchangeRate,
       rate_overridden: input.rateOverridden,
-      amount_account: amount,
+      amount_account: accountAmounts[i],
       currency_account: input.currencyAccount,
       institution_id: input.institutionId,
       account_id: input.accountId,
@@ -67,14 +115,27 @@ export async function createTransaction(input: NewTransactionInput) {
       person_id: input.personId,
       installment_current: i + 1,
       installment_total: installmentTotal,
-      status: 'COMPLETED' as const,
+      status: 'PENDING' as const,
       notes: input.notes
-    }
-  })
+    })
+  }
 
-  // Un solo INSERT con todas las filas -> una sola sentencia SQL, atómica.
-  const { error } = await supabase.from('master_transactions').insert(rows)
-  if (error) throw new Error(error.message)
+  // Inserción atómica: primero el padre, luego las cuotas secundarias
+  const { error: parentError } = await supabase.from('master_transactions').insert(parentRow)
+  if (parentError) throw new Error('Error al registrar la transacción inicial: ' + parentError.message)
+
+  if (childRows.length > 0) {
+    const { error: childrenError } = await supabase.from('master_transactions').insert(childRows)
+    if (childrenError) {
+      await supabase.from('master_transactions').delete().eq('id', parentId)
+      throw new Error('Error al generar las cuotas futuras: ' + childrenError.message)
+    }
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/accounts')
+  revalidatePath(`/accounts/${input.accountId}`)
+  revalidatePath('/transactions')
 
   redirect('/dashboard')
 }
@@ -278,4 +339,40 @@ export async function deleteTransaction(transactionId: string) {
 
   return { success: true }
 }
+
+// Permite confirmar una cuota diferida o movimiento pendiente cuando llega su ciclo
+export async function confirmTransaction(transactionId: string) {
+  const supabase = await createClient()
+  const {
+    data: { user }
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error('No hay sesión activa')
+
+  const { data: tx, error: fetchErr } = await supabase
+    .from('master_transactions')
+    .select('id, account_id, status')
+    .eq('id', transactionId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (fetchErr || !tx) throw new Error('Transacción no encontrada')
+
+  const { error: updateErr } = await supabase
+    .from('master_transactions')
+    .update({ status: 'COMPLETED' })
+    .eq('id', transactionId)
+    .eq('user_id', user.id)
+
+  if (updateErr) throw new Error('No se pudo confirmar la transacción: ' + updateErr.message)
+
+  revalidatePath('/dashboard')
+  revalidatePath('/accounts')
+  revalidatePath('/transactions')
+  if (tx.account_id) {
+    revalidatePath(`/accounts/${tx.account_id}`)
+  }
+
+  return { success: true }
+}
+
 

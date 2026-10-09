@@ -54,6 +54,7 @@ Estas no son agentes — son documentos que cualquier agente (o vos en una sesi�
 | `fx-ledger-rules/SKILL.md` | Reglas de conversión, redondeo, cuotas — resumen ejecutable de PRD §3 | tocar `lib/fx/`, `lib/currency.ts`, o cualquier hook de transacciones |
 | `supabase-conventions/SKILL.md` | Convención de nombres de tablas/columnas, patrón de RLS policy, cómo versionar migraciones | crear una migración nueva en `supabase/migrations/` |
 | `copy-style/SKILL.md` | El copy deck completo (sección 7 de `design-system.md`): tono vos, rioplatense, sin "por favor" | escribir cualquier string visible al usuario |
+| `changelog/SKILL.md` | Reglas y formato para actualizar `docs/CHANGELOG.md` tras cada cambio | completar cualquier tarea, bugfix o nueva funcionalidad |
 
 Cada `SKILL.md` es corto (media página) — el objetivo es que el agente no tenga que releer `design-system.md` entero por un cambio de un botón, solo la porción relevante.
 
@@ -71,3 +72,15 @@ Cada `SKILL.md` es corto (media página) — el objetivo es que el agente no ten
 | 5 — Android y pulido | `capacitor-release` + `qa-reviewer` (regresión completa antes de empaquetar) |
 
 **Regla práctica:** nunca corras `ui-builder` y `db-architect` sobre el mismo cambio al mismo tiempo — si una pantalla necesita una columna nueva, primero `db-architect` cierra la migración, recién después `ui-builder` la consume. Evita que un agente escriba código contra un schema que el otro todavía está cambiando.
+
+---
+
+## 5. Regla transversal obligatoria: Registro de versiones (`docs/CHANGELOG.md`)
+
+> **ATENCIÓN PARA TODOS LOS AGENTES:**
+> Cada vez que implementes una funcionalidad, resuelvas un bug o apliques un refactor, **es obligatorio actualizar `docs/CHANGELOG.md`** antes de dar la tarea por concluida.
+>
+> 1. Detalla la versión o ubica los cambios en la sección `[Unreleased]`.
+> 2. Clasifica según corresponda: `Agregado`, `Modificado`, `Corregido` o `Eliminado`.
+> 3. Especifica los archivos/componentes involucrados y su correspondencia con el PRD.
+

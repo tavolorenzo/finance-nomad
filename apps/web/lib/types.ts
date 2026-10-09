@@ -31,6 +31,16 @@ export interface Person {
   id: string
   name: string
   phone: string | null
+  is_active?: boolean
+  created_at?: string
+}
+
+export interface UserSettings {
+  user_id: string
+  display_currency: string
+  theme: 'system' | 'light' | 'dark'
+  whatsapp_template?: string | null
+  updated_at?: string
 }
 
 export interface MasterTransaction {

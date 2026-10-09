@@ -18,3 +18,6 @@ Reglas no negociables:
 - Toda función de cálculo va en apps/web/lib/, con tests unitarios junto a
   cada archivo (*.test.ts) cubriendo al menos: conversión con fee, cuotas
   con resto no divisible exacto, y transferencia con distinta moneda origen/destino.
+- Registro de versiones: Al cerrar cualquier lógica, fix o cálculo, actualizá
+  docs/CHANGELOG.md (ver skill changelog).
+

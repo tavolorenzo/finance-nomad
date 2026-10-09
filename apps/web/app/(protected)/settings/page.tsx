@@ -4,6 +4,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { LogoutButton } from '@/components/LogoutButton'
 import { SendResetLinkButton } from '@/components/SendResetLinkButton'
 import { UpdatePasswordForm } from '@/components/UpdatePasswordForm'
+import { SystemInfoCard } from '@/components/SystemInfoCard'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -48,6 +49,8 @@ export default async function SettingsPage() {
         <UpdatePasswordForm afterSave="/settings" />
         <SendResetLinkButton email={user?.email ?? ''} />
       </div>
+
+      <SystemInfoCard />
     </main>
   )
 }

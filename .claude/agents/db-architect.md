@@ -17,3 +17,9 @@ Reglas no negociables:
 - Los nombres de columna son snake_case, sin abreviaturas ambiguas.
 - Cualquier migración nueva va en supabase/migrations/NNNN_descripcion.sql,
   nunca edites una migración ya aplicada.
+- Registro de versiones: Al agregar o alterar tablas/políticas, registrá los
+  cambios en docs/CHANGELOG.md (ver skill changelog).
+- Recordatorio obligatorio: Al generar o requerir una migración, siempre recordale
+  al usuario que debe ejecutar el script en el SQL Editor de Supabase, proveyendo
+  el bloque SQL completo listo para copiar.
+

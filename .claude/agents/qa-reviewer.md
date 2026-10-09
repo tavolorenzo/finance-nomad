@@ -18,3 +18,5 @@ sección 4):
 
 Reportá cada hallazgo como: qué se rompió, cómo reproducirlo, y el archivo
 donde está el fix sugerido. No apruebes una fase con hallazgos sin resolver.
+Confirmá que cada fix o feature aprobada tenga su entrada en docs/CHANGELOG.md.
+

@@ -7,8 +7,9 @@ export interface AccountBalance {
   balance: number // en moneda nativa de la cuenta
 }
 
-// Balance por cuenta = suma de amount_account hasta la fecha.
+// Balance por cuenta = suma de amount_account completadas hasta la fecha.
 // OUTCOME resta, INCOME suma, ADJUSTMENT y TRANSFER aplican el signo directo de la fila.
+// Solo transacciones en estado COMPLETED afectan el saldo nominal.
 export async function getAccountBalances(
   supabase: SupabaseClient,
   asOfDate: string
@@ -16,6 +17,7 @@ export async function getAccountBalances(
   const { data } = await supabase
     .from('master_transactions')
     .select('account_id, currency_account, amount_account, type')
+    .eq('status', 'COMPLETED')
     .lte('date', asOfDate)
 
   const balance = new Map<string, number>()
@@ -39,7 +41,7 @@ export async function getAccountBalances(
   }))
 }
 
-// Obtiene el saldo y moneda de una cuenta individual a una fecha dada.
+// Obtiene el saldo y moneda de una cuenta individual a una fecha dada considerando solo transacciones COMPLETED.
 export async function getSingleAccountBalance(
   supabase: SupabaseClient,
   accountId: string,
@@ -49,6 +51,7 @@ export async function getSingleAccountBalance(
     .from('master_transactions')
     .select('amount_account, type')
     .eq('account_id', accountId)
+    .eq('status', 'COMPLETED')
     .lte('date', asOfDate)
 
   let balance = 0
@@ -64,6 +67,35 @@ export async function getSingleAccountBalance(
 
   return Math.round(balance * 100) / 100
 }
+
+// Obtiene el total de compromisos diferidos/pendientes (status = PENDING) de una cuenta.
+// Utilizado para calcular la retención de línea de crédito en tarjetas y proyectar flujos futuros.
+export async function getAccountPendingAmount(
+  supabase: SupabaseClient,
+  accountId: string
+): Promise<number> {
+  const { data } = await supabase
+    .from('master_transactions')
+    .select('amount_account, type')
+    .eq('account_id', accountId)
+    .eq('status', 'PENDING')
+
+  let pending = 0
+  for (const t of data ?? []) {
+    let delta = Number(t.amount_account)
+    if (t.type === 'OUTCOME') {
+      delta = Math.abs(delta)
+    } else if (t.type === 'INCOME') {
+      delta = -Math.abs(delta)
+    } else {
+      delta = delta < 0 ? Math.abs(delta) : 0
+    }
+    pending += delta
+  }
+
+  return Math.round(pending * 100) / 100
+}
+
 
 // Convierte una lista de balances en distintas monedas a una sola moneda de
 // visualización, usando el tipo de cambio del día pedido.

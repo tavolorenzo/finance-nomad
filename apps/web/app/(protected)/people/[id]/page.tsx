@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { formatMoney } from '@/lib/currency'
 import { PersonActions } from '@/components/PersonActions'
@@ -9,15 +10,17 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ i
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: person } = await supabase.from('people').select('*').eq('id', id).single<Person>()
+  const [{ data: person }, { data: transactions }, { data: settings }] = await Promise.all([
+    supabase.from('people').select('*').eq('id', id).single<Person>(),
+    supabase
+      .from('master_transactions')
+      .select('*')
+      .eq('person_id', id)
+      .order('date', { ascending: true })
+      .returns<MasterTransaction[]>(),
+    supabase.from('user_settings').select('whatsapp_template').maybeSingle()
+  ])
   if (!person) notFound()
-
-  const { data: transactions } = await supabase
-    .from('master_transactions')
-    .select('*')
-    .eq('person_id', id)
-    .order('date', { ascending: true })
-    .returns<MasterTransaction[]>()
 
   const all = transactions ?? []
   const today = new Date().toISOString().slice(0, 10)
@@ -32,13 +35,23 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ i
   return (
     <main className="max-w-3xl mx-auto p-4 md:p-6 space-y-6">
       <div>
-        <Link
-          href="/people"
-          className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition mb-3"
-        >
-          <span>←</span>
-          <span>Volver a Personas</span>
-        </Link>
+        <div className="flex items-center justify-between mb-3">
+          <Link
+            href="/people"
+            className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition"
+          >
+            <span>←</span>
+            <span>Volver a Personas</span>
+          </Link>
+          <Link
+            href={`/people/${person.id}/edit`}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-text-secondary hover:text-text-primary border border-border px-3 py-1.5 rounded-control bg-surface-1 hover:bg-surface-2 transition"
+          >
+            <Pencil size={13} />
+            <span>Editar</span>
+          </Link>
+        </div>
+
         <div className="bg-surface-1 border border-border rounded-card p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -46,7 +59,15 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ i
                 {person.name.slice(0, 2).toUpperCase()}
               </span>
               <h1 className="font-display text-2xl font-bold tracking-tight">{person.name}</h1>
+              {person.is_active === false && (
+                <span className="text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded-full bg-surface-2 text-text-muted border border-border">
+                  Desactivada
+                </span>
+              )}
             </div>
+            {person.phone && (
+              <p className="text-xs text-text-secondary mt-1">{person.phone}</p>
+            )}
             <p className="text-xs text-text-muted mt-1 uppercase tracking-wider font-medium">Saldo por cobrar</p>
           </div>
           <div>
@@ -57,7 +78,11 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ i
         </div>
       </div>
 
-      <PersonActions person={person} pending={pending} />
+      <PersonActions
+        person={person}
+        pending={pending}
+        whatsappTemplate={settings?.whatsapp_template ?? null}
+      />
 
       {overdueOrToday.length > 0 && (
         <section className="space-y-2">

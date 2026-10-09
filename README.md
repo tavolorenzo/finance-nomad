@@ -2,14 +2,16 @@
 
 App de finanzas personales multi-moneda para vida nómada. Ver `docs/PRD.md`
 para el producto completo, `docs/design-system.md` para el estándar visual,
-y `docs/agents-and-skills.md` para cómo está dividido el trabajo entre
-subagentes de Claude Code.
+`docs/agents-and-skills.md` para la división de subagentes y
+`docs/CHANGELOG.md` para el historial de versiones y cambios.
 
 ## Estructura
 
 ```
 finance-nomad/
-├── docs/                    PRD, design system, agentes — leer antes de codear
+├── docs/                    PRD, design system, changelog, agentes
+├── AGENTS.md                Reglas obligatorias para agentes y desarrolladores
+├── CHANGELOG.md             Acceso directo al registro de versiones
 ├── .claude/
 │   ├── agents/              db-architect, ui-builder, ledger-logic, qa-reviewer
 │   └── skills/               reglas cortas que cada agente lee según lo que toca

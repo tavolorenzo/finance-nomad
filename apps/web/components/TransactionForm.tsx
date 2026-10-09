@@ -44,6 +44,7 @@ export function TransactionForm({
   const [rateError, setRateError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
+  const activePeople = people.filter((p) => p.is_active !== false || p.id === personId)
   const isTransfer = type === 'TRANSFER'
   const account = accounts.find((a) => a.id === accountId)
   const toAccount = accounts.find((a) => a.id === toAccountId)
@@ -354,7 +355,7 @@ export function TransactionForm({
           <div>
             <label className="block text-xs font-medium text-text-secondary mb-1">Persona asignada</label>
             <div className="flex gap-2 flex-wrap">
-              {people.map((p) => (
+              {activePeople.map((p) => (
                 <button
                   key={p.id}
                   type="button"
@@ -384,7 +385,13 @@ export function TransactionForm({
                 </option>
               ))}
             </select>
+            {installments > 1 && (
+              <p className="text-[11px] text-text-muted mt-1.5">
+                1 cuota hoy (Completada) + {installments - 1} {installments === 2 ? 'cuota mensual futura' : 'cuotas mensuales futuras'} (Pendientes) vinculadas al plan.
+              </p>
+            )}
           </div>
+
         </>
       )}
 

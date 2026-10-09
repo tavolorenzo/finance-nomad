@@ -28,3 +28,6 @@ Reglas no negociables:
 - La navegación ya existe en components/Navigation.tsx (tab bar mobile +
   sidebar web) — no la reinventés por pantalla, agregá el ítem nuevo ahí
   cuando una pantalla de MORE_ITEMS pase de "pronto" a construida.
+- Registro de versiones: En cada cambio, corrección o nueva funcionalidad terminada,
+  es obligatorio actualizar docs/CHANGELOG.md (ver skill changelog).
+

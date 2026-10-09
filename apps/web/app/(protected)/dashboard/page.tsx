@@ -55,9 +55,11 @@ export default async function DashboardPage() {
       .select('amount_account, category_id, date, type')
       .in('category_id', categoryIds)
       .eq('type', 'OUTCOME')
+      .eq('status', 'COMPLETED')
       .gte('date', start)
       .lte('date', end)
     realSpent = (monthTx ?? []).reduce((sum, t) => sum + t.amount_account, 0)
+
   }
   const budgetPct = estimatedTotal > 0 ? Math.min(100, Math.round((realSpent / estimatedTotal) * 100)) : 0
 
@@ -92,16 +94,30 @@ export default async function DashboardPage() {
 
         {/* Columna 2: Cuentas */}
         <div>
-          <p className="font-display text-base font-medium mb-3">Cuentas</p>
+          <div className="flex justify-between items-center mb-3">
+            <p className="font-display text-base font-medium">Cuentas</p>
+            <Link href="/accounts" className="text-xs text-text-muted hover:text-accent transition font-medium">
+              Ver todas
+            </Link>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
-            {(accounts ?? []).map((a) => (
-              <div key={a.id} className="bg-surface-1 border border-border rounded-card p-3">
-                <p className="text-xs text-text-muted truncate">{a.institutions?.name} · {a.name}</p>
-                <p className="font-mono amount text-base mt-1">
-                  {formatMoney(balanceByAccount.get(a.id) ?? 0, a.currency_native)}
-                </p>
-              </div>
-            ))}
+            {(accounts ?? []).map((a) => {
+              const bal = balanceByAccount.get(a.id) ?? 0
+              return (
+                <Link
+                  key={a.id}
+                  href={`/accounts/${a.id}`}
+                  className="group bg-surface-1 border border-border rounded-card p-3 hover:border-accent hover:bg-surface-2/60 transition block"
+                >
+                  <p className="text-xs text-text-muted truncate group-hover:text-accent transition">
+                    {a.institutions?.name} · {a.name}
+                  </p>
+                  <p className={`font-mono amount text-base mt-1 ${bal < 0 ? 'text-expense font-semibold' : 'text-text-primary'}`}>
+                    {formatMoney(bal, a.currency_native)}
+                  </p>
+                </Link>
+              )
+            })}
             {(!accounts || accounts.length === 0) && (
               <div className="bg-surface-1 border border-border rounded-card p-4 col-span-full">
                 <p className="text-sm text-text-muted">
@@ -136,6 +152,7 @@ export default async function DashboardPage() {
               const isTransfer = t.type === 'TRANSFER'
               const isPositiveAdj = isAdjustment && t.amount_account >= 0
               const isTransferIn = isTransfer && t.amount_account >= 0
+              const isPending = t.status === 'PENDING'
 
               return (
                 <div key={t.id} className="flex justify-between items-center py-2.5 first:pt-0 last:pb-0">
@@ -174,6 +191,11 @@ export default async function DashboardPage() {
                         {isTransfer && (
                           <span className="text-[10px] px-1 py-0.1 rounded bg-surface-2 text-accent font-medium">
                             Transferencia
+                          </span>
+                        )}
+                        {isPending && (
+                          <span className="text-[10px] px-1 py-0.1 rounded bg-pending/15 text-pending font-medium">
+                            Pendiente
                           </span>
                         )}
                       </div>
