@@ -7,9 +7,11 @@ import type { Account, Institution } from '@/lib/types'
 export default async function EditAccountPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: account } = await supabase.from('accounts').select('*').eq('id', id).single<Account>()
+  const [{ data: account }, { data: institutions }] = await Promise.all([
+    supabase.from('accounts').select('*').eq('id', id).single<Account>(),
+    supabase.from('institutions').select('*').returns<Institution[]>()
+  ])
   if (!account) notFound()
-  const { data: institutions } = await supabase.from('institutions').select('*').returns<Institution[]>()
 
   return (
     <main className="max-w-md mx-auto p-4 space-y-4">

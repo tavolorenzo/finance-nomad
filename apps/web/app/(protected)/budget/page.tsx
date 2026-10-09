@@ -12,28 +12,27 @@ export default async function BudgetPage() {
   const supabase = await createClient()
   const { start, end } = monthRange()
 
-  const { data: estimates } = await supabase
-    .from('budget_estimates')
-    .select('*, categories(name)')
-    .eq('is_active', true)
-    .order('due_day', { ascending: true })
-
-  const categoryIds = (estimates ?? []).map((e) => e.category_id)
-  const realByCategory = new Map<string, number>()
-
-  if (categoryIds.length > 0) {
-    const { data: monthTx } = await supabase
+  const [{ data: estimates }, { data: monthTx }] = await Promise.all([
+    supabase
+      .from('budget_estimates')
+      .select('*, categories(name)')
+      .eq('is_active', true)
+      .order('due_day', { ascending: true }),
+    supabase
       .from('master_transactions')
       .select('amount_account, category_id, type')
-      .in('category_id', categoryIds)
+      .not('category_id', 'is', null)
       .gte('date', start)
       .lte('date', end)
+  ])
 
-    for (const t of monthTx ?? []) {
-      if (!t.category_id) continue
-      const sign = t.type === 'OUTCOME' ? 1 : -1 // gasto ejecutado cuenta como "cubierto"
-      realByCategory.set(t.category_id, (realByCategory.get(t.category_id) ?? 0) + sign * t.amount_account)
-    }
+  const categoryIds = new Set((estimates ?? []).map((e) => e.category_id))
+  const realByCategory = new Map<string, number>()
+
+  for (const t of monthTx ?? []) {
+    if (!t.category_id || !categoryIds.has(t.category_id)) continue
+    const sign = t.type === 'OUTCOME' ? 1 : -1 // gasto ejecutado cuenta como "cubierto"
+    realByCategory.set(t.category_id, (realByCategory.get(t.category_id) ?? 0) + sign * t.amount_account)
   }
 
   const incomeEstimates = (estimates ?? []).filter((e) => e.type === 'INCOME_ESTIMATE')

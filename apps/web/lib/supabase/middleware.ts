@@ -9,6 +9,33 @@ const PROTECTED_PREFIXES = [
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
+  const path = request.nextUrl.pathname
+  const isProtected = PROTECTED_PREFIXES.some((p) => path.startsWith(p))
+  const cookies = request.cookies.getAll()
+  const hasAuthCookie = cookies.some((c) => c.name.startsWith('sb-') && c.name.includes('-auth-token'))
+
+  // Atajo 1: Ruta protegida sin ninguna cookie de sesión -> Redirigir a login de inmediato sin golpear Supabase
+  if (isProtected && !hasAuthCookie) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  // Atajo 2: /login sin ninguna cookie de sesión -> Mostrar login de inmediato sin llamada a Supabase
+  if (path === '/login' && !hasAuthCookie) {
+    return supabaseResponse
+  }
+
+  // Atajo 3: Prefetches automáticos de Next.js en rutas protegidas con cookie de auth ->
+  // Dejar pasar sin revalidar contra el servidor remoto de Supabase en cada hover/enlace
+  const isPrefetch =
+    request.headers.get('purpose') === 'prefetch' ||
+    request.headers.get('next-router-prefetch') === '1'
+
+  if (isPrefetch && isProtected && hasAuthCookie) {
+    return supabaseResponse
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -26,12 +53,8 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // No usar getSession() acá — getUser() revalida contra el servidor de
-  // Supabase en vez de confiar ciegamente en la cookie.
+  // Revalidar sesión contra el servidor de Supabase y refrescar cookies de ser necesario
   const { data: { user } } = await supabase.auth.getUser()
-
-  const path = request.nextUrl.pathname
-  const isProtected = PROTECTED_PREFIXES.some((p) => path.startsWith(p))
 
   if (!user && isProtected) {
     const url = request.nextUrl.clone()

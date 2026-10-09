@@ -11,14 +11,16 @@ import type { Account, Category, Person } from '@/lib/types'
 export default async function TransactionModal() {
   const supabase = await createClient()
 
-  const { data: accounts } = await supabase
-    .from('accounts')
-    .select('*, institutions!inner(id, name)')
-    .eq('is_active', true)
-    .eq('institutions.is_active', true)
-    .returns<(Account & { institutions: { id: string; name: string } })[]>()
-  const { data: categories } = await supabase.from('categories').select('*').returns<Category[]>()
-  const { data: people } = await supabase.from('people').select('*').returns<Person[]>()
+  const [{ data: accounts }, { data: categories }, { data: people }] = await Promise.all([
+    supabase
+      .from('accounts')
+      .select('*, institutions!inner(id, name)')
+      .eq('is_active', true)
+      .eq('institutions.is_active', true)
+      .returns<(Account & { institutions: { id: string; name: string } })[]>(),
+    supabase.from('categories').select('*').returns<Category[]>(),
+    supabase.from('people').select('*').returns<Person[]>()
+  ])
 
   return (
     <Modal title="Nuevo movimiento">

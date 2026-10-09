@@ -16,14 +16,21 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const today = new Date().toISOString().slice(0, 10)
 
-  const { data: settings } = await supabase
-    .from('user_settings')
-    .select('display_currency')
-    .eq('user_id', user!.id)
-    .maybeSingle()
-  const displayCurrency = settings?.display_currency ?? 'EUR'
+  const { start, end } = monthRange()
 
-  const [{ data: accounts }, { data: transactions }, { data: estimates }] = await Promise.all([
+  // Fase 1: Consultas iniciales en paralelo
+  const [
+    { data: settings },
+    { data: accounts },
+    { data: transactions },
+    { data: estimates },
+    balances
+  ] = await Promise.all([
+    supabase
+      .from('user_settings')
+      .select('display_currency')
+      .eq('user_id', user!.id)
+      .maybeSingle(),
     supabase
       .from('accounts')
       .select('id, name, type, currency_native, institutions!inner(name)')
@@ -36,31 +43,35 @@ export default async function DashboardPage() {
       .order('date', { ascending: false })
       .limit(5)
       .returns<MasterTransaction[]>(),
-    supabase.from('budget_estimates').select('*').eq('is_active', true).eq('type', 'EXPENSE_ESTIMATE')
+    supabase
+      .from('budget_estimates')
+      .select('*')
+      .eq('is_active', true)
+      .eq('type', 'EXPENSE_ESTIMATE'),
+    getAccountBalances(supabase, today)
   ])
 
-  const balances = await getAccountBalances(supabase, today)
-  const netWorth = await convertToDisplayCurrency(balances, displayCurrency, today)
+  const displayCurrency = settings?.display_currency ?? 'EUR'
   const balanceByAccount = new Map(balances.map((b) => [b.accountId, b.balance]))
-
-  // Presupuesto del mes: real gastado (por categoría de los estimados activos) vs. proyectado.
-  const { start, end } = monthRange()
   const estimatedTotal = (estimates ?? []).reduce((sum, e) => sum + e.estimated_amount, 0)
   const categoryIds = (estimates ?? []).map((e) => e.category_id)
 
-  let realSpent = 0
-  if (categoryIds.length > 0) {
-    const { data: monthTx } = await supabase
-      .from('master_transactions')
-      .select('amount_account, category_id, date, type')
-      .in('category_id', categoryIds)
-      .eq('type', 'OUTCOME')
-      .eq('status', 'COMPLETED')
-      .gte('date', start)
-      .lte('date', end)
-    realSpent = (monthTx ?? []).reduce((sum, t) => sum + t.amount_account, 0)
+  // Fase 2: Conversión de divisas y gasto del mes en paralelo
+  const [netWorth, monthTxResult] = await Promise.all([
+    convertToDisplayCurrency(balances, displayCurrency, today),
+    categoryIds.length > 0
+      ? supabase
+          .from('master_transactions')
+          .select('amount_account, category_id, date, type')
+          .in('category_id', categoryIds)
+          .eq('type', 'OUTCOME')
+          .eq('status', 'COMPLETED')
+          .gte('date', start)
+          .lte('date', end)
+      : Promise.resolve({ data: [] })
+  ])
 
-  }
+  const realSpent = (monthTxResult.data ?? []).reduce((sum, t) => sum + t.amount_account, 0)
   const budgetPct = estimatedTotal > 0 ? Math.min(100, Math.round((realSpent / estimatedTotal) * 100)) : 0
 
   return (

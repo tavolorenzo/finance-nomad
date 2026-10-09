@@ -41,33 +41,49 @@ export default async function AccountDetailPage({
   const { id } = await params
   const supabase = await createClient()
 
-  // Consulta de la cuenta actual
-  const { data: account } = await supabase
-    .from('accounts')
-    .select('*, institutions(*)')
-    .eq('id', id)
-    .single<Account & { institutions: Institution }>()
+  const today = new Date().toISOString().slice(0, 10)
+
+  // Consulta en paralelo de cuenta, cuentas activas y transacciones asociadas
+  const [{ data: account }, { data: allAccounts }, { data: transactions }] = await Promise.all([
+    supabase
+      .from('accounts')
+      .select('*, institutions(*)')
+      .eq('id', id)
+      .single<Account & { institutions: Institution }>(),
+    supabase
+      .from('accounts')
+      .select('*, institutions(name)')
+      .eq('is_active', true)
+      .returns<(Account & { institutions: { name: string } })[]>(),
+    supabase
+      .from('master_transactions')
+      .select('*, categories(name), people(name)')
+      .eq('account_id', id)
+      .order('date', { ascending: false })
+      .returns<(MasterTransaction & { categories?: { name: string } | null; people?: { name: string } | null })[]>()
+  ])
 
   if (!account) notFound()
 
-  const today = new Date().toISOString().slice(0, 10)
-  const currentBalance = await getSingleAccountBalance(supabase, account.id, today)
-  const pendingAmount = await getAccountPendingAmount(supabase, account.id)
-
-  // Consulta de todas las cuentas activas para el modal de pago de tarjeta
-  const { data: allAccounts } = await supabase
-    .from('accounts')
-    .select('*, institutions(name)')
-    .eq('is_active', true)
-    .returns<(Account & { institutions: { name: string } })[]>()
-
-  // Transacciones de esta cuenta
-  const { data: transactions } = await supabase
-    .from('master_transactions')
-    .select('*, categories(name), people(name)')
-    .eq('account_id', account.id)
-    .order('date', { ascending: false })
-    .returns<(MasterTransaction & { categories?: { name: string } | null; people?: { name: string } | null })[]>()
+  // Calcular saldo nominal y compromisos pendientes en memoria a partir de las transacciones
+  let currentBalance = 0
+  let pendingAmount = 0
+  for (const t of transactions ?? []) {
+    if (t.status === 'COMPLETED' && t.date <= today) {
+      let delta = Number(t.amount_account)
+      if (t.type === 'OUTCOME') delta = -Math.abs(delta)
+      else if (t.type === 'INCOME') delta = Math.abs(delta)
+      currentBalance += delta
+    } else if (t.status === 'PENDING') {
+      let delta = Number(t.amount_account)
+      if (t.type === 'OUTCOME') delta = Math.abs(delta)
+      else if (t.type === 'INCOME') delta = -Math.abs(delta)
+      else delta = delta < 0 ? Math.abs(delta) : 0
+      pendingAmount += delta
+    }
+  }
+  currentBalance = Math.round(currentBalance * 100) / 100
+  pendingAmount = Math.round(pendingAmount * 100) / 100
 
   // Estadísticas del mes en curso (únicamente transacciones completadas)
   const { start, end } = monthRange()

@@ -7,19 +7,20 @@ import type { MasterTransaction, Person } from '@/lib/types'
 export default async function PeoplePage() {
   const supabase = await createClient()
 
-  const { data: people } = await supabase
-    .from('people')
-    .select('*')
-    .neq('name', 'Personal')
-    .returns<Person[]>()
-
-  const { data: pending } = await supabase
-    .from('master_transactions')
-    .select('person_id, amount_account, currency_account')
-    .is('settled_at', null)
-    .eq('type', 'OUTCOME')
-    .not('person_id', 'is', null)
-    .returns<Pick<MasterTransaction, 'person_id' | 'amount_account' | 'currency_account'>[]>()
+  const [{ data: people }, { data: pending }] = await Promise.all([
+    supabase
+      .from('people')
+      .select('*')
+      .neq('name', 'Personal')
+      .returns<Person[]>(),
+    supabase
+      .from('master_transactions')
+      .select('person_id, amount_account, currency_account')
+      .is('settled_at', null)
+      .eq('type', 'OUTCOME')
+      .not('person_id', 'is', null)
+      .returns<Pick<MasterTransaction, 'person_id' | 'amount_account' | 'currency_account'>[]>()
+  ])
 
   const totalsByPerson = new Map<string, Map<string, number>>()
   for (const t of pending ?? []) {

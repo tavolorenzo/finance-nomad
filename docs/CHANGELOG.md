@@ -14,6 +14,31 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ---
 
+## [1.3.1] - 2026-10-09
+### Optimizado
+- **Motor de Divisas (FX) y Conversión Concurrente** (`apps/web/lib/fx/index.ts`, `apps/web/lib/networth.ts`):
+  - Reemplazo del scraper HTML de Google Finance (que se bloqueaba por timeout de 6s al no encontrar selectores obsoletos) por la API JSON estructurada `open.er-api.com` con soporte en tiempo real para UYU, EUR, USD, AUD y NZD, y fallback a Frankfurter para monedas del BCE e histórico.
+  - Implementación de caché en memoria con TTL de 1 hora para eliminar llamadas de red en consultas sucesivas de cotizaciones (tiempo de respuesta en caché: ~0.01 ms).
+  - Paralelización de conversiones multi-divisa en `convertToDisplayCurrency` ([`apps/web/lib/networth.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/networth.ts)) usando `Promise.all` en lugar de un bucle secuencial `for...of`.
+  - Reducción del tiempo de cálculo de divisas en el Dashboard de más de 7.200 ms a < 1 ms (en caché) o ~350–650 ms (cold fetch).
+- **Eliminación de Consultas en Cascada (Waterfalls) en Server Components y Modales**:
+  - **Modal y formulario de movimientos** ([`@modal/(.)transactions/new/page.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/@modal/(.)transactions/new/page.tsx) y [`transactions/new/page.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/transactions/new/page.tsx)): Unificación de las consultas de `accounts`, `categories` y `people` dentro de un único `Promise.all` (tiempo de apertura reducido de ~2.4s a ~0.8s).
+  - **Ficha de Cuenta** ([`accounts/[id]/page.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/accounts/[id]/page.tsx)): Paralelización de `account`, `allAccounts` y `transactions` con `Promise.all`. Deduplicación del saldo actual y compromisos diferidos calculándolos directamente en memoria a partir del arreglo de transacciones ya descargado, eliminando 3 peticiones redundantes a `master_transactions` (tiempo de carga reducido de ~4.5s a < 0.9s).
+  - **Dashboard Principal** ([`dashboard/page.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/dashboard/page.tsx)): Reestructuración de 6 fases secuenciales a solo 2 fases concurrentes (`settings`, `accounts`, `transactions`, `estimates` y `balances` en paralelo, seguido de `convertToDisplayCurrency` y `monthTx` en paralelo).
+  - **Directorio de Personas** ([`people/page.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/people/page.tsx)): Paralelización simultánea de `people` y transacciones pendientes `master_transactions`.
+  - **Presupuesto Mensual** ([`budget/page.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/budget/page.tsx)): Consulta paralela de `budget_estimates` y gastos del mes en `master_transactions`, resolviendo el filtrado de categorías en memoria.
+  - **Formularios de Edición** ([`accounts/[id]/edit/page.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/accounts/[id]/edit/page.tsx) y [`people/[id]/edit/page.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/people/[id]/edit/page.tsx)): Paralelización de consultas de entidades primarias y datos relacionales/pendientes.
+- **Middleware y Prefetching en el Edge** ([`apps/web/lib/supabase/middleware.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/supabase/middleware.ts)):
+  - Fast-path para solicitudes no autenticadas en rutas protegidas: si la cookie `sb-*-auth-token` no existe, redirige de inmediato a `/login` sin consultar al servidor remoto de Supabase (0 ms vs. ~480 ms).
+  - Fast-path para `/login`: omite la verificación remota de usuario si no hay cookie de sesión activa.
+  - Bypass de revalidación remota de sesión en peticiones automáticas de prefetch de Next.js (`purpose: prefetch` / `next-router-prefetch`) cuando ya existe una sesión en cookies, evitando saturar el pool de conexiones del tier gratuito de Supabase.
+
+### Agregado
+- **Suite de Pruebas Unitarias de Divisas y Patrimonio** ([`apps/web/lib/fx.test.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/fx.test.ts)):
+  - 4 pruebas automatizadas con Vitest cubriendo conversión idéntica, cálculo de montos contables (`calculateAccountAmount`), partición exacta de cuotas sin pérdida de centavos (`splitInstallments`) y consolidación concurrente de patrimonio neto (`convertToDisplayCurrency`).
+
+---
+
 ## [1.3.0] - 2026-10-09
 ### Agregado
 - **Modal de Previsualización y Edición previa para WhatsApp (`WhatsAppNotifyModal`)** (PRD §4.5):

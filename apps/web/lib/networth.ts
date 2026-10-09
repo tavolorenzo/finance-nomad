@@ -98,23 +98,26 @@ export async function getAccountPendingAmount(
 
 
 // Convierte una lista de balances en distintas monedas a una sola moneda de
-// visualización, usando el tipo de cambio del día pedido.
+// visualización, usando el tipo de cambio del día pedido en paralelo.
 export async function convertToDisplayCurrency(
   balances: AccountBalance[],
   displayCurrency: string,
   date: string
 ): Promise<number> {
-  let total = 0
-  for (const b of balances) {
-    if (b.balance === 0) continue
-    try {
-      const rate = await getRate(date, b.currency, displayCurrency)
-      total += b.balance * rate
-    } catch {
-      // Si la API de FX falla para esa moneda puntual, no rompemos todo el
-      // dashboard -- se excluye del total y se podría avisar en UI más
-      // adelante (ver error.rate_unavailable en el copy deck).
-    }
-  }
+  const converted = await Promise.all(
+    balances.map(async (b) => {
+      if (b.balance === 0) return 0
+      try {
+        const rate = await getRate(date, b.currency, displayCurrency)
+        return b.balance * rate
+      } catch {
+        // Si la API de FX falla para esa moneda puntual, no rompemos todo el
+        // dashboard -- se excluye del total.
+        return 0
+      }
+    })
+  )
+
+  const total = converted.reduce((sum, val) => sum + val, 0)
   return Math.round(total * 100) / 100
 }

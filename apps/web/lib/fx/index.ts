@@ -8,29 +8,56 @@ interface FrankfurterResponse {
   rates: Record<string, number>
 }
 
-const cache = new Map<string, number>()
+interface OpenErResponse {
+  result: string
+  base_code: string
+  rates: Record<string, number>
+}
 
-export async function getGoogleFinanceRate(from: string, to: string): Promise<number> {
+interface CacheEntry {
+  rate: number
+  expiresAt: number
+}
+
+const cache = new Map<string, CacheEntry>()
+const TTL_MS = 60 * 60 * 1000 // 1 hora de caché en memoria
+
+export async function getOpenErRate(from: string, to: string): Promise<number> {
   if (from === to) return 1
 
-  const key = `gf_${from}_${to}`
-  if (cache.has(key)) return cache.get(key)!
+  const key = `er_${from}_${to}`
+  const hit = cache.get(key)
+  if (hit && hit.expiresAt > Date.now()) return hit.rate
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 6000)
+  const timeoutId = setTimeout(() => controller.abort(), 3500)
 
   try {
-    const res = await fetch(`https://www.google.com/finance/quote/${from}-${to}`, {
+    const res = await fetch(`https://open.er-api.com/v6/latest/${from}`, {
       signal: controller.signal,
       next: { revalidate: 3600 }
     })
-    if (!res.ok) throw new Error(`Google Finance respondió ${res.status}`)
-    const html = await res.text()
-    const match = html.match(/data-last-price="([^"]+)"/)
-    if (!match || !match[1]) throw new Error(`Sin cotización en Google Finance para ${from} -> ${to}`)
-    const rate = parseFloat(match[1])
-    if (isNaN(rate) || rate <= 0) throw new Error(`Cotización inválida para ${from} -> ${to}`)
-    cache.set(key, rate)
+    if (!res.ok) throw new Error(`Open Exchange Rates respondió ${res.status}`)
+    const data: OpenErResponse = await res.json()
+    if (data.result !== 'success' || !data.rates) {
+      throw new Error(`Respuesta inválida de Open Exchange Rates para ${from}`)
+    }
+
+    const now = Date.now()
+    // Poblar caché para todas las cotizaciones del par base
+    for (const [targetCurrency, rateValue] of Object.entries(data.rates)) {
+      if (typeof rateValue === 'number' && rateValue > 0) {
+        cache.set(`er_${from}_${targetCurrency}`, {
+          rate: rateValue,
+          expiresAt: now + TTL_MS
+        })
+      }
+    }
+
+    const rate = data.rates[to]
+    if (!rate || typeof rate !== 'number' || rate <= 0) {
+      throw new Error(`Sin cotización para ${from} -> ${to}`)
+    }
     return rate
   } finally {
     clearTimeout(timeoutId)
@@ -41,29 +68,40 @@ export async function getFrankfurterRate(date: string, from: string, to: string)
   if (from === to) return 1
 
   const key = `ff_${date}_${from}_${to}`
-  if (cache.has(key)) return cache.get(key)!
+  const hit = cache.get(key)
+  if (hit && hit.expiresAt > Date.now()) return hit.rate
 
-  const res = await fetch(`https://api.frankfurter.app/${date}?from=${from}&to=${to}`)
-  if (!res.ok) throw new Error(`Frankfurter respondió ${res.status}`)
-  const data: FrankfurterResponse = await res.json()
-  const rate = data.rates[to]
-  if (!rate) throw new Error(`Sin cotización en Frankfurter para ${from} -> ${to}`)
-  cache.set(key, rate)
-  return rate
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 3500)
+
+  try {
+    const res = await fetch(`https://api.frankfurter.app/${date}?from=${from}&to=${to}`, {
+      signal: controller.signal,
+      next: { revalidate: 3600 }
+    })
+    if (!res.ok) throw new Error(`Frankfurter respondió ${res.status}`)
+    const data: FrankfurterResponse = await res.json()
+    const rate = data.rates[to]
+    if (!rate) throw new Error(`Sin cotización en Frankfurter para ${from} -> ${to}`)
+    cache.set(key, { rate, expiresAt: Date.now() + TTL_MS })
+    return rate
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
 export async function getRate(date: string, from: string, to: string): Promise<number> {
   if (from === to) return 1
 
-  // 1. Intentar primero Google Finance (soporta UYU, AUD, EUR, USD, NZD en tiempo real)
+  // 1. Intentar Open Exchange Rates (soporta UYU, AUD, EUR, USD, NZD con respuesta JSON inmediata)
   try {
-    return await getGoogleFinanceRate(from, to)
-  } catch (gfErr) {
-    // 2. Si Google Finance falla, intentar Frankfurter (para monedas ECB / histórico)
+    return await getOpenErRate(from, to)
+  } catch (err) {
+    // 2. Si falla, intentar Frankfurter (para histórico y monedas del BCE)
     try {
       return await getFrankfurterRate(date, from, to)
     } catch {
-      throw gfErr instanceof Error ? gfErr : new Error(`Sin cotización para ${from} -> ${to}`)
+      throw err instanceof Error ? err : new Error(`Sin cotización para ${from} -> ${to}`)
     }
   }
 }
