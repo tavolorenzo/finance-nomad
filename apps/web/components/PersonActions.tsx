@@ -4,62 +4,68 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Settings } from 'lucide-react'
-import { registerCollection } from '@/app/(protected)/people/actions'
 import { formatMoney } from '@/lib/currency'
 import { formatWhatsAppMessage } from '@/lib/whatsapp'
 import { WhatsAppNotifyModal } from '@/components/WhatsAppNotifyModal'
+import { RegisterPersonPaymentModal } from '@/components/RegisterPersonPaymentModal'
 import { useOptionalLedger } from '@/lib/ledger/ledger-context'
-import { useOnlineStatus } from '@/lib/hooks/use-online-status'
-import type { MasterTransaction, Person } from '@/lib/types'
+import type { Account, Category, MasterTransaction, Person } from '@/lib/types'
 
 export function PersonActions({
   person,
   pending,
-  whatsappTemplate
+  whatsappTemplate,
+  accounts = [],
+  categories = []
 }: {
   person: Person
   pending: MasterTransaction[]
   whatsappTemplate?: string | null
+  accounts?: (Account & { institutions?: { name: string } })[]
+  categories?: Category[]
 }) {
   const router = useRouter()
   const ledger = useOptionalLedger()
-  const isOnline = useOnlineStatus()
-  const [loading, setLoading] = useState(false)
   const [isNotifyModalOpen, setIsNotifyModalOpen] = useState(false)
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
 
-  async function handleCollect() {
-    if (!isOnline) return
-    setLoading(true)
-    try {
-      await registerCollection(person.id)
-      await ledger?.refresh().catch(() => {})
-      router.refresh()
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const total = pending.reduce((sum, t) => sum + t.amount_account, 0)
-  const currency = pending[0]?.currency_account ?? ''
+  // Saldo pendiente real considerando pagos parciales previos
+  const total = pending.reduce(
+    (sum, t) => sum + Math.max(0, t.amount_account - (t.settled_amount ?? 0)),
+    0
+  )
+  const currency = pending[0]?.currency_account ?? 'UYU'
 
   const renderedMessage = formatWhatsAppMessage({
     template: whatsappTemplate,
     personName: person.name,
     totalFormatted: formatMoney(total, currency),
-    items: pending.map((t) => ({
-      description: t.notes || 'Movimiento',
-      amountFormatted: formatMoney(t.amount_account, t.currency_account)
-    }))
+    items: pending.map((t) => {
+      const rem = Math.max(0, t.amount_account - (t.settled_amount ?? 0))
+      const isPartial = (t.settled_amount ?? 0) > 0
+      return {
+        description: isPartial
+          ? `${t.notes || 'Movimiento'} (Saldo restante)`
+          : t.notes || 'Movimiento',
+        amountFormatted: formatMoney(rem, t.currency_account)
+      }
+    })
   })
 
   function handleOpenNotifyModal() {
     setIsNotifyModalOpen(true)
   }
 
+  function handlePaymentSuccess() {
+    ledger?.refresh().catch(() => {})
+    router.refresh()
+  }
+
   return (
     <>
       <div className="flex gap-2">
         <button
+          type="button"
           onClick={handleOpenNotifyModal}
           disabled={pending.length === 0}
           className="flex-1 border border-border text-text-primary py-2.5 rounded-control text-sm font-medium hover:bg-surface-2 transition disabled:opacity-40"
@@ -74,12 +80,12 @@ export function PersonActions({
           <Settings size={16} />
         </Link>
         <button
-          onClick={handleCollect}
-          disabled={pending.length === 0 || loading || !isOnline}
-          title={!isOnline ? 'Conectate a internet para registrar la liquidación' : undefined}
+          type="button"
+          onClick={() => setIsPaymentModalOpen(true)}
+          disabled={pending.length === 0}
           className="flex-1 bg-accent text-[color:var(--on-accent)] py-2.5 rounded-control text-sm font-medium hover:opacity-90 transition disabled:opacity-40"
         >
-          {!isOnline ? 'Sin conexión' : loading ? 'Registrando...' : 'Registrar cobro'}
+          Registrar cobro
         </button>
       </div>
 
@@ -88,6 +94,16 @@ export function PersonActions({
         onClose={() => setIsNotifyModalOpen(false)}
         person={person}
         initialMessage={renderedMessage}
+      />
+
+      <RegisterPersonPaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        person={person}
+        pendingTransactions={pending}
+        accounts={accounts}
+        categories={categories}
+        onSuccess={handlePaymentSuccess}
       />
     </>
   )

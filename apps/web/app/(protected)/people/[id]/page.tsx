@@ -4,13 +4,19 @@ import { Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { formatMoney } from '@/lib/currency'
 import { PersonActions } from '@/components/PersonActions'
-import type { MasterTransaction, Person } from '@/lib/types'
+import type { Account, Category, MasterTransaction, Person } from '@/lib/types'
 
 export default async function PersonDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
 
-  const [{ data: person }, { data: transactions }, { data: settings }] = await Promise.all([
+  const [
+    { data: person },
+    { data: transactions },
+    { data: settings },
+    { data: accounts },
+    { data: categories }
+  ] = await Promise.all([
     supabase.from('people').select('*').eq('id', id).single<Person>(),
     supabase
       .from('master_transactions')
@@ -18,7 +24,13 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ i
       .eq('person_id', id)
       .order('date', { ascending: true })
       .returns<MasterTransaction[]>(),
-    supabase.from('user_settings').select('whatsapp_template').maybeSingle()
+    supabase.from('user_settings').select('whatsapp_template').maybeSingle(),
+    supabase
+      .from('accounts')
+      .select('*, institutions(name)')
+      .eq('is_active', true)
+      .returns<(Account & { institutions?: { name: string } })[]>(),
+    supabase.from('categories').select('*').returns<Category[]>()
   ])
   if (!person) notFound()
 
@@ -29,7 +41,9 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ i
   const overdueOrToday = pending.filter((t) => t.date <= today)
   const settled = all.filter((t) => t.settled_at)
 
-  const totalPending = pending.reduce((sum, t) => sum + t.amount_account, 0)
+  const getRemaining = (t: MasterTransaction) =>
+    Math.max(0, t.amount_account - (t.settled_amount ?? 0))
+  const totalPending = pending.reduce((sum, t) => sum + getRemaining(t), 0)
   const currency = pending[0]?.currency_account ?? 'UYU'
 
   return (
@@ -82,6 +96,8 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ i
         person={person}
         pending={pending}
         whatsappTemplate={settings?.whatsapp_template ?? null}
+        accounts={accounts ?? []}
+        categories={categories ?? []}
       />
 
       {overdueOrToday.length > 0 && (
@@ -127,12 +143,22 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ i
 }
 
 function Row({ t, muted = false }: { t: MasterTransaction; muted?: boolean }) {
+  const isPartial = !t.settled_at && (t.settled_amount ?? 0) > 0
+  const remaining = Math.max(0, t.amount_account - (t.settled_amount ?? 0))
+
   return (
     <div className="flex justify-between items-center py-3">
       <div className="space-y-1">
-        <p className={`text-sm font-medium ${muted ? 'text-text-muted' : 'text-text-primary'}`}>
-          {t.notes ?? 'Movimiento'}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className={`text-sm font-medium ${muted ? 'text-text-muted' : 'text-text-primary'}`}>
+            {t.notes ?? 'Movimiento'}
+          </p>
+          {isPartial && (
+            <span className="text-[10px] font-medium bg-pending/15 text-pending px-2 py-0.5 rounded-full">
+              Parcial ({formatMoney(t.settled_amount!, t.currency_account)} cobrado)
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <p className="text-xs text-text-muted">{t.date}</p>
           {t.installment_total > 1 && (
@@ -142,9 +168,16 @@ function Row({ t, muted = false }: { t: MasterTransaction; muted?: boolean }) {
           )}
         </div>
       </div>
-      <p className={`font-mono text-sm font-medium ${muted ? 'text-text-muted' : 'text-pending'}`}>
-        {formatMoney(t.amount_account, t.currency_account)}
-      </p>
+      <div className="text-right">
+        <p className={`font-mono text-sm font-medium ${muted ? 'text-text-muted' : 'text-pending'}`}>
+          {formatMoney(muted ? t.amount_account : remaining, t.currency_account)}
+        </p>
+        {isPartial && (
+          <p className="font-mono text-[11px] text-text-muted">
+            de {formatMoney(t.amount_account, t.currency_account)}
+          </p>
+        )}
+      </div>
     </div>
   )
 }

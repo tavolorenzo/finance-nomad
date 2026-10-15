@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { buildPersonSettlementBundle } from '@/lib/ledger/settlement'
 
 async function requireUser() {
   const supabase = await createClient()
@@ -10,20 +11,128 @@ async function requireUser() {
   return { supabase, user }
 }
 
-// "Registrar cobro / liquidación" del PRD (sección 4.5): liquida de una
-// todo lo pendiente de esa persona. No borra ni modifica el monto original
-// del ledger -- solo marca settled_at, así el historial contable queda intacto.
+export async function ensureThirdPartyCollectionCategory(): Promise<string> {
+  const { supabase, user } = await requireUser()
+  const { data: existing } = await supabase
+    .from('categories')
+    .select('id')
+    .eq('user_id', user.id)
+    .ilike('name', 'Cobros a terceros')
+    .maybeSingle()
+
+  if (existing) return existing.id
+
+  const { data: created, error } = await supabase
+    .from('categories')
+    .insert({ user_id: user.id, name: 'Cobros a terceros' })
+    .select('id')
+    .single()
+
+  if (error || !created) throw new Error('No se pudo inicializar la categoría de cobros a terceros')
+  return created.id
+}
+
+export async function registerPersonPaymentAction({
+  personId,
+  personName,
+  destinationAccountId,
+  amountOriginal,
+  currencyOriginal,
+  exchangeRate,
+  date,
+  notes
+}: {
+  personId: string
+  personName: string
+  destinationAccountId: string
+  amountOriginal: number
+  currencyOriginal: string
+  exchangeRate?: number
+  date: string
+  notes?: string | null
+}) {
+  const { supabase, user } = await requireUser()
+
+  // 1. Obtener transacciones pendientes de esa persona
+  const { data: pending, error: pendingErr } = await supabase
+    .from('master_transactions')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('person_id', personId)
+    .is('settled_at', null)
+    .order('date', { ascending: true })
+
+  if (pendingErr) throw new Error(pendingErr.message)
+
+  // 2. Obtener cuenta de destino
+  const { data: destAccount, error: accErr } = await supabase
+    .from('accounts')
+    .select('*')
+    .eq('id', destinationAccountId)
+    .single()
+
+  if (accErr || !destAccount) throw new Error('Cuenta de destino no encontrada')
+
+  // 3. Resolver categoría 'Cobros a terceros'
+  const categoryId = await ensureThirdPartyCollectionCategory()
+
+  // 4. Construir bundle atómico
+  const { bundle } = buildPersonSettlementBundle({
+    userId: user.id,
+    personId,
+    personName,
+    destinationAccount: {
+      id: destAccount.id,
+      name: destAccount.name,
+      currency_native: destAccount.currency_native,
+      institution_id: destAccount.institution_id,
+      type: destAccount.type
+    },
+    amountOriginal,
+    currencyOriginal,
+    currencyAccount: destAccount.currency_native,
+    exchangeRate,
+    date,
+    categoryId,
+    notes,
+    pendingTransactions: pending ?? []
+  })
+
+  // 5. Persistir bundle atómicamente
+  const sanitizedRows = bundle.rows.map((r) => ({ ...r, user_id: user.id }))
+  const { error: rpcErr } = await supabase.rpc('commit_ledger_bundle', { p_rows: sanitizedRows })
+  if (rpcErr) {
+    const { error: upsertErr } = await supabase
+      .from('master_transactions')
+      .upsert(sanitizedRows, { onConflict: 'id', ignoreDuplicates: false })
+    if (upsertErr) throw new Error(upsertErr.message)
+  }
+
+  revalidatePath(`/people/${personId}`)
+  revalidatePath('/people')
+  revalidatePath(`/accounts/${destinationAccountId}`)
+}
+
+// "Registrar cobro / liquidación directa" (compatibilidad hacia atrás)
 export async function registerCollection(personId: string) {
   const { supabase, user } = await requireUser()
 
-  const { error } = await supabase
+  const { data: pending } = await supabase
     .from('master_transactions')
-    .update({ settled_at: new Date().toISOString() })
+    .select('id, amount_account')
     .eq('person_id', personId)
     .eq('user_id', user.id)
     .is('settled_at', null)
 
-  if (error) throw new Error(error.message)
+  const now = new Date().toISOString()
+  if (pending && pending.length > 0) {
+    for (const p of pending) {
+      await supabase
+        .from('master_transactions')
+        .update({ settled_at: now, settled_amount: p.amount_account })
+        .eq('id', p.id)
+    }
+  }
 
   revalidatePath(`/people/${personId}`)
   revalidatePath('/people')

@@ -1,6 +1,6 @@
 import type { MasterTransaction, AccountType } from '../types'
 
-export type LedgerBundleType = 'TRANSACTION' | 'TRANSFER' | 'ADJUSTMENT'
+export type LedgerBundleType = 'TRANSACTION' | 'TRANSFER' | 'ADJUSTMENT' | 'SETTLEMENT'
 
 export interface LedgerBundle {
   id: string
@@ -55,6 +55,25 @@ export interface BuildTransferInput {
   date: string
   notes?: string | null
   today?: string
+}
+
+export interface BuildPersonSettlementInput {
+  userId?: string
+  personId: string
+  personName: string
+  destinationAccount: AccountSummaryForTransfer
+  amountOriginal: number
+  currencyOriginal: string
+  amountAccount?: number
+  currencyAccount: string
+  exchangeRate?: number
+  rateOverridden?: boolean
+  rateFetchedAt?: string | null
+  date: string
+  categoryId?: string | null
+  notes?: string | null
+  today?: string
+  pendingTransactions: MasterTransaction[]
 }
 
 export interface AccountBalance {

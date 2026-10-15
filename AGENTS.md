@@ -4,15 +4,21 @@ Este archivo contiene las directivas y restricciones obligatorias para cualquier
 
 ---
 
-## 1. Registro Obligatorio de Versiones (CHANGELOG)
+## 1. Registro Obligatorio de Versiones y Mantenimiento de Versión (CHANGELOG y Proyecto)
 
 > [!IMPORTANT]
-> **En cada cambio, corrección de bugs, refactorización o nueva funcionalidad implementada, es OBLIGATORIO actualizar `docs/CHANGELOG.md`.**
+> **En cada cambio funcional, refactorización, corrección de bugs o nueva funcionalidad implementada, es OBLIGATORIO mantener actualizada la versión tanto en el código del proyecto como en la documentación.**
 > 
-> * No des por finalizada una tarea sin haber registrado la entrada correspondiente en el changelog.
-> * Ubicá los cambios bajo la versión correspondiente o en la sección `[Unreleased]`.
-> * Clasificá las entradas usando las categorías estándar: `Agregado`, `Modificado`, `Corregido`, `Eliminado`.
-> * Indicá los componentes, rutas o módulos impactados y la sección del PRD relacionada si aplica.
+> * **Versión del Proyecto (SemVer)**:
+>   * Ante cualquier funcionalidad nueva o cambio funcional notable, incrementá la versión (`MAJOR.MINOR.PATCH`) en:
+>     - [`apps/web/package.json`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/package.json) (`version`)
+>     - [`apps/web/lib/version.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/version.ts) (valor por defecto retornado por `getAppVersion()`)
+>     - [`apps/web/lib/version.test.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/version.test.ts) (pruebas unitarias de versión)
+> * **Registro en Changelog**:
+>   * Actualizá obligatoriamente [`docs/CHANGELOG.md`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/docs/CHANGELOG.md) con la cabecera de versión formal `## [X.Y.Z] - YYYY-MM-DD` (o en `[Unreleased]` si es un cambio intermedio sin corte de versión formal).
+>   * Clasificá las entradas usando las categorías estándar: `Agregado`, `Modificado`, `Corregido`, `Eliminado`.
+>   * Indicá los componentes, rutas o módulos impactados y la sección del PRD relacionada si aplica.
+> * **Sincronización Total**: No des por finalizada una tarea sin haber sincronizado la versión en código, UI (`SystemInfoCard`) y documentación.
 
 ---
 

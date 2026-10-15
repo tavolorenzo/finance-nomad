@@ -12,6 +12,36 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-14
+### Agregado
+- **Flujo Transaccional Completo de Registro de Cobro a Personas (`RegisterPersonPaymentModal`)** (PRD §4.5):
+  - **Modal Transaccional Local-First**: Creación de [`apps/web/components/RegisterPersonPaymentModal.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/RegisterPersonPaymentModal.tsx) para registrar cobros en 0ms sin requerir conectividad previa. Precarga de saldo actual (`date <= hoy`), selección de cuenta receptora (excluye tarjetas), selección de moneda, conversión cambiaria FX en vivo (automática y manual), selector de fecha y descripción.
+  - **Diagnóstico y Soporte de 3 Casos Contables en Vivo**:
+    - *Caso A*: Pago total del saldo actual con badge verde de confirmación e imputación al 100% de movimientos vencidos y devengados.
+    - *Caso B*: Pago parcial con badge ámbar de advertencia, detalle de saldo restante por cobrar y amortización FIFO cronológica.
+    - *Caso C*: Pago con adelanto a cuotas futuras con badge azul e imputación primero al saldo actual y el excedente a cuotas diferidas.
+  - **Validación de Excedente Absoluto**: Bloqueo preventivo de envío si el importe ingresado supera la deuda total consolidada (saldo actual + cuotas futuras), con mensaje orientativo para registrar excedentes como ingreso estándar.
+  - **Motor de Amortización Contable FIFO**: Creación de [`apps/web/lib/ledger/settlement.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/ledger/settlement.ts) con las funciones `allocateSettlement` y `buildPersonSettlementBundle` para imputación exacta de deudas y generación de lotes atómicos de tipo `SETTLEMENT`.
+  - **Integración con Ledger Engine y Outbox**: Incorporación del método `addPersonSettlement` en [`LedgerContext`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/ledger/ledger-context.tsx) y actualización de `applyBundleDelta` en [`balance.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/ledger/balance.ts) para acreditar el ingreso en la cuenta receptora en memoria (< 16ms) sin alterar tarjetas originales, sincronizando atómicamente vía Outbox e IndexedDB.
+  - **Migración de Base de Datos (0009)**: [`supabase/migrations/0009_person_settled_amount.sql`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/supabase/migrations/0009_person_settled_amount.sql) incorporando `settled_amount numeric(12,2) not null default 0` a `master_transactions`, backfill de registros históricos y actualización de la RPC `commit_ledger_bundle` con soporte de `on conflict (id) do update`.
+  - **Suites de Pruebas Automatizadas**:
+    - [`apps/web/lib/ledger/settlement.test.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/ledger/settlement.test.ts): 6 pruebas cubriendo los casos A, B, C, validación de excedente y delta contable selectivo.
+    - [`apps/web/components/RegisterPersonPaymentModal.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/RegisterPersonPaymentModal.test.tsx): 6 pruebas cubriendo renderizado, detección de casos, bloqueo de excedente y despacho al ledger (100 tests pasando en total).
+
+### Modificado
+- **Ficha de Persona y Acciones Contextuales (`/people/[id]`)**:
+  - En [`PersonActions.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/PersonActions.tsx), reemplazo de la Server Action síncrona por la apertura de `RegisterPersonPaymentModal` (sin bloqueo por estado de red `!isOnline`), y cálculo de saldo pendiente real restando `settled_amount` en la plantilla de notificación de WhatsApp.
+  - En [`people/[id]/page.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/people/[id]/page.tsx), paralelización de carga de cuentas y categorías, cálculo de saldo por cobrar con `settled_amount` y renderizado de badges de *"Parcial"* en el desglose de movimientos.
+  - En [`people/page.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/people/page.tsx), cálculo de saldos consolidados considerando amortizaciones parciales.
+
+### Eliminado
+- **Server Actions Obsoletas de Mutación Contable**:
+  - Eliminación de `createTransaction` y `createTransferTransaction` en [`apps/web/app/(protected)/transactions/new/actions.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/transactions/new/actions.ts), junto con sus interfaces asociadas (`NewTransactionInput`, `TransferTransactionInput`) y función auxiliar redundante `calculateInstallmentDate`. Estas funciones representaban código legado de etapas tempranas que contradecían la directiva obligatoria de *Zero-Wait UI* y el modelo transaccional por *Ledger Bundles* (PRD §3.1, §3.3 y `docs/architecture.md` §1.1).
+
+### Modificado
+- **Unificación de Registro de Pagos de Tarjeta en Ledger Engine**:
+  - En [`RegisterCardPaymentModal.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/RegisterCardPaymentModal.tsx), se removió la importación y la rama de fallback a `createTransferTransaction`. El modal ahora despacha transferencias contables exclusivamente mediante `ledger.addTransfer`, garantizando actualización inmediata en memoria (< 16ms), persistencia en el Outbox local de IndexedDB y sincronización asíncrona hacia Supabase vía `/api/ledger/sync`.
+
 ## [2.0.0] - 2026-10-10
 ### Agregado
 - **Caché Local de Cotizaciones Cambiarias (FX) con TTL de 24h y Reconciliación en Sincronización**:

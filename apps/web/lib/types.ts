@@ -64,6 +64,7 @@ export interface MasterTransaction {
   status: TransactionStatus
   notes: string | null
   settled_at: string | null
+  settled_amount?: number
 }
 
 // Placeholder de Database para que createBrowserClient<Database> tipe bien.

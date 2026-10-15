@@ -28,6 +28,12 @@ export function applyBundleDelta(
   }
 
   for (const row of bundle.rows) {
+    // En bundles de liquidación (SETTLEMENT), las filas OUTCOME son deudas preexistentes que solo se amortizan.
+    // Solo las filas nuevas (INCOME) representan entrada de fondos a la cuenta receptora.
+    if (bundle.type === 'SETTLEMENT' && row.type !== 'INCOME') {
+      continue
+    }
+
     const delta = calculateRowDelta(row)
     if (delta === 0) continue
 

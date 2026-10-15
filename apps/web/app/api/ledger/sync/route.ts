@@ -44,10 +44,10 @@ export async function POST(req: Request) {
       })
 
       if (rpcError) {
-        // Fallback: batch insert directo de Supabase si la RPC aún no fue migrada
+        // Fallback: batch upsert directo de Supabase si la RPC aún no fue migrada
         const { error: insertError } = await supabase
           .from('master_transactions')
-          .upsert(sanitizedRows, { onConflict: 'id', ignoreDuplicates: true })
+          .upsert(sanitizedRows, { onConflict: 'id', ignoreDuplicates: false })
 
         if (insertError) {
           throw new Error(insertError.message)

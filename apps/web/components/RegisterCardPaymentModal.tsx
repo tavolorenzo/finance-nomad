@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { CreditCard, X, Check, ArrowDownLeft, AlertCircle } from 'lucide-react'
-import { createTransferTransaction, fetchExchangeRate } from '@/app/(protected)/transactions/new/actions'
+import { fetchExchangeRate } from '@/app/(protected)/transactions/new/actions'
 import { formatMoney } from '@/lib/currency'
 import type { Account } from '@/lib/types'
 import { useOptionalLedger } from '@/lib/ledger/ledger-context'
@@ -83,7 +83,7 @@ export function RegisterCardPaymentModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!sourceAccountId) {
+    if (!sourceAccountId || !selectedSource) {
       setError('Seleccioná una cuenta de origen para pagar.')
       return
     }
@@ -96,52 +96,39 @@ export function RegisterCardPaymentModal({
     setError(null)
 
     try {
-      if (ledger && selectedSource) {
-        const cardInstitutionId =
-          (cardAccount as any).institution_id ||
-          ledger.accounts.find((a) => a.id === cardAccount.id)?.institution_id ||
-          ''
-        await ledger.addTransfer({
-          fromAccount: {
-            id: selectedSource.id,
-            name: selectedSource.name,
-            currency_native: sourceCurrency,
-            institution_id: selectedSource.institution_id,
-            type: selectedSource.type
-          },
-          toAccount: {
-            id: cardAccount.id,
-            name: cardAccount.name,
-            currency_native: cardCurrency,
-            institution_id: cardInstitutionId,
-            type: 'credit_card'
-          },
-          amountOriginal: amountNum,
-          currencyOriginal: cardCurrency,
-          amountFrom: Math.round(sourceDebit * 100) / 100,
-          amountTo: amountNum,
-          feeAmount: 0,
-          exchangeRate: rate,
-          rateOverridden: false,
-          date,
-          notes: notes.trim() || `Pago de tarjeta ${cardAccount.name}`
-        })
-      } else {
-        await createTransferTransaction({
-          fromAccountId: sourceAccountId,
-          toAccountId: cardAccount.id,
-          amountOriginal: amountNum,
-          currencyOriginal: cardCurrency,
-          amountFrom: Math.round(sourceDebit * 100) / 100,
-          amountTo: amountNum,
-          feeAmount: 0,
-          exchangeRate: rate,
-          rateOverridden: false,
-          date,
-          notes: notes.trim() || `Pago de tarjeta ${cardAccount.name}`,
-          shouldRedirect: false
-        })
+      if (!ledger) {
+        throw new Error('El sistema contable no está disponible.')
       }
+
+      const cardInstitutionId =
+        (cardAccount as any).institution_id ||
+        ledger.accounts.find((a) => a.id === cardAccount.id)?.institution_id ||
+        ''
+      await ledger.addTransfer({
+        fromAccount: {
+          id: selectedSource.id,
+          name: selectedSource.name,
+          currency_native: sourceCurrency,
+          institution_id: selectedSource.institution_id,
+          type: selectedSource.type
+        },
+        toAccount: {
+          id: cardAccount.id,
+          name: cardAccount.name,
+          currency_native: cardCurrency,
+          institution_id: cardInstitutionId,
+          type: 'credit_card'
+        },
+        amountOriginal: amountNum,
+        currencyOriginal: cardCurrency,
+        amountFrom: Math.round(sourceDebit * 100) / 100,
+        amountTo: amountNum,
+        feeAmount: 0,
+        exchangeRate: rate,
+        rateOverridden: false,
+        date,
+        notes: notes.trim() || `Pago de tarjeta ${cardAccount.name}`
+      })
 
       setSuccess(true)
       setTimeout(() => {

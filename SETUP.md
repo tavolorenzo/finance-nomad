@@ -58,6 +58,7 @@ estás parado en la raíz del proyecto (donde está la carpeta `.claude/`).
    - `supabase/migrations/0006_people_is_active.sql`
    - `supabase/migrations/0007_whatsapp_template.sql`
    - `supabase/migrations/0008_ledger_sync_and_snapshot.sql`
+   - `supabase/migrations/0009_person_settled_amount.sql`
 3. Andá a **Authentication → Users → Add user** y creá tu propio usuario
    (email + password). Copiá el UUID que te muestra la tabla.
 4. Abrí `supabase/seed.sql`, reemplazá `TU_USER_ID_ACA` por ese UUID, y

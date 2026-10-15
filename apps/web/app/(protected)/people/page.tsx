@@ -8,7 +8,7 @@ export default async function PeoplePage() {
   const supabase = await createClient()
 
   let people: Person[] = []
-  let pending: Pick<MasterTransaction, 'person_id' | 'amount_account' | 'currency_account'>[] = []
+  let pending: Pick<MasterTransaction, 'person_id' | 'amount_account' | 'currency_account' | 'settled_amount'>[] = []
 
   try {
     const [{ data: peopleData }, { data: pendingData }] = await Promise.all([
@@ -19,11 +19,11 @@ export default async function PeoplePage() {
         .returns<Person[]>(),
       supabase
         .from('master_transactions')
-        .select('person_id, amount_account, currency_account')
+        .select('person_id, amount_account, currency_account, settled_amount')
         .is('settled_at', null)
         .eq('type', 'OUTCOME')
         .not('person_id', 'is', null)
-        .returns<Pick<MasterTransaction, 'person_id' | 'amount_account' | 'currency_account'>[]>()
+        .returns<Pick<MasterTransaction, 'person_id' | 'amount_account' | 'currency_account' | 'settled_amount'>[]>()
     ])
     people = peopleData ?? []
     pending = pendingData ?? []
@@ -34,8 +34,10 @@ export default async function PeoplePage() {
   const totalsByPerson = new Map<string, Map<string, number>>()
   for (const t of pending ?? []) {
     if (!t.person_id) continue
+    const rem = Math.max(0, t.amount_account - (t.settled_amount ?? 0))
+    if (rem <= 0) continue
     const byCurrency = totalsByPerson.get(t.person_id) ?? new Map<string, number>()
-    byCurrency.set(t.currency_account, (byCurrency.get(t.currency_account) ?? 0) + t.amount_account)
+    byCurrency.set(t.currency_account, (byCurrency.get(t.currency_account) ?? 0) + rem)
     totalsByPerson.set(t.person_id, byCurrency)
   }
 

@@ -4,11 +4,13 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import type { Account, Category, MasterTransaction, Person, UserSettings } from '../types'
 import type {
   AccountBalance,
+  BuildPersonSettlementInput,
   BuildTransactionInput,
   BuildTransferInput,
   LedgerBundle
 } from './types'
 import { buildTransactionBundle, buildTransferBundle } from './builder'
+import { buildPersonSettlementBundle } from './settlement'
 import { applyBundleDelta, applyDeletionDelta, applyConfirmationDelta } from './balance'
 import { syncEngine, type SyncState } from '../sync/sync-engine'
 import { getCachedSnapshot, saveCachedSnapshot } from '../storage/outbox-db'
@@ -40,6 +42,7 @@ interface LedgerContextType {
   getBalance: (accountId: string) => number
   addTransaction: (input: BuildTransactionInput) => Promise<LedgerBundle>
   addTransfer: (input: BuildTransferInput) => Promise<LedgerBundle>
+  addPersonSettlement: (input: BuildPersonSettlementInput) => Promise<LedgerBundle>
   deleteTransaction: (transactionId: string) => Promise<void>
   confirmTransaction: (transactionId: string) => Promise<void>
   loadMoreTransactions: () => Promise<void>
@@ -190,6 +193,31 @@ export function LedgerProvider({
       setRecentTransactions((prev) => [...bundle.rows, ...prev])
 
       // Encolar en background
+      syncEngine.enqueue(bundle).catch(() => {})
+
+      return bundle
+    },
+    []
+  )
+
+  // Registrar cobro/liquidación a persona en < 16ms
+  const addPersonSettlement = useCallback(
+    async (input: BuildPersonSettlementInput): Promise<LedgerBundle> => {
+      const { bundle, allocationResult } = buildPersonSettlementBundle(input)
+
+      // Actualizar inmediatamente en memoria:
+      // 1. Aplicar delta contable al saldo de la cuenta receptora
+      setBalances((prev) => applyBundleDelta(prev, bundle))
+
+      // 2. Actualizar lista de transacciones en memoria
+      const updatedMap = new Map(allocationResult.updatedTransactions.map((t) => [t.id, t]))
+      setRecentTransactions((prev) => {
+        const incomeRow = bundle.rows[0]
+        const merged = prev.map((t) => updatedMap.get(t.id) ?? t)
+        return [incomeRow, ...merged]
+      })
+
+      // 3. Encolar en background para persistencia en Supabase
       syncEngine.enqueue(bundle).catch(() => {})
 
       return bundle
@@ -351,6 +379,7 @@ export function LedgerProvider({
         getBalance,
         addTransaction,
         addTransfer,
+        addPersonSettlement,
         deleteTransaction,
         confirmTransaction,
         loadMoreTransactions,
