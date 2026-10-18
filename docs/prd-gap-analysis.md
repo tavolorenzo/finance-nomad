@@ -6,7 +6,7 @@ Fecha: 10 oct 2026.
 
 | Cobertura ponderada | Hecho | Parcial | Falta |
 |---|---|---|---|
-| **84%** | 20 | 2 | 3 |
+| **92%** | 23 | 1 | 2 |
 
 Ponderación: hecho = 1, parcial = 0.5, falta = 0. Sobre 25 requisitos (arquitectura, resilencia + pantallas).
 
@@ -37,7 +37,9 @@ El núcleo del ledger multi-moneda opera en producción con arquitectura **Local
 
 | Pantalla | Ruta | Estado | Notas |
 |---|---|---|---|
-| Dashboard | `/dashboard` | Hecho | Patrimonio neto consolidado, presupuesto mensual, carrusel de cuentas, feed y `SyncStatusBadge`. |
+| Dashboard | `/dashboard` | Hecho | Patrimonio neto consolidado, presupuesto mensual, carrusel de cuentas, feed, `SyncStatusBadge` y banner de tour de inicio. |
+| Análisis de datos | `/analytics` | Hecho | Métricas de KPIs, gráficos SVG semánticos de gastos por categoría, flujo de caja mensual (ingresos vs gastos) y gastos por divisa/medio de pago. |
+| Categorías de gastos | `/categories` | Hecho | Catálogo completo con buscador, selector de 13 iconos, colores semánticos, soft deletes y sembrado de categorías sugeridas. |
 | Cuentas y bancos | `/accounts` | Hecho | Acordeón por institución, CRUD con modales interceptados, totales y baja lógica `is_active`. |
 | Detalle de cuenta | `/accounts/[id]` | Hecho | Saldo nominal, balance disponible y compromisos de cuotas diferidas, métricas mensuales, `ExpressAdjustModal` y `RegisterCardPaymentModal`. |
 | Formulario universal | `/transactions/new` | Hecho | Gasto/ingreso/transferencia, Zero-Wait UI, FX en vivo, fees, cuotas (1 hoy + N-1 diferidas), persona y cuentas origen/destino. |
@@ -49,7 +51,7 @@ El núcleo del ledger multi-moneda opera en producción con arquitectura **Local
 | Gastos fijos / Presupuesto | `/budget` | Parcial | Estimados vs. gasto real + botón 1-tap "Ejecutar pago". Falta formulario para crear y editar `budget_estimates` en UI. |
 | Préstamos | `/loans` | Falta | Tablas `loans` y `loan_installments` definidas en SQL con RLS. Navegación indica "pronto". |
 | Portafolio | `/portfolio` | Falta | Tabla `portfolio_transactions` definida en SQL con RLS. Navegación indica "pronto". |
-| Ajustes | `/settings` | Hecho | Moneda global, selector de tema claro/oscuro persistente, reseteo de contraseña e información del entorno (`SystemInfoCard`). |
+| Ajustes | `/settings` | Hecho | Moneda global, selector de tema claro/oscuro persistente, reseteo de contraseña, tour de bienvenida e información del entorno (`SystemInfoCard`). |
 | Movimientos | `/transactions` | Hecho | Feed reactivo (`TransactionsList`) con badges de cuotas, confirmación de pendientes y paginación histórica cursor-based. |
 
 ---
@@ -58,6 +60,9 @@ El núcleo del ledger multi-moneda opera en producción con arquitectura **Local
 
 | Característica | Ubicación / Componente |
 |---|---|
+| Tour interactivo de bienvenida (5 pasos) | `apps/web/components/OnboardingTour.tsx`, `TourTriggerButton.tsx` |
+| Dashboard interactivo de Análisis de Datos | `apps/web/components/AnalyticsDashboard.tsx`, `lib/analytics.ts` (`/analytics`) |
+| CRUD y Catálogo de Categorías | `apps/web/components/CategoryList.tsx`, `CategoryModal.tsx` (`/categories`) |
 | Arquitectura Local-First & Zero-Wait UI | `apps/web/lib/ledger/`, `lib/storage/`, `lib/sync/`, `SyncStatusBadge.tsx` |
 | Agregación SQL Indexada de Balances | RPC `get_account_balances_summary` (`0008_ledger_sync_and_snapshot.sql`) |
 | Inserción atómica idempotente en BD | RPC `commit_ledger_bundle` (`0008_ledger_sync_and_snapshot.sql`) |
@@ -68,7 +73,7 @@ El núcleo del ledger multi-moneda opera en producción con arquitectura **Local
 | Configuración de plantilla dinámica con tokens | `apps/web/components/WhatsAppTemplateForm.tsx` (`/people/template`) |
 | Ficha de información técnica del sistema | `apps/web/components/SystemInfoCard.tsx` (versión, git hash, rama, entorno) |
 | Modo oscuro completo y switch en navegación | `apps/web/components/ThemeToggle.tsx` + `globals.css` (`data-theme`) |
-| Suite de pruebas unitarias automatizadas | Vitest (28 tests pasando en 5 suites) |
+| Suite de pruebas unitarias automatizadas | Vitest (118 tests pasando en 18 suites) |
 
 ---
 

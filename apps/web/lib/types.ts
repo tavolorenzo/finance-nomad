@@ -25,6 +25,10 @@ export interface Account {
 export interface Category {
   id: string
   name: string
+  icon?: string | null
+  color?: string | null
+  is_active?: boolean
+  created_at?: string
 }
 
 export interface Person {
@@ -40,6 +44,7 @@ export interface UserSettings {
   display_currency: string
   theme: 'system' | 'light' | 'dark'
   whatsapp_template?: string | null
+  onboarding_completed?: boolean
   updated_at?: string
 }
 

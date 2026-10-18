@@ -20,4 +20,6 @@ Reglas no negociables:
   con resto no divisible exacto, y transferencia con distinta moneda origen/destino.
 - Registro de versiones: Al cerrar cualquier lógica, fix o cálculo, actualizá
   docs/CHANGELOG.md (ver skill changelog).
+- Mantenimiento de Ayuda y Wiki: Al incorporar nuevas reglas de negocio o cálculos contables,
+  mantené actualizada la Wiki y FAQs en apps/web/lib/help-data.ts y docs/PRD.md (ver skill help-maintenance).
 

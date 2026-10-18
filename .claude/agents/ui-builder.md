@@ -30,4 +30,6 @@ Reglas no negociables:
   cuando una pantalla de MORE_ITEMS pase de "pronto" a construida.
 - Registro de versiones: En cada cambio, corrección o nueva funcionalidad terminada,
   es obligatorio actualizar docs/CHANGELOG.md (ver skill changelog).
+- Mantenimiento de Ayuda y Wiki: Al construir pantallas nuevas o cambiar flujos visuales,
+  actualizá obligatoriamente apps/web/lib/help-data.ts y docs/PRD.md (ver skill help-maintenance).
 

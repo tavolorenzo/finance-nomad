@@ -115,7 +115,15 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
 * Selector de divisa global preferida (`display_currency`).
 * Selector de tema visual Claro / Oscuro con persistencia en preferencias (`ThemeToggle`).
 * Envío de correo para restablecimiento de contraseña (`SendResetLinkButton` y flujo `/auth/update-password`).
+* Acceso directo al Centro de Ayuda & Wiki y disparador del Onboarding Tour (`TourTriggerButton`).
 * Ficha de Información del Sistema (`SystemInfoCard`): versión actual de la aplicación, commit de Git, rama activa y entorno de ejecución.
+
+### 4.10. Centro de Ayuda, FAQ y Wiki (`/help`)
+* **Wiki de Funcionalidades**: Base de conocimiento exhaustiva con artículos temáticos (`WIKI_ARTICLES`), desglose conceptual, tips orientativos y accesos directos a las pantallas operativas (Multi-moneda FX, Cuentas/Bancos, Ledger & Zero-Wait UI, Tarjetas y Cuotas, Personas y Cobros, Conciliación Express, Presupuesto, Análisis y Modo Offline).
+* **Preguntas Frecuentes (FAQ)**: Acordeón interactivo categorizado con etiquetas semánticas (`tags`) y referencias cruzadas directas a los artículos de la Wiki.
+* **Recetas Rápidas (Paso a Paso)**: Guías prácticas numeradas para los casos de uso más frecuentes de un nómada (cargar cenas compartidas, compras en cuotas, conciliación en 10 segundos, cambio de país/divisa y uso offline).
+* **Buscador Hero en Vivo**: Filtrado instantáneo por texto libre y selector de categorías con contador de coincidencias y restablecimiento en 1 clic.
+* **Integración del Tour Guiado**: Disparador de `OnboardingTour` embebido para repasar el recorrido interactivo de 5 pasos en cualquier momento.
 
 ---
 

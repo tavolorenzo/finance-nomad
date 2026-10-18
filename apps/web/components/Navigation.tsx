@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import {
   Home, Wallet, Plus, List, Menu, X,
-  Users, PiggyBank, Landmark, TrendingUp, Settings
+  Users, PiggyBank, Landmark, TrendingUp, Settings,
+  BarChart3, Tags, HelpCircle
 } from 'lucide-react'
 import { LogoutButton } from './LogoutButton'
 import { SyncStatusBadge } from './SyncStatusBadge'
@@ -17,13 +18,14 @@ const MAIN_ITEMS = [
   { href: '/transactions', label: 'Movimientos', icon: List }
 ]
 
-// Personas, Presupuesto y Ajustes ya están construidas. Préstamos y
-// Portafolio quedan para fase 4.
 const MORE_ITEMS = [
+  { href: '/analytics', label: 'Análisis', icon: BarChart3, ready: true },
+  { href: '/categories', label: 'Categorías', icon: Tags, ready: true },
   { href: '/people', label: 'Personas', icon: Users, ready: true },
   { href: '/budget', label: 'Presupuesto', icon: PiggyBank, ready: true },
   { href: '/loans', label: 'Préstamos', icon: Landmark, ready: false },
   { href: '/portfolio', label: 'Portafolio', icon: TrendingUp, ready: false },
+  { href: '/help', label: 'Ayuda & Wiki', icon: HelpCircle, ready: true },
   { href: '/settings', label: 'Ajustes', icon: Settings, ready: true }
 ]
 

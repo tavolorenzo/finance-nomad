@@ -33,11 +33,11 @@ describe('RegisterPersonPaymentModal', () => {
   const accounts: (Account & { institutions?: { name: string } })[] = [
     {
       id: 'acc-cash',
-      user_id: 'u1',
       institution_id: 'inst-1',
       name: 'Itaú Efectivo',
       type: 'cash',
       currency_native: 'UYU',
+      credit_limit: null,
       is_active: true,
       institutions: { name: 'Banco Itaú' }
     }

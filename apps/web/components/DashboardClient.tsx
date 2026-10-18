@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import { ArrowDownLeft, ArrowUpRight, SlidersHorizontal, ArrowRightLeft } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, SlidersHorizontal, ArrowRightLeft, Sparkles, X, BarChart3 } from 'lucide-react'
 import { formatMoney } from '@/lib/currency'
 import { useLedger } from '@/lib/ledger/ledger-context'
 import { convertToDisplayCurrency } from '@/lib/networth'
+import { OnboardingTour } from './OnboardingTour'
 import type { Account, MasterTransaction } from '@/lib/types'
 import type { AccountBalance } from '@/lib/ledger/types'
 
@@ -47,6 +48,20 @@ export function DashboardClient({
     isInitialized,
     seedInitialData
   } = useLedger()
+
+  const [tourOpen, setTourOpen] = useState(false)
+  const [showTourBanner, setShowTourBanner] = useState(false)
+
+  useEffect(() => {
+    try {
+      const completed = localStorage.getItem('finance_nomad_tour_completed') === 'true'
+      if (!completed) {
+        setShowTourBanner(true)
+      }
+    } catch {
+      // Ignore
+    }
+  }, [])
 
   // Sembrar datos iniciales de servidor en LedgerContext para disponibilidad inmediata
   useEffect(() => {
@@ -121,6 +136,47 @@ export function DashboardClient({
 
   return (
     <main className="max-w-6xl mx-auto p-4 md:p-6 lg:p-8">
+      {showTourBanner && (
+        <div className="mb-6 p-4 rounded-card bg-surface-1 border border-accent/40 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="p-2 rounded-full bg-accent/15 text-accent mt-0.5">
+              <Sparkles size={18} />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-text-primary">
+                ¿Es tu primera vez en Finance Nomad?
+              </p>
+              <p className="text-xs text-text-muted mt-0.5">
+                Hacé el tour guiado de 1 minuto para dominar el manejo multi-moneda, compras en cuotas y gastos compartidos.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setShowTourBanner(false)
+                try {
+                  localStorage.setItem('finance_nomad_tour_completed', 'true')
+                } catch {
+                  // Ignore
+                }
+              }}
+              className="px-2.5 py-1.5 text-xs text-text-muted hover:text-text-primary transition"
+            >
+              Ocultar
+            </button>
+            <button
+              type="button"
+              onClick={() => setTourOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-semibold bg-accent text-[color:var(--on-accent)] hover:opacity-95 transition"
+            >
+              Iniciar tour
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Columna 1: Balance y Presupuesto */}
         <div className="space-y-4">
@@ -130,6 +186,26 @@ export function DashboardClient({
               {formatMoney(netWorth, displayCurrency)}
             </p>
           </div>
+
+          <Link
+            href="/analytics"
+            className="group flex items-center justify-between p-3.5 bg-surface-1 border border-border rounded-card hover:border-accent hover:bg-surface-2/60 transition block"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="p-1.5 rounded-full bg-accent/15 text-accent">
+                <BarChart3 size={16} />
+              </span>
+              <div>
+                <p className="text-xs font-semibold text-text-primary group-hover:text-accent transition">
+                  Análisis de Datos & Flujo
+                </p>
+                <p className="text-[11px] text-text-muted">
+                  Evolución mensual, gastos por categoría y métricas
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-medium text-accent">Ver →</span>
+          </Link>
 
           {estimatedTotal > 0 && (
             <div className="bg-surface-1 border border-border rounded-card p-4">
@@ -291,6 +367,15 @@ export function DashboardClient({
           </div>
         </div>
       </div>
+
+      <OnboardingTour
+        isOpen={tourOpen}
+        onClose={() => {
+          setTourOpen(false)
+          setShowTourBanner(false)
+        }}
+        currentCurrency={displayCurrency}
+      />
     </main>
   )
 }

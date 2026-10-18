@@ -12,7 +12,72 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
-## [2.1.0] - 2026-10-14
+## [2.3.0] - 2026-10-18
+### Agregado
+- **Centro de Ayuda, FAQ Interactivo y Wiki Funcional (`/help`)** (PRD §4.10):
+  - **Módulo de Datos y Motor de Búsqueda (`lib/help-data.ts`)**:
+    - `WIKI_ARTICLES`: 8 artículos detallados cubriendo multi-moneda FX, cuentas e instituciones, transacciones y Zero-Wait UI, tarjetas y cuotas, personas y cuentas por cobrar, Ajuste Express, categorías personalizadas y modo offline.
+    - `FAQ_ITEMS`: 17 preguntas frecuentes categorizadas y etiquetadas con `tags` temáticos y referencias cruzadas directas a la Wiki.
+    - `QUICK_GUIDES`: 5 recetas paso a paso ilustradas para los casos de uso recurrentes (cenas compartidas, compras en cuotas, conciliación en 10s, cambio de país/divisa y modo avión).
+    - `searchHelp`: función de búsqueda en vivo con filtrado multi-criterio por término, tags, subsecciones y categoría.
+  - **Componente Visual Premium `HelpCenter` (`components/HelpCenter.tsx`)**:
+    - Buscador hero en tiempo real con botón de limpieza y contador de coincidencias en vivo.
+    - Filtro horizontal por categoría con badges semánticos.
+    - 3 Pestañas interactivas: *Wiki & Guías*, *Preguntas Frecuentes* (con acordeón y botones para expandir/colapsar todas), y *Recetas Rápidas* con enlaces contextuales directos a los formularios.
+    - Banner interactivo integrado con `TourTriggerButton` para relanzar el Onboarding Tour en cualquier momento.
+    - Estado vacío ilustrado con restablecimiento de filtros en un clic.
+    - Respeto estricto del sistema de diseño (variables semánticas `--surface-0`, `--surface-1`, `--surface-2`, `--border`, `--accent`, `--income`, etc.).
+  - **Ruta Protegida `/help` (`app/(protected)/help/page.tsx`)**:
+    - Acceso autenticado con detección de moneda global del usuario y tolerancia offline.
+  - **Suites de Pruebas Automatizadas**:
+    - [`apps/web/lib/help-data.test.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/help-data.test.ts): 8 pruebas unitarias validando la integridad del contenido, unicidad de IDs y exactitud del motor de búsqueda.
+    - [`apps/web/components/HelpCenter.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/HelpCenter.test.tsx): 6 pruebas cubriendo renderizado, navegación por pestañas, expansión de FAQs, filtrado en tiempo real y estados vacíos (132 tests pasando en total).
+- **Directivas y Skills de Mantenimiento Continuo de la Base de Conocimiento**:
+  - **Regla 6 en `AGENTS.md`**: Obligatoriedad para cualquier agente de IA o desarrollador de mantener actualizados `WIKI_ARTICLES`, `FAQ_ITEMS` y `QUICK_GUIDES` en `apps/web/lib/help-data.ts` ante cada nueva funcionalidad, ajuste o cambio de regla contable.
+  - **Skill de Claude Code (`.claude/skills/help-maintenance/SKILL.md`)**: Guía detallada con la estructura requerida, categorías disponibles, tono rioplatense y comandos de verificación.
+  - **Actualización de Agentes Especializados**: Sincronización de [`.claude/agents/ui-builder.md`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/.claude/agents/ui-builder.md), [`.claude/agents/ledger-logic.md`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/.claude/agents/ledger-logic.md) y [`docs/agents-and-skills.md`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/docs/agents-and-skills.md).
+
+### Modificado
+- **Navegación Desktop y Móvil (`Navigation.tsx`)**: Incorporación de enlace directo a *Ayuda & Wiki* (`/help`, icono `HelpCircle`) en el menú lateral y en el panel desplegable de Más en móviles.
+- **Pantalla de Ajustes (`settings/page.tsx`)**: Integración de botón destacado hacia el Centro de Ayuda & Wiki dentro de la tarjeta de *Guía y Aprendizaje*.
+- **Documentación del PRD (`docs/PRD.md`)**: Incorporación formal de la sección §4.10 detallando el alcance del Centro de Ayuda, FAQ y Wiki.
+- **Sincronización de Versión**: Incremento de versión a `2.3.0` en `package.json`, `version.ts` y pruebas unitarias.
+
+## [2.2.0] - 2026-10-15
+### Agregado
+- **Tour de Bienvenida e Inicio Guiado (`OnboardingTour`)**:
+  - **Componente Modal Interactivo**: Creación de [`apps/web/components/OnboardingTour.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/OnboardingTour.tsx) con recorrido de 5 pasos explicativos: bienvenida al nomadismo digital, selector de divisa global en vivo (EUR, USD, AUD, UYU, NZD), jerarquía de cuentas/efectivo, registro en 3 segundos con cuotas automáticas y presentación de categorías y análisis de datos.
+  - **Accesibilidad y Navegación por Teclado**: Soporte para teclas `Escape` (cerrar/omitir), flechas `ArrowRight`/`ArrowLeft` para avanzar o retroceder, barra de progreso y persistencia en `localStorage` (`finance_nomad_tour_completed`).
+  - **Banner Preventivo en Dashboard**: Incorporación de banner en [`DashboardClient.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/DashboardClient.tsx) para invitar a nuevos usuarios a realizar el tour o descartarlo.
+  - **Disparador en Ajustes (`TourTriggerButton`)**: Creación de [`apps/web/components/TourTriggerButton.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/TourTriggerButton.tsx) e integración en [`/settings`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/settings/page.tsx) para repetir el tour en cualquier momento.
+  - **Pruebas Automatizadas**: [`apps/web/components/OnboardingTour.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/OnboardingTour.test.tsx) con 5 pruebas verificando renderizado, avance, selección de divisa, navegación y persistencia.
+
+- **Módulo y Catálogo de Categorías de Gastos (`/categories`)**:
+  - **Página de Gestión**: Creación de [`apps/web/app/(protected)/categories/page.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/categories/page.tsx) con métricas de movimientos asociados por categoría.
+  - **Componente Reactivo `CategoryList`**: [`apps/web/components/CategoryList.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/CategoryList.tsx) con filtrado en tiempo real por estado (Activas, Inactivas, Todas), buscador por texto, renderizado de iconos Lucide y colores semánticos (`accent`, `income`, `expense`, `pending`).
+  - **Modal de Creación y Edición `CategoryModal`**: [`apps/web/components/CategoryModal.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/CategoryModal.tsx) con selector visual de 13 iconos, 4 tokens de color, validación online (`useOnlineStatus`) y alternancia de baja lógica.
+  - **Server Actions de Catálogo**: [`apps/web/app/(protected)/categories/actions.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/categories/actions.ts) con `createCategory`, `updateCategory`, `toggleCategoryActive` y sembrado de categorías recomendadas (`seedDefaultCategories`).
+  - **Migración de Base de Datos 0010**: [`supabase/migrations/0010_categories_and_onboarding.sql`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/supabase/migrations/0010_categories_and_onboarding.sql) incorporando `icon`, `color` y `is_active` a `categories`, índice compuesto y `onboarding_completed` a `user_settings`.
+  - **Pruebas Automatizadas**: [`apps/web/components/CategoryModal.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/CategoryModal.test.tsx) con 5 pruebas unitarias.
+
+- **Dashboard de Análisis de Datos y Reportes Financieros (`/analytics`)**:
+  - **Página de Reportes**: Creación de [`apps/web/app/(protected)/analytics/page.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/analytics/page.tsx) con tolerancia offline y carga paralela.
+  - **Componente `AnalyticsDashboard`**: [`apps/web/components/AnalyticsDashboard.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/AnalyticsDashboard.tsx) sincronizado con `useLedger()` para reflejar nuevos movimientos en 0ms.
+  - **5 Tarjetas de KPIs Clave**: Gasto Total, Ingreso Total, Flujo Neto (+ Superávit / - Déficit), Tasa de Ahorro (%) y Promedio de Gasto Diario.
+  - **Filtros Temporales Rápidos**: Selector interactivo para Este mes, Últimos 3 meses, Últimos 6 meses, Este año e Histórico completo.
+  - **Gráficos SVG Nativos Semánticos (Zero Hardcoded Colors)**:
+    - *Gastos por Categoría*: Barra stacked porcentual interactiva y lista de progreso detallada.
+    - *Flujo de Caja Mensual*: Gráfico de barras comparativo de Ingresos (`--income`) vs Gastos (`--expense`) mes a mes.
+    - *Distribución Multi-Moneda*: Desglose de gastos en divisas locales (EUR, USD, AUD, UYU, NZD).
+    - *Métodos de Pago*: Distribución porcentual entre tarjetas de crédito, cuentas bancarias y efectivo.
+  - **Módulo de Cálculo Puro**: [`apps/web/lib/analytics.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/analytics.ts) con cálculo de rangos, agregaciones y KPIs.
+  - **Pruebas Automatizadas**: [`apps/web/lib/analytics.test.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/analytics.test.ts) (5 pruebas) y [`apps/web/components/AnalyticsDashboard.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/AnalyticsDashboard.test.tsx) (3 pruebas).
+
+### Modificado
+- **Navegación Desktop y Móvil (`Navigation.tsx`)**: Incorporación de enlaces directos a *Análisis* (`/analytics`, icono `BarChart3`) y *Categorías* (`/categories`, icono `Tags`).
+- **Dashboard Principal (`DashboardClient.tsx`)**: Integración del banner de bienvenida y tarjeta de acceso rápido al Dashboard de Análisis.
+- **Tipos del Sistema (`lib/types.ts`)**: Ampliación de `Category` y `UserSettings`.
+- **Sincronización de Versión**: Incremento de versión a `2.2.0` en `package.json`, `version.ts` y pruebas unitarias (118 tests pasando en total).
 ### Agregado
 - **Flujo Transaccional Completo de Registro de Cobro a Personas (`RegisterPersonPaymentModal`)** (PRD §4.5):
   - **Modal Transaccional Local-First**: Creación de [`apps/web/components/RegisterPersonPaymentModal.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/RegisterPersonPaymentModal.tsx) para registrar cobros en 0ms sin requerir conectividad previa. Precarga de saldo actual (`date <= hoy`), selección de cuenta receptora (excluye tarjetas), selección de moneda, conversión cambiaria FX en vivo (automática y manual), selector de fecha y descripción.

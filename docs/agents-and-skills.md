@@ -55,6 +55,7 @@ Estas no son agentes — son documentos que cualquier agente (o vos en una sesi�
 | `supabase-conventions/SKILL.md` | Convención de nombres de tablas/columnas, soft deletes, RPCs, patrón de RLS | crear una migración nueva en `supabase/migrations/` |
 | `copy-style/SKILL.md` | El copy deck completo (sección 7 de `design-system.md`): tono vos, rioplatense, sin "por favor" | escribir cualquier string visible al usuario |
 | `changelog/SKILL.md` | Reglas y formato para actualizar `docs/CHANGELOG.md` tras cada cambio | completar cualquier tarea, bugfix o nueva funcionalidad |
+| `help-maintenance/SKILL.md` | Reglas para actualizar la Wiki, FAQ y Recetas en `apps/web/lib/help-data.ts` | agregar o modificar funcionalidades, módulos o flujos contables |
 
 
 Cada `SKILL.md` es corto (media página) — el objetivo es que el agente no tenga que releer `design-system.md` entero por un cambio de un botón, solo la porción relevante.
@@ -84,4 +85,17 @@ Cada `SKILL.md` es corto (media página) — el objetivo es que el agente no ten
 > 1. Detalla la versión o ubica los cambios en la sección `[Unreleased]`.
 > 2. Clasifica según corresponda: `Agregado`, `Modificado`, `Corregido` o `Eliminado`.
 > 3. Especifica los archivos/componentes involucrados y su correspondencia con el PRD.
+
+---
+
+## 6. Regla transversal obligatoria: Mantenimiento de la Ayuda, FAQ y Wiki
+
+> **ATENCIÓN PARA TODOS LOS AGENTES:**
+> Cada vez que desarrolles una funcionalidad nueva, agregues parámetros en pantalla o modifiques la lógica contable, **es obligatorio actualizar la Base de Conocimiento de la app en `apps/web/lib/help-data.ts`**.
+>
+> 1. Incorporá o ampliá el artículo correspondiente en `WIKI_ARTICLES` con conceptos, secciones y tips prácticos.
+> 2. Añadí al menos 1 o 2 preguntas frecuentes en `FAQ_ITEMS` con `tags` de búsqueda.
+> 3. Si se trata de un flujo recurrente, sumá una receta paso a paso en `QUICK_GUIDES`.
+> 4. Verificá que los tests en `help-data.test.ts` y `HelpCenter.test.tsx` continúen pasando.
+
 

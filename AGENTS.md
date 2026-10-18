@@ -60,3 +60,25 @@ Este archivo contiene las directivas y restricciones obligatorias para cualquier
 * **Zero-Wait UI (Exclusivo Ledger Transaccional)**: Los formularios y acciones de registro contable (`master_transactions`) no deben congelar la UI esperando respuestas de red. Las mutaciones se reflejan al instante en la memoria local y se encolan en el Outbox para su respaldo en background.
 * **Catálogos Maestros (Online-First)**: La creación y edición de instituciones, cuentas y personas se procesa de forma síncrona mediante Server Actions contra Supabase. En formularios de catálogo (`InstitutionForm`, `PersonForm`, `AccountForm`), se debe validar conectividad con `useOnlineStatus()` mostrando feedback preventivo y deshabilitando el botón de submit si el usuario está offline para evitar fallos de red silenciosos.
 
+---
+
+## 6. Mantenimiento Obligatorio del Centro de Ayuda, FAQ y Wiki (`apps/web/lib/help-data.ts`)
+
+> [!IMPORTANT]
+> **En cada nueva funcionalidad, flujo transaccional, parámetro de configuración o cambio de regla de negocio, es OBLIGATORIO mantener actualizado el Centro de Ayuda, su Wiki y sus Preguntas Frecuentes.**
+>
+> * **Artículos de la Wiki (`WIKI_ARTICLES`)**:
+>   - Si se agrega un módulo, vista o comportamiento nuevo (ej. préstamos, inversiones, nuevas formas de pago o reglas cambiarias), agregá o enriquecé el artículo correspondiente en [`apps/web/lib/help-data.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/help-data.ts).
+>   - Incluí explicaciones claras, consideraciones clave y notas/tips orientativos (`tip`).
+>   - Mantené los enlaces directos de acción (`targetRoute` y `targetLabel`) apuntando a las pantallas reales.
+> * **Preguntas Frecuentes (`FAQ_ITEMS`)**:
+>   - Incorporá preguntas frecuentes que resuelvan dudas operativas sobre la nueva función, sus casos borde y cómo interactúa con el resto de la app (multi-moneda, offline, cuotas, etc.).
+>   - Asigná etiquetas semánticas (`tags`) para facilitar la búsqueda en tiempo real.
+> * **Recetas Rápidas (`QUICK_GUIDES`)**:
+>   - Si la funcionalidad introduce un caso de uso común (ej. conciliar saldo, registrar cobro compartido, pagar cuotas), agregá una receta paso a paso para el usuario.
+> * **Tono y Estilo**:
+>   - Todo texto debe respetar el tono rioplatense (tratar de "vos", directo, conciso, sin formalismos como "por favor").
+> * **Sincronización con el PRD y Tests**:
+>   - Reflejá la nueva funcionalidad en [`docs/PRD.md`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/docs/PRD.md) y asegurá que las pruebas unitarias de [`apps/web/lib/help-data.test.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/help-data.test.ts) continúen pasando.
+
+
