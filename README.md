@@ -22,7 +22,7 @@ finance-nomad/
 │   ├── agents/              db-architect, ui-builder, ledger-logic, qa-reviewer
 │   └── skills/              skills y directivas de dominio
 ├── apps/web/                Next.js (App Router) + Tailwind CSS + Vitest
-└── supabase/migrations/     Esquema SQL versionado (0001 a 0009)
+└── supabase/migrations/     Esquema SQL versionado (0001 a 0010)
 ```
 
 ## Primer arranque
@@ -30,7 +30,7 @@ finance-nomad/
 Consultá [`SETUP.md`](SETUP.md) para el paso a paso completo. Resumen rápido:
 
 1. `cd apps/web && npm install`
-2. Crear proyecto en supabase.com y correr en orden las migraciones desde `supabase/migrations/0001_init_schema.sql` hasta `supabase/migrations/0009_person_settled_amount.sql` en el SQL Editor.
+2. Crear proyecto en supabase.com y correr en orden las migraciones desde `supabase/migrations/0001_init_schema.sql` hasta `supabase/migrations/0010_categories_and_onboarding.sql` en el SQL Editor.
 3. Copiar las variables de entorno: `cp apps/web/.env.example apps/web/.env.local` y configurar `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 4. Ejecutar tests automatizados: `npm test`
 5. Iniciar servidor de desarrollo: `npm run dev`
