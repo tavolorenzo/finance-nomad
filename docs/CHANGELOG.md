@@ -12,6 +12,14 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-10-19
+### Corregido
+- **Flujo de Confirmación de Correo y Autenticación en Producción (`/auth/confirm`)**:
+  - **Persistencia de Cookies de Sesión en Route Handler**: Corrección en [`apps/web/app/auth/confirm/route.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/auth/confirm/route.ts) para asociar el almacenamiento de cookies directamente a la instancia `NextResponse.redirect` mediante `createServerClient`, garantizando que los encabezados `Set-Cookie` de Supabase se envíen al navegador al redirigir al `/dashboard` y evitando rebotes involuntarios al `/login`.
+  - **Soporte Híbrido de Verificación**: Integración nativa de `verifyOtp({ type, token_hash })` para flujos cross-device y enlaces directos de correo, junto al intercambio de código PKCE `exchangeCodeForSession(code)`.
+  - **Resiliencia y Feedback Positivo**: Incorporación de redirección preventiva con `confirmed=true` hacia `/login` en caso de enlaces abiertos en clientes de correo externos o navegadores desvinculados del verifier PKCE, mostrando mensaje claro de confirmación exitosa (`LoginPage.tsx`).
+- **Sincronización de Versión**: Incremento a `2.3.1` en `package.json`, `version.ts` y pruebas unitarias.
+
 ## [2.3.0] - 2026-10-18
 ### Agregado
 - **Centro de Ayuda, FAQ Interactivo y Wiki Funcional (`/help`)** (PRD §4.10):

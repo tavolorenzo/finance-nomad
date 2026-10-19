@@ -22,6 +22,8 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search)
     if (params.get('error') === 'confirmacion_invalida') {
       setError('El link no es válido o ya se usó. Pedí uno nuevo.')
+    } else if (params.get('confirmed') === 'true') {
+      setNotice('¡Tu cuenta fue confirmada con éxito! Ya podés ingresar con tu email y contraseña.')
     }
   }, [])
 
