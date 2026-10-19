@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { HelpCircle } from 'lucide-react'
+import { HelpCircle, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthenticatedUser } from '@/lib/supabase/auth-helper'
 import { CurrencySelector } from '@/components/CurrencySelector'
@@ -64,6 +64,13 @@ export default async function SettingsPage() {
             Centro de Ayuda & Wiki
           </Link>
           <TourTriggerButton currentCurrency={settings?.display_currency ?? 'EUR'} />
+          <Link
+            href="/welcome"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-control text-sm font-medium bg-surface-2 text-text-primary hover:bg-surface-0 border border-border transition"
+          >
+            <Sparkles size={16} className="text-accent" />
+            Asistente Inicial
+          </Link>
         </div>
       </div>
 

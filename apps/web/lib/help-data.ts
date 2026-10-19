@@ -436,6 +436,23 @@ export const FAQ_ITEMS: FaqItem[] = [
     categoryLabel: 'Análisis & Reportes',
     tags: ['análisis', 'gráficos', 'conversión', 'divisas locales'],
     relatedWikiSlug: 'analisis-reportes-y-kpis'
+  },
+  {
+    id: 'faq-oauth-providers',
+    question: '¿Puedo iniciar sesión con Google o Apple?',
+    answer: 'Sí. Podés usar "Continuar con Google" o "Continuar con Apple" en la pantalla de inicio de sesión para entrar al instante sin tener que recordar contraseñas ni esperar códigos de verificación por email.',
+    category: 'core',
+    categoryLabel: 'Multi-moneda (FX)',
+    tags: ['oauth', 'google', 'apple', 'login', 'social', 'registro']
+  },
+  {
+    id: 'faq-welcome-wizard',
+    question: '¿Cómo configuro mis primeras cuentas y categorías si soy nuevo?',
+    answer: 'Al registrarte por primera vez, Finance Nomad te guía mediante un Asistente Inicial interactivo. Podés elegir tu divisa base, seleccionar un pack de inicio (Nómada Digital o Local Clásico) y sembrar categorías y contactos en un clic.',
+    category: 'accounts',
+    categoryLabel: 'Cuentas & Bancos',
+    tags: ['bienvenida', 'wizard', 'cuentas', 'categorias', 'setup', 'inicial'],
+    relatedWikiSlug: 'cuentas-e-instituciones-financieras'
   }
 ]
 
@@ -505,6 +522,20 @@ export const QUICK_GUIDES: QuickGuide[] = [
       'El indicador en la barra superior pasará a "Guardado local" (ámbar).',
       'Tus transacciones se guardan cifradas y seguras en la base de datos de tu teléfono.',
       'Al aterrizar o conectarte a WiFi, la app se sincroniza automáticamente en segundo plano.'
+    ]
+  },
+  {
+    id: 'guide-welcome-wizard',
+    title: 'Configurar tu espacio en 30 segundos con el Asistente Inicial',
+    description: 'Sembrá tus primeras cuentas, categorías nómadas y contactos con un solo clic.',
+    iconName: 'Sparkles',
+    route: '/welcome',
+    routeLabel: 'Abrir Asistente Inicial',
+    steps: [
+      'Andá a Ajustes o abrí el Asistente Inicial directamente.',
+      'Elegí tu divisa de referencia (EUR, USD, AUD, UYU, etc.).',
+      'Seleccioná tu pack de cuentas favorito (Nómada Digital o Tradicional/Local).',
+      'Revisá las categorías sugeridas y tocá "Inicializar mi espacio".'
     ]
   }
 ]

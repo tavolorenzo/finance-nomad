@@ -12,6 +12,23 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-10-19
+### Agregado
+- **Autenticación Rápida con OAuth (Google y Apple)**:
+  - **Botones de Inicio Social en Login (`LoginPage.tsx`)**: Incorporación de botones de un clic para continuar con Google y Apple con iconos SVG vectoriales oficiales, adaptabilidad a modo oscuro y claro, y separador semántico hacia el flujo de email.
+  - **Manejador `handleOAuth`**: Integración con `supabase.auth.signInWithOAuth` apuntando a `/auth/confirm` con intercambio automático de tokens y persistencia segura de cookies.
+- **Asistente Inicial de Bienvenida (`/welcome`) — Sembrado User-Friendly (`seedUserSpaceAction`)**:
+  - **Componente `WelcomeWizard` (`components/WelcomeWizard.tsx`)**: Asistente interactivo en 3 pasos para configurar un nuevo espacio en menos de 30 segundos sin necesidad de scripts SQL:
+    - *Paso 1*: Selección visual de divisa base (EUR, USD, AUD, UYU, GBP, NZD).
+    - *Paso 2*: Packs inteligentes de cuentas (Nómada Digital con Wise, Tradicional / Local con tarjeta de crédito, o Personalizado).
+    - *Paso 3*: Selección de categorías estándar de vida nómada y definición de contactos para gastos compartidos (Split Pay).
+  - **Server Actions Atómicas (`app/(protected)/welcome/actions.ts`)**: `seedUserSpaceAction` para crear instituciones, cuentas, categorías y personas en lote marcando `onboarding_completed: true` en `user_settings`, y `skipWelcomeAction` para omitir y comenzar en blanco.
+  - **Enrutamiento Inteligente**: Detección automática en `/dashboard` para nuevos usuarios sin cuentas activas, redirigiendo al asistente de bienvenida. Acceso directo añadido en `/settings`.
+- **Centro de Ayuda & Wiki (`lib/help-data.ts`)**:
+  - FAQs sobre login con Google/Apple y configuración inicial con el Asistente.
+  - Receta rápida ilustrada para sembrar el espacio en 30 segundos.
+  - Suite de pruebas unitarias actualizada (`apps/web/components/WelcomeWizard.test.tsx`).
+
 ## [2.3.1] - 2026-10-19
 ### Corregido
 - **Flujo de Confirmación de Correo y Autenticación en Producción (`/auth/confirm`)**:

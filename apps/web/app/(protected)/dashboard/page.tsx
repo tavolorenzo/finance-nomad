@@ -21,7 +21,7 @@ export default async function DashboardPage() {
   const { start, end } = monthRange()
 
   // Fase 1: Consultas iniciales en paralelo con tolerancia a fallos offline
-  let settings: { display_currency: string } | null = null
+  let settings: { display_currency: string; onboarding_completed?: boolean } | null = null
   let accounts: (Account & { institutions: { name: string } })[] = []
   let transactions: MasterTransaction[] = []
   let estimates: any[] = []
@@ -39,7 +39,7 @@ export default async function DashboardPage() {
     ] = await Promise.all([
       supabase
         .from('user_settings')
-        .select('display_currency')
+        .select('display_currency, onboarding_completed')
         .eq('user_id', user.id)
         .maybeSingle(),
       supabase
@@ -67,6 +67,11 @@ export default async function DashboardPage() {
     transactions = transactionsRes.data ?? []
     estimates = estimatesRes.data ?? []
     balances = balancesRes
+
+    // Redirección inteligente al asistente de bienvenida si no hay cuentas configuradas
+    if (accounts.length === 0 && !settings?.onboarding_completed) {
+      redirect('/welcome')
+    }
 
     const displayCurrency = settings?.display_currency ?? 'EUR'
     const categoryIds = estimates.map((e) => e.category_id)
