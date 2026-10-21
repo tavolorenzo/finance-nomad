@@ -14,8 +14,8 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [2.4.0] - 2026-10-19
 ### Agregado
-- **Autenticación Rápida con OAuth (Google y Apple)**:
-  - **Botones de Inicio Social en Login (`LoginPage.tsx`)**: Incorporación de botones de un clic para continuar con Google y Apple con iconos SVG vectoriales oficiales, adaptabilidad a modo oscuro y claro, y separador semántico hacia el flujo de email.
+- **Autenticación Rápida con OAuth (Google)**:
+  - **Botón de Inicio Social en Login (`LoginPage.tsx`)**: Incorporación de botón de un clic para continuar con Google con icono vectorial oficial SVG, adaptabilidad a modo oscuro y claro, y separador semántico hacia el flujo de email. (El botón de Apple queda comentado y deshabilitado temporalmente hasta su posterior configuración en Supabase).
   - **Manejador `handleOAuth`**: Integración con `supabase.auth.signInWithOAuth` apuntando a `/auth/confirm` con intercambio automático de tokens y persistencia segura de cookies.
 - **Asistente Inicial de Bienvenida (`/welcome`) — Sembrado User-Friendly (`seedUserSpaceAction`)**:
   - **Componente `WelcomeWizard` (`components/WelcomeWizard.tsx`)**: Asistente interactivo en 3 pasos para configurar un nuevo espacio en menos de 30 segundos sin necesidad de scripts SQL:

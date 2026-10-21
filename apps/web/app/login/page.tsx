@@ -138,6 +138,8 @@ export default function LoginPage() {
               <span>Continuar con Google</span>
             </button>
 
+            {/* Botón de acceso con Apple deshabilitado/oculto temporalmente hasta su configuración en Supabase */}
+            {/*
             <button
               type="button"
               disabled={loading}
@@ -149,6 +151,7 @@ export default function LoginPage() {
               </svg>
               <span>Continuar con Apple</span>
             </button>
+            */}
 
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">

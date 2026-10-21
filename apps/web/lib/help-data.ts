@@ -439,11 +439,11 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     id: 'faq-oauth-providers',
-    question: '¿Puedo iniciar sesión con Google o Apple?',
-    answer: 'Sí. Podés usar "Continuar con Google" o "Continuar con Apple" en la pantalla de inicio de sesión para entrar al instante sin tener que recordar contraseñas ni esperar códigos de verificación por email.',
+    question: '¿Puedo iniciar sesión con Google?',
+    answer: 'Sí. Podés usar "Continuar con Google" en la pantalla de inicio de sesión para entrar al instante sin tener que recordar contraseñas ni esperar códigos de verificación por email.',
     category: 'core',
     categoryLabel: 'Multi-moneda (FX)',
-    tags: ['oauth', 'google', 'apple', 'login', 'social', 'registro']
+    tags: ['oauth', 'google', 'login', 'social', 'registro']
   },
   {
     id: 'faq-welcome-wizard',
