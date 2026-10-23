@@ -5,13 +5,21 @@ import { updateDisplayCurrency } from '@/app/(protected)/settings/actions'
 import { useOptionalLedger } from '@/lib/ledger/ledger-context'
 import { useOnlineStatus } from '@/lib/hooks/use-online-status'
 
-const CURRENCIES = ['AUD', 'EUR', 'USD', 'UYU', 'NZD']
+const BASE_CURRENCIES = ['AUD', 'EUR', 'USD', 'UYU', 'NZD', 'ARS']
 
-export function CurrencySelector({ current }: { current: string }) {
+export function CurrencySelector({ current, options }: { current: string; options?: string[] }) {
   const [value, setValue] = useState(current)
   const [isPending, startTransition] = useTransition()
   const ledger = useOptionalLedger()
   const isOnline = useOnlineStatus()
+
+  const currencyList = Array.from(
+    new Set([
+      ...(options ?? ledger?.settings?.active_currencies?.map((c) => c.code) ?? BASE_CURRENCIES),
+      current,
+      ...BASE_CURRENCIES
+    ])
+  ).filter(Boolean)
 
   function handleChange(next: string) {
     if (!isOnline) return
@@ -24,7 +32,7 @@ export function CurrencySelector({ current }: { current: string }) {
 
   return (
     <div className="flex gap-2 flex-wrap">
-      {CURRENCIES.map((c) => (
+      {currencyList.map((c) => (
         <button
           key={c}
           onClick={() => handleChange(c)}

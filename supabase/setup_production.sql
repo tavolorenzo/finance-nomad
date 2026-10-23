@@ -1,7 +1,7 @@
 -- ==============================================================================
--- Finance Nomad — Setup Inicial de Base de Datos para Producción (v2.3)
+-- Finance Nomad — Setup Inicial de Base de Datos para Producción (v2.8.0)
 -- ==============================================================================
--- Este script consolida las 10 migraciones del proyecto (0001 a 0010) en una sola
+-- Este script consolida las 12 migraciones del proyecto (0001 a 0012) en una sola
 -- ejecución directa para inicializar un nuevo proyecto de Supabase en producción.
 --
 -- Incluye:
@@ -9,7 +9,8 @@
 --  2. 10 tablas completas con constraints, defaults y soft-deletes (is_active).
 --  3. Índices optimizados para Ledger Maestro, cuentas, personas y categorías.
 --  4. Triggers de protección contra borrado físico (prevent_hard_delete).
---  5. Funciones RPC para cálculo de saldos y sincronización atómica (Ledger Bundles).
+--  5. Funciones RPC para cálculo de saldos y sincronización atómica (Ledger Bundles),
+--     verificación de existencia de usuario (check_user_exists) y monedas dinámicas.
 --  6. Políticas completas de Row Level Security (RLS) aisladas por usuario.
 -- ==============================================================================
 
@@ -149,6 +150,13 @@ create table if not exists user_settings (
   theme text not null default 'system' check (theme in ('system','light','dark')),
   whatsapp_template text,
   onboarding_completed boolean not null default false,
+  active_currencies jsonb not null default '[
+    {"code": "EUR", "symbol": "€", "name": "Euro", "flag": "🇪🇺", "rate_mode": "auto"},
+    {"code": "USD", "symbol": "US$", "name": "Dólar estadounidense", "flag": "🇺🇸", "rate_mode": "auto"},
+    {"code": "AUD", "symbol": "A$", "name": "Dólar australiano", "flag": "🇦🇺", "rate_mode": "auto"},
+    {"code": "UYU", "symbol": "$UY", "name": "Peso uruguayo", "flag": "🇺🇾", "rate_mode": "auto"},
+    {"code": "NZD", "symbol": "NZ$", "name": "Dólar neozelandés", "flag": "🇳🇿", "rate_mode": "auto"}
+  ]'::jsonb,
   updated_at timestamptz not null default now()
 );
 
@@ -320,6 +328,24 @@ begin
   return jsonb_build_object('success', true, 'count', inserted_count);
 end;
 $$;
+
+-- ── 5.3 Verificación segura de usuario registrado para login email-first ──
+create or replace function check_user_exists(lookup_email text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  return exists(
+    select 1 
+    from auth.users 
+    where lower(email) = lower(trim(lookup_email))
+  );
+end;
+$$;
+
+grant execute on function check_user_exists(text) to anon, authenticated;
 
 -- ==============================================================================
 -- 6. ROW LEVEL SECURITY (RLS)

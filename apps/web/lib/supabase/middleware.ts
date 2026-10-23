@@ -4,7 +4,7 @@ import { getAuthenticatedUser } from './auth-helper'
 
 const PROTECTED_PREFIXES = [
   '/dashboard', '/accounts', '/transactions', '/people', '/budget',
-  '/loans', '/portfolio', '/settings', '/institutions'
+  '/loans', '/portfolio', '/settings', '/institutions', '/welcome'
 ]
 
 export async function updateSession(request: NextRequest) {

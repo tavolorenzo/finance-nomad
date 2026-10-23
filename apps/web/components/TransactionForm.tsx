@@ -10,7 +10,6 @@ import { getCachedRate, setCachedRate } from '@/lib/storage/fx-cache'
 import { useOnlineStatus } from '@/lib/hooks/use-online-status'
 import type { Account, Category, Person } from '@/lib/types'
 
-const CURRENCIES = ['AUD', 'EUR', 'USD', 'UYU', 'NZD']
 const INSTALLMENT_OPTIONS = [1, 3, 4, 6, 12]
 
 export function TransactionForm({
@@ -25,17 +24,24 @@ export function TransactionForm({
   defaultDate: string
 }) {
   const isOnline = useOnlineStatus()
+  const router = useRouter()
+  const { isModal, close } = useModal()
+  const ledger = useLedger()
+
   const [type, setType] = useState<'OUTCOME' | 'INCOME' | 'TRANSFER'>('OUTCOME')
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? '')
   const [toAccountId, setToAccountId] = useState(
     accounts.find((a) => a.id !== accounts[0]?.id)?.id ?? accounts[1]?.id ?? ''
   )
   const [amount, setAmount] = useState('')
-  const [currency, setCurrency] = useState('UYU')
+  const [currency, setCurrency] = useState(
+    accounts[0]?.currency_native ?? ledger.settings?.display_currency ?? 'EUR'
+  )
   const [fee, setFee] = useState('0')
   const [rate, setRate] = useState<number>(1)
   const [rateOverridden, setRateOverridden] = useState(false)
   const [rateFetchedAt, setRateFetchedAt] = useState<string | null>(null)
+  const [isManualProfileRate, setIsManualProfileRate] = useState(false)
   const [date, setDate] = useState(defaultDate)
   const [categoryId, setCategoryId] = useState<string | null>(categories[0]?.id ?? null)
   const [personId, setPersonId] = useState<string | null>(
@@ -50,6 +56,21 @@ export function TransactionForm({
   const account = accounts.find((a) => a.id === accountId)
   const toAccount = accounts.find((a) => a.id === toAccountId)
 
+  // Divisas disponibles dinámicas (cuentas del usuario + settings + predeterminadas)
+  const activeCurrsFromSettings = (ledger.settings?.active_currencies || []).map((c) => c.code)
+  const accountCurrencies = accounts.map((a) => a.currency_native)
+  const availableCurrencies = Array.from(
+    new Set([
+      ...accountCurrencies,
+      ...activeCurrsFromSettings,
+      currency,
+      ledger.settings?.display_currency || 'EUR',
+      'USD',
+      'EUR',
+      'ARS'
+    ])
+  ).filter(Boolean)
+
   // Para transferencias, la moneda destino es la moneda de la cuenta receptora.
   // Para gastos/ingresos, es la moneda nativa de la cuenta seleccionada.
   const targetCurrency = isTransfer
@@ -63,25 +84,27 @@ export function TransactionForm({
     }
   }, [accountId, account?.currency_native, isTransfer])
 
-  // Tipo de cambio local-first (0ms) con refresco en background
+  // Tipo de cambio local-first (0ms) con refresco en background respetando tasas manuales
   useEffect(() => {
     if (rateOverridden) return
     if (currency === targetCurrency) {
       setRate(1)
       setRateFetchedAt(null)
       setRateError(null)
+      setIsManualProfileRate(false)
       return
     }
 
-    // 1. Intentar resolver inmediatamente desde la caché local (24h TTL)
+    // 1. Intentar resolver inmediatamente desde la caché local (24h TTL o tasa manual)
     const cached = getCachedRate(currency, targetCurrency)
     if (cached) {
       setRate(cached.rate)
       setRateFetchedAt(new Date(cached.timestamp).toISOString())
       setRateError(null)
+      setIsManualProfileRate(Boolean(cached.isManual))
 
-      // Si la tasa local está expirada y tenemos conexión, refrescar en segundo plano
-      if (cached.isExpired && isOnline) {
+      // Si la tasa local está expirada, no es manual y tenemos conexión, refrescar en segundo plano
+      if (cached.isExpired && !cached.isManual && isOnline) {
         fetchExchangeRate(currency, targetCurrency, date)
           .then((freshRate) => {
             if (!rateOverridden) {
@@ -90,9 +113,7 @@ export function TransactionForm({
               setCachedRate(currency, targetCurrency, freshRate)
             }
           })
-          .catch(() => {
-            // Silencioso: mantenemos la cotización local existente
-          })
+          .catch(() => {})
       }
       return
     }
@@ -110,6 +131,7 @@ export function TransactionForm({
           setRateFetchedAt(new Date().toISOString())
           setCachedRate(currency, targetCurrency, freshRate)
           setRateError(null)
+          setIsManualProfileRate(false)
         }
       })
       .catch(() => setRateError('No pudimos obtener el tipo de cambio. Ingresalo a mano.'))
@@ -118,10 +140,6 @@ export function TransactionForm({
   const amountNum = parseFloat(amount) || 0
   const feeNum = parseFloat(fee) || 0
   const converted = Math.max(0, amountNum - feeNum) * rate
-
-  const router = useRouter()
-  const { isModal, close } = useModal()
-  const ledger = useLedger()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -299,7 +317,7 @@ export function TransactionForm({
             required
           />
           <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-24 text-sm font-mono">
-            {CURRENCIES.map((c) => (
+            {availableCurrencies.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
@@ -332,7 +350,9 @@ export function TransactionForm({
             {!rateError && (
               <p className="text-[10px] text-text-muted mt-0.5">
                 {rateOverridden
-                  ? 'Cotización manual (personalizada)'
+                  ? 'Cotización manual (personalizada para este movimiento)'
+                  : isManualProfileRate
+                  ? 'Cotización fija de tu perfil'
                   : rateFetchedAt
                   ? `Cotización de referencia (${new Date(rateFetchedAt).toLocaleDateString()})`
                   : 'Cotización automática'}

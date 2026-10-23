@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { rethrowIfRedirect } from '@/lib/next/rethrow-redirect'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthenticatedUser } from '@/lib/supabase/auth-helper'
 import { getAccountBalances, convertToDisplayCurrency } from '@/lib/networth'
@@ -21,7 +22,7 @@ export default async function DashboardPage() {
   const { start, end } = monthRange()
 
   // Fase 1: Consultas iniciales en paralelo con tolerancia a fallos offline
-  let settings: { display_currency: string; onboarding_completed?: boolean } | null = null
+  let settings: { display_currency: string; onboarding_completed?: boolean; active_currencies?: UserSettings['active_currencies'] } | null = null
   let accounts: (Account & { institutions: { name: string } })[] = []
   let transactions: MasterTransaction[] = []
   let estimates: any[] = []
@@ -39,7 +40,7 @@ export default async function DashboardPage() {
     ] = await Promise.all([
       supabase
         .from('user_settings')
-        .select('display_currency, onboarding_completed')
+        .select('display_currency, onboarding_completed, active_currencies')
         .eq('user_id', user.id)
         .maybeSingle(),
       supabase
@@ -76,9 +77,26 @@ export default async function DashboardPage() {
     const displayCurrency = settings?.display_currency ?? 'EUR'
     const categoryIds = estimates.map((e) => e.category_id)
 
+    // Construir mapa de cotizaciones manuales si el usuario las configuró
+    const customRates: Record<string, number> = {}
+    if (settings?.active_currencies && Array.isArray(settings.active_currencies)) {
+      for (const c of settings.active_currencies) {
+        if (
+          c.rate_mode === 'manual' &&
+          typeof c.custom_rate_against_global === 'number' &&
+          c.custom_rate_against_global > 0
+        ) {
+          const globalToCustom = `${displayCurrency.toUpperCase()}_${c.code.toUpperCase()}`
+          const customToGlobal = `${c.code.toUpperCase()}_${displayCurrency.toUpperCase()}`
+          customRates[globalToCustom] = c.custom_rate_against_global
+          customRates[customToGlobal] = Math.round((1 / c.custom_rate_against_global) * 1000000) / 1000000
+        }
+      }
+    }
+
     // Fase 2: Conversión de divisas y gasto del mes en paralelo
     const [netWorthVal, monthTxResult] = await Promise.all([
-      convertToDisplayCurrency(balances, displayCurrency, today),
+      convertToDisplayCurrency(balances, displayCurrency, today, customRates),
       categoryIds.length > 0
         ? supabase
             .from('master_transactions')
@@ -95,7 +113,8 @@ export default async function DashboardPage() {
       (sum: number, t: { amount_account: number }) => sum + t.amount_account,
       0
     )
-  } catch {
+  } catch (error) {
+    rethrowIfRedirect(error)
     // Si la conexión a Supabase no está disponible (offline), los datos se resuelven
     // reactivamente en el cliente mediante LedgerContext (IndexedDB).
   }

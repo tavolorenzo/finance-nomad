@@ -39,12 +39,24 @@ export interface Person {
   created_at?: string
 }
 
+export type CurrencyRateMode = 'auto' | 'manual'
+
+export interface ActiveCurrency {
+  code: string
+  symbol: string
+  name: string
+  flag?: string
+  rate_mode: CurrencyRateMode
+  custom_rate_against_global?: number
+}
+
 export interface UserSettings {
   user_id: string
   display_currency: string
   theme: 'system' | 'light' | 'dark'
   whatsapp_template?: string | null
   onboarding_completed?: boolean
+  active_currencies?: ActiveCurrency[]
   updated_at?: string
 }
 

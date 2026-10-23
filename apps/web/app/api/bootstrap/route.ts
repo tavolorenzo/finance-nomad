@@ -86,7 +86,30 @@ export async function GET() {
     balances = await getAccountBalances(supabase, today)
   }
 
-  const fxRates = await getRatesMatrix().catch(() => ({}))
+  const displayCurr = settings?.display_currency || 'EUR'
+  const activeCurrs = (settings?.active_currencies || []).map((c) => c.code)
+  const accountCurrs = (accounts || []).map((a) => a.currency_native)
+  const uniqueCurrencies = Array.from(
+    new Set([displayCurr, ...activeCurrs, ...accountCurrs, 'USD', 'EUR', 'ARS'])
+  ).filter(Boolean)
+
+  const fxRates: Record<string, number> = await getRatesMatrix(uniqueCurrencies).catch(() => ({}))
+
+  // Inyectar tasas manuales configuradas contra la moneda global
+  if (settings?.active_currencies && Array.isArray(settings.active_currencies)) {
+    for (const c of settings.active_currencies) {
+      if (
+        c.rate_mode === 'manual' &&
+        typeof c.custom_rate_against_global === 'number' &&
+        c.custom_rate_against_global > 0
+      ) {
+        const globalToCustom = `${displayCurr.toUpperCase()}_${c.code.toUpperCase()}`
+        const customToGlobal = `${c.code.toUpperCase()}_${displayCurr.toUpperCase()}`
+        fxRates[globalToCustom] = c.custom_rate_against_global
+        fxRates[customToGlobal] = Math.round((1 / c.custom_rate_against_global) * 1000000) / 1000000
+      }
+    }
+  }
 
   return NextResponse.json({
     userId: user.id,

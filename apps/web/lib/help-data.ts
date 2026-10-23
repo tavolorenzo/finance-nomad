@@ -62,23 +62,27 @@ export const WIKI_ARTICLES: WikiArticle[] = [
     badge: 'Core del Nómada',
     targetRoute: '/settings',
     targetLabel: 'Configurar divisa global',
-    summary: 'Cómo gestiona Finance Nomad las monedas del mundo, cotizaciones automáticas, conversiones cruzadas y sobreescritura manual.',
+    summary: 'Cómo gestiona Finance Nomad las monedas del mundo, el catálogo dinámico de más de 30 divisas, cotizaciones automáticas, y tipos de cambio directos manuales (Dólar Blue / MEP).',
     sections: [
       {
         title: 'Divisa Global vs. Divisas Nominales',
         content: 'Finance Nomad está diseñado para personas que se mueven entre países. Tu patrimonio neto total y los totales del Dashboard se consolidan en tu "Moneda global" elegida (por ejemplo EUR, USD, AUD, UYU o NZD). Sin embargo, cada cuenta bancaria o billetera conserva su saldo nominal real en su moneda nativa, sin sufrir conversiones artificiales al visualizar tus cuentas.'
       },
       {
-        title: 'Motor de Cotizaciones en Vivo y Fallback',
-        content: 'La app consulta tipos de cambio en tiempo real a través de open.er-api.com (con soporte integral para divisas internacionales y regionales como UYU) y cuenta con un fallback secundario a la API del Banco Central Europeo (Frankfurter). Las cotizaciones se almacenan en una caché local con un tiempo de vida (TTL) de 1 hora para asegurar velocidad y funcionamiento sin conexión.'
+        title: 'Catálogo Dinámico de Divisas y Monedas Regionales',
+        content: 'Además de las 5 monedas base iniciales, podés activar más de 30 divisas de todo el mundo (Pesos Argentinos - ARS, Reales Brasileños - BRL, Pesos Chilenos - CLP, Libras Esterlinas - GBP, Francos Suizos - CHF, etc.) desde Ajustes o durante el Asistente Inicial. Las monedas que actives quedan disponibles al instante en tus cuentas, tarjetas y movimientos.'
       },
       {
-        title: 'Sobreescritura Manual de Cotización',
-        content: 'Si tu banco o casa de cambio aplicó una tasa diferente a la oficial del mercado, podés modificar manualmente el tipo de cambio en el formulario de movimiento. Al hacerlo, el sistema marca el registro como tasa personalizada (rate_overridden: true), garantizando que futuras actualizaciones de mercado nunca pisen tu cotización real.',
-        tip: 'Al ingresar un movimiento en moneda extranjera, siempre podés revisar el contravalor calculado y editar tanto la tasa como la comisión (fee).'
+        title: 'Cotización Automática vs. Tasa Manual Directa (Dólar Blue / MEP)',
+        content: 'Cada divisa secundaria puede operar en modo "Auto (Mercado)" (consultando open.er-api.com en tiempo real con fallback al BCE) o en modo "Manual". En modo manual, definís directamente la cotización contra tu moneda global (ejemplo: 1 USD = 1.280 ARS). Finance Nomad protege esta cotización personalizada para que nunca sea pisada por actualizaciones automáticas de mercado, reflejando fielmente tu realidad financiera.'
+      },
+      {
+        title: 'Sobreescritura Manual en Transacciones Puntuales',
+        content: 'Si tu banco o casa de cambio aplicó una tasa diferente en una operación específica, podés modificar manualmente el tipo de cambio en el formulario de movimiento. Al hacerlo, el sistema marca el registro como tasa personalizada (rate_overridden: true), garantizando que futuras actualizaciones de mercado nunca pisen tu cotización real.',
+        tip: 'Podés gestionar tus divisas activas y cambiar entre modo Auto y Manual en cualquier momento desde Ajustes > Mis Divisas Activas.'
       }
     ],
-    relatedFaqIds: ['faq-fx-calc', 'faq-fx-manual', 'faq-fx-dashboard']
+    relatedFaqIds: ['faq-fx-calc', 'faq-fx-manual', 'faq-fx-dashboard', 'faq-fx-custom-currency', 'faq-fx-manual-profile-rate']
   },
   {
     id: 'wiki-cards',
@@ -303,6 +307,24 @@ export const FAQ_ITEMS: FaqItem[] = [
     relatedWikiSlug: 'multi-moneda-y-cotizaciones'
   },
   {
+    id: 'faq-fx-custom-currency',
+    question: '¿Cómo agrego una moneda regional o personalizada (ej. Pesos Argentinos - ARS)?',
+    answer: 'Andá a Ajustes > "Mis Divisas Activas" y tocá "+ Agregar divisa". Se abrirá el catálogo con más de 30 monedas del mundo (ARS, BRL, CLP, COP, MXN, etc.) con buscador en vivo. Seleccionala y quedará disponible de inmediato en todos tus formularios de cuentas y movimientos.',
+    category: 'core',
+    categoryLabel: 'Multi-moneda (FX)',
+    tags: ['moneda', 'divisa', 'ars', 'pesos', 'personalizada', 'catálogo', 'activo'],
+    relatedWikiSlug: 'multi-moneda-y-cotizaciones'
+  },
+  {
+    id: 'faq-fx-manual-profile-rate',
+    question: '¿Cómo configuro una cotización fija (ej. Dólar Blue o MEP) contra mi moneda global?',
+    answer: 'En Ajustes > "Mis Divisas Activas", buscá la moneda secundaria y cambiá el selector de "Auto (Mercado)" a "Manual". Ingresá directamente cuántas unidades de esa divisa equivalen a 1 unidad de tu moneda global (ej: 1 USD = 1.280 ARS). El sistema aplicará esa cotización directa en tus balances y formularios sin que el mercado oficial la sobreescriba.',
+    category: 'core',
+    categoryLabel: 'Multi-moneda (FX)',
+    tags: ['dólar blue', 'mep', 'cotización manual', 'tasa fija', 'fx', 'tipo de cambio'],
+    relatedWikiSlug: 'multi-moneda-y-cotizaciones'
+  },
+  {
     id: 'faq-card-installments',
     question: '¿Cómo registro una compra en cuotas con tarjeta de crédito?',
     answer: 'En el formulario de nuevo movimiento, seleccioná tu tarjeta de crédito y en el campo "Cuotas" elegí la cantidad de pagos (por ejemplo 3, 6 o 12). La app debitará la primera cuota hoy y agendará automáticamente las cuotas restantes mes a mes en estado pendiente.',
@@ -448,11 +470,27 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     id: 'faq-welcome-wizard',
     question: '¿Cómo configuro mis primeras cuentas y categorías si soy nuevo?',
-    answer: 'Al registrarte por primera vez, Finance Nomad te guía mediante un Asistente Inicial interactivo. Podés elegir tu divisa base, seleccionar un pack de inicio (Nómada Digital o Local Clásico) y sembrar categorías y contactos en un clic.',
+    answer: 'Al registrarte por primera vez, Finance Nomad te guía mediante un Asistente Inicial interactivo de 5 pasos. Podés elegir tu divisa base (sugerida automáticamente por tu región), configurar tus bancos o billeteras con sus cuentas y saldos iniciales reales (o límite de crédito para tarjetas de crédito), definir tus categorías y crear tus contactos para gastos compartidos (Split Pay).',
     category: 'accounts',
     categoryLabel: 'Cuentas & Bancos',
-    tags: ['bienvenida', 'wizard', 'cuentas', 'categorias', 'setup', 'inicial'],
+    tags: ['bienvenida', 'wizard', 'cuentas', 'tarjetas', 'limite', 'categorias', 'setup', 'inicial'],
     relatedWikiSlug: 'cuentas-e-instituciones-financieras'
+  },
+  {
+    id: 'faq-password-requirements',
+    question: '¿Qué requisitos debe cumplir mi contraseña y cómo la restablezco?',
+    answer: 'La contraseña debe tener como mínimo 6 caracteres (recomendamos 8 o más combinando letras y números). Por seguridad, Supabase rechaza contraseñas vulnerables conocidas o filtradas en brechas públicas. Si la olvidaste o querés cambiarla, elegí "Restablecé la contraseña" en la pantalla de acceso para recibir un enlace de recuperación seguro en tu email.',
+    category: 'core',
+    categoryLabel: 'Multi-moneda (FX)',
+    tags: ['contraseña', 'seguridad', 'recuperación', 'reset', 'requisitos', 'login']
+  },
+  {
+    id: 'faq-login-progressive-flow',
+    question: '¿Cómo funciona el acceso y registro rápido con email?',
+    answer: 'Ingresá tu correo en la pantalla de acceso. Finance Nomad detecta automáticamente si ya tenés una cuenta para pedirte tu contraseña o, si sos nuevo, te permite crear tu contraseña en el momento sin tener que cambiar de pantalla.',
+    category: 'core',
+    categoryLabel: 'Multi-moneda (FX)',
+    tags: ['login', 'registro', 'email', 'acceso', 'cuenta', 'contraseña']
   }
 ]
 
@@ -527,15 +565,31 @@ export const QUICK_GUIDES: QuickGuide[] = [
   {
     id: 'guide-welcome-wizard',
     title: 'Configurar tu espacio en 30 segundos con el Asistente Inicial',
-    description: 'Sembrá tus primeras cuentas, categorías nómadas y contactos con un solo clic.',
+    description: 'Sembrá tus primeras cuentas con saldo real, categorías nómadas y contactos con un solo clic.',
     iconName: 'Sparkles',
     route: '/welcome',
     routeLabel: 'Abrir Asistente Inicial',
     steps: [
-      'Andá a Ajustes o abrí el Asistente Inicial directamente.',
-      'Elegí tu divisa de referencia (EUR, USD, AUD, UYU, etc.).',
-      'Seleccioná tu pack de cuentas favorito (Nómada Digital o Tradicional/Local).',
-      'Revisá las categorías sugeridas y tocá "Inicializar mi espacio".'
+      'Al crear tu cuenta, el Asistente Inicial se abre automáticamente para nuevos usuarios.',
+      'Elegí tu divisa de consolidación patrimonial (sugerida automáticamente por tu región).',
+      'Definí tus instituciones y cuentas con sus monedas nativas, saldos reales o límite de crédito (en tarjetas).',
+      'Seleccioná o agregá tus categorías y contactos para gastos compartidos.',
+      'Tocá "Configurá mi espacio" para sembrar tus datos y entrar al Dashboard listo para operar.'
+    ]
+  },
+  {
+    id: 'guide-manage-currencies',
+    title: 'Agregar una moneda personalizada y fijar su cotización',
+    description: 'Habilitá divisas regionales como ARS o BRL y establecé una cotización manual directa contra tu divisa global.',
+    iconName: 'Coins',
+    route: '/settings',
+    routeLabel: 'Ir a Ajustes',
+    steps: [
+      'Andá a Ajustes > sección "Mis Divisas Activas".',
+      'Tocá "+ Agregar divisa" y buscá tu moneda en el catálogo (por ejemplo Pesos Argentinos - ARS).',
+      'Cambiá el modo de cotización de "Auto" a "Manual".',
+      'Escribí el valor directo contra tu moneda global (por ejemplo: si tu base es USD y el Blue cotiza a 1.280, poné 1280).',
+      'Listo: tus cuentas y transacciones en esa divisa se calcularán siempre con tu tipo de cambio personalizado.'
     ]
   }
 ]

@@ -16,7 +16,7 @@ const TYPES: { value: AccountType; label: string }[] = [
   { value: 'credit_card', label: 'Tarjeta de crédito' },
   { value: 'cash', label: 'Efectivo' }
 ]
-const CURRENCIES = ['AUD', 'EUR', 'USD', 'UYU', 'NZD']
+const BASE_CURRENCIES = ['AUD', 'EUR', 'USD', 'UYU', 'NZD', 'ARS']
 
 export function AccountForm({
   institutions,
@@ -31,6 +31,17 @@ export function AccountForm({
   const { isModal, close } = useModal()
   const ledger = useOptionalLedger()
   const isOnline = useOnlineStatus()
+
+  const activeCurrsFromSettings = (ledger?.settings?.active_currencies || []).map((c) => c.code)
+  const availableCurrencies = Array.from(
+    new Set([
+      ...activeCurrsFromSettings,
+      account?.currency_native,
+      ledger?.settings?.display_currency,
+      ...BASE_CURRENCIES
+    ])
+  ).filter(Boolean) as string[]
+
   const [institutionId, setInstitutionId] = useState(
     account?.institution_id
     ?? (institutions.some((i) => i.id === defaultInstitutionId) ? defaultInstitutionId : undefined)
@@ -39,7 +50,9 @@ export function AccountForm({
   )
   const [name, setName] = useState(account?.name ?? '')
   const [type, setType] = useState<AccountType>(account?.type ?? 'checking')
-  const [currency, setCurrency] = useState(account?.currency_native ?? 'AUD')
+  const [currency, setCurrency] = useState(
+    account?.currency_native ?? ledger?.settings?.display_currency ?? 'EUR'
+  )
   const [creditLimit, setCreditLimit] = useState(account?.credit_limit?.toString() ?? '')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -174,7 +187,7 @@ export function AccountForm({
           onChange={(e) => setCurrency(e.target.value)}
           className="w-full"
         >
-          {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          {availableCurrencies.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
 

@@ -1,22 +1,29 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { sendPasswordResetEmail } from '@/lib/auth/password-reset'
+import { getSignUpErrorMessage, getSignInErrorMessage } from '@/lib/auth/password-errors'
+import { isValidEmail, checkUserExists } from '@/lib/auth/user-lookup'
 
-type Mode = 'login' | 'signup' | 'reset'
+type Step = 'email' | 'password_login' | 'password_signup' | 'reset'
 
 export default function LoginPage() {
   const router = useRouter()
   const supabase = createClient()
 
-  const [mode, setMode] = useState<Mode>('login')
+  const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
+
+  const passwordRef = useRef<HTMLInputElement>(null)
+  const backToLoginRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -27,8 +34,36 @@ export default function LoginPage() {
     }
   }, [])
 
-  function switchMode(next: Mode) {
-    setMode(next)
+  useEffect(() => {
+    if (step === 'password_login' || step === 'password_signup') {
+      passwordRef.current?.focus()
+    } else if (step === 'reset' && resetSent) {
+      backToLoginRef.current?.focus()
+    }
+  }, [step, resetSent])
+
+  const emailIsValid = isValidEmail(email)
+
+  function handleChangeEmail() {
+    setStep('email')
+    setPassword('')
+    setConfirmPassword('')
+    setError(null)
+  }
+
+  function handleSwitchToReset() {
+    setStep('reset')
+    setResetSent(false)
+    setPassword('')
+    setConfirmPassword('')
+    setError(null)
+  }
+
+  function handleBackToLogin() {
+    setStep('email')
+    setResetSent(false)
+    setPassword('')
+    setConfirmPassword('')
     setError(null)
     setNotice(null)
   }
@@ -49,69 +84,122 @@ export default function LoginPage() {
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleCheckEmail(e: React.FormEvent) {
     e.preventDefault()
+    if (!emailIsValid) return
+
     setError(null)
     setNotice(null)
     setLoading(true)
 
-    if (mode === 'reset') {
-      const { error: resetError } = await sendPasswordResetEmail(supabase, email)
-      if (resetError) {
-        setError('No pudimos enviar el link. Revisá el email e intentá de nuevo.')
-      } else {
-        setNotice('Te mandamos un link al email para restablecer la contraseña.')
-      }
+    const { exists, error: checkError } = await checkUserExists(supabase, email)
+
+    setLoading(false)
+
+    if (checkError) {
+      // Fallback de resiliencia si la RPC no existe aún o hay fallo de red:
+      // Pasamos a login por defecto para no bloquear al usuario
+      console.warn('RPC check_user_exists fallback:', checkError.message)
+      setStep('password_login')
+      return
+    }
+
+    if (exists) {
+      setStep('password_login')
+    } else {
+      setStep('password_signup')
+    }
+  }
+
+  async function handlePasswordLogin(e: React.FormEvent) {
+    e.preventDefault()
+    if (!password) return
+
+    setError(null)
+    setNotice(null)
+    setLoading(true)
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) {
+      setError(getSignInErrorMessage(signInError))
+      setLoading(false)
+    } else {
+      router.push('/dashboard')
+      router.refresh()
+    }
+  }
+
+  async function handlePasswordSignup(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setNotice(null)
+
+    if (password !== confirmPassword) {
+      setError('Las contraseñas no coinciden.')
+      return
+    }
+
+    setLoading(true)
+    const { error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/auth/confirm` }
+    })
+
+    if (signUpError) {
+      setError(getSignUpErrorMessage(signUpError))
       setLoading(false)
       return
     }
 
-    if (mode === 'login') {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-      if (signInError) {
-        setError('No pudimos iniciar sesión. Revisá el email y la contraseña.')
-      } else {
-        router.push('/dashboard')
-        router.refresh()
-      }
+    // Tras crear cuenta con éxito, regresamos al estado inicial
+    setEmail('')
+    setPassword('')
+    setConfirmPassword('')
+    setStep('email')
+    setLoading(false)
+    setNotice('¡Cuenta creada con éxito! Te mandamos un link a tu correo para confirmarla antes de entrar.')
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email) return
+
+    setError(null)
+    setNotice(null)
+    setLoading(true)
+
+    const { error: resetError } = await sendPasswordResetEmail(supabase, email)
+    if (resetError) {
+      setError('No pudimos enviar el link. Revisá el email e intentá de nuevo.')
     } else {
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: `${window.location.origin}/auth/confirm` }
-      })
-      if (signUpError) {
-        setError('No pudimos crear la cuenta. Revisá el email e intentá de nuevo.')
-      } else {
-        setNotice('Revisá tu email para confirmar la cuenta antes de entrar.')
-      }
+      setResetSent(true)
+      setNotice('Te mandamos un link al email para restablecer la contraseña. Revisá tu bandeja de entrada o spam.')
     }
     setLoading(false)
   }
 
-  const title =
-    mode === 'login' ? 'Entrá a tu cuenta' : mode === 'signup' ? 'Creá tu cuenta' : 'Restablecé la contraseña'
-
-  const submitLabel =
-    mode === 'login' ? 'Entrar' : mode === 'signup' ? 'Crear cuenta' : 'Mandar link'
-
   return (
     <main className="min-h-screen flex items-center justify-center p-4">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm bg-surface-1 border border-border rounded-card p-6 space-y-4">
+      <div className="w-full max-w-sm bg-surface-1 border border-border rounded-card p-6 space-y-4 shadow-sm">
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight text-text-primary">Finance Nomad</h1>
-          <p className="text-sm text-text-secondary mt-1">{title}</p>
+          <p className="text-sm text-text-secondary mt-1">
+            {step === 'reset'
+              ? 'Restablecé tu contraseña'
+              : step === 'password_signup'
+              ? 'Creá tu contraseña para empezar'
+              : step === 'password_login'
+              ? 'Ingresá tu contraseña'
+              : 'Entrá a tu cuenta o registrate'}
+          </p>
         </div>
 
-        {mode === 'reset' && (
-          <p className="text-sm text-text-muted">
-            Ingresá el email de tu cuenta y te mandamos un link para elegir una contraseña nueva.
-          </p>
-        )}
-
-        {mode !== 'reset' && (
-          <div className="space-y-2 pt-2">
+        {/* 1. Botón Continuar con Google superior (sólo visible en el paso inicial de email) */}
+        {step === 'email' && (
+          <div className="space-y-3 pt-1">
             <button
+              id="btn-google"
               type="button"
               disabled={loading}
               onClick={() => handleOAuth('google')}
@@ -138,104 +226,252 @@ export default function LoginPage() {
               <span>Continuar con Google</span>
             </button>
 
-            {/* Botón de acceso con Apple deshabilitado/oculto temporalmente hasta su configuración en Supabase */}
-            {/*
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => handleOAuth('apple')}
-              className="w-full flex items-center justify-center gap-3 bg-surface-2 hover:bg-surface-0 border border-border text-text-primary py-2.5 px-4 rounded-control font-medium transition disabled:opacity-50 text-sm"
-            >
-              <svg className="w-4 h-4 shrink-0 fill-current" viewBox="0 0 170 170">
-                <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.7-3.04-7.58-7.7-11.64-13.98-5.99-9.35-10.74-19.98-14.25-31.9-3.52-11.92-5.27-23.23-5.27-33.94 0-14.36 3.59-26.47 10.77-36.33 7.18-9.86 16.3-14.86 27.36-15 4.35 0 9.29 1.14 14.82 3.43 5.53 2.28 9.28 3.52 11.25 3.72 2.65-.43 6.64-1.8 11.97-4.11 5.33-2.31 10.02-3.32 14.07-3.03 15.54.98 27.27 6.78 35.19 17.41-13.79 8.37-20.5 19.8-20.13 34.3.37 11.45 4.78 20.94 13.23 28.48 8.45 7.54 18.28 11.75 29.49 12.63-2.31 7.29-5.18 14.73-8.6 22.33zm-39.73-109.8c0-6.19 2.24-12.18 6.72-17.97 4.48-5.79 10.09-9.75 16.83-11.88.85 4.99.57 10.21-.84 15.66-1.41 5.45-4.14 10.37-8.19 14.76-3.8 4.25-8.19 7.37-13.16 9.36-.64-3.33-1.36-6.64-1.36-9.93z" />
-              </svg>
-              <span>Continuar con Apple</span>
-            </button>
-            */}
-
-            <div className="relative my-4">
+            <div className="relative my-3">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-surface-1 px-2 text-text-muted">o continuá con email</span>
+                <span className="bg-surface-1 px-2 text-text-muted">o con tu correo</span>
               </div>
             </div>
           </div>
         )}
 
-        <div>
-          <label htmlFor="login-email" className="block text-sm font-medium text-text-secondary mb-1">
-            Email
-          </label>
-          <input
-            id="login-email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full"
-            autoComplete="email"
-          />
-        </div>
+        {/* 2. Formularios según el paso actual */}
+        {step === 'email' && (
+          <form onSubmit={handleCheckEmail} className="space-y-4">
+            <div>
+              <label htmlFor="login-email" className="block text-sm font-medium text-text-secondary mb-1">
+                Email
+              </label>
+              <input
+                id="login-email"
+                type="email"
+                required
+                autoFocus
+                placeholder="tu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full"
+                autoComplete="email"
+              />
+            </div>
 
-        {mode !== 'reset' && (
-          <div>
-            <label htmlFor="login-password" className="block text-sm font-medium text-text-secondary mb-1">
-              Contraseña
-            </label>
-            <input
-              id="login-password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full"
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              minLength={6}
-            />
-          </div>
+            {error && <p className="text-sm text-expense font-medium">{error}</p>}
+            {notice && <p className="text-sm text-income font-medium">{notice}</p>}
+
+            <button
+              id="btn-continue"
+              type="submit"
+              disabled={!emailIsValid || loading}
+              className="w-full bg-accent text-[color:var(--on-accent)] py-3 rounded-control font-medium hover:opacity-90 transition disabled:opacity-50"
+            >
+              {loading ? 'Comprobando...' : 'Continuar'}
+            </button>
+          </form>
         )}
 
-        {error && <p className="text-sm text-expense font-medium">{error}</p>}
-        {notice && <p className="text-sm text-income font-medium">{notice}</p>}
+        {step === 'password_login' && (
+          <form onSubmit={handlePasswordLogin} className="space-y-4 animate-in fade-in duration-200">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-sm font-medium text-text-secondary">Email</label>
+                <button
+                  id="btn-change-email"
+                  type="button"
+                  onClick={handleChangeEmail}
+                  className="text-xs text-accent font-medium hover:underline"
+                >
+                  Cambiar
+                </button>
+              </div>
+              <div className="px-3 py-2 bg-surface-0 border border-border rounded-control text-sm text-text-primary">
+                {email}
+              </div>
+            </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-accent text-[color:var(--on-accent)] py-3 rounded-control font-medium hover:opacity-90 transition disabled:opacity-50"
-        >
-          {loading ? 'Un momento...' : submitLabel}
-        </button>
+            <div>
+              <label htmlFor="login-password" className="block text-sm font-medium text-text-secondary mb-1">
+                Contraseña
+              </label>
+              <input
+                ref={passwordRef}
+                id="login-password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full"
+                autoComplete="current-password"
+              />
+            </div>
 
-        {mode === 'login' && (
-          <button
-            type="button"
-            onClick={() => switchMode('reset')}
-            className="w-full text-xs text-text-muted hover:text-text-primary py-1 transition"
-          >
-            Olvidé la contraseña
-          </button>
+            <div className="flex justify-end">
+              <button
+                id="btn-forgot-password"
+                type="button"
+                onClick={handleSwitchToReset}
+                className="text-xs text-text-muted hover:text-accent transition"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
+
+            {error && <p className="text-sm text-expense font-medium">{error}</p>}
+            {notice && <p className="text-sm text-income font-medium">{notice}</p>}
+
+            <button
+              id="btn-submit"
+              type="submit"
+              disabled={loading || !password}
+              className="w-full bg-accent text-[color:var(--on-accent)] py-3 rounded-control font-medium hover:opacity-90 transition disabled:opacity-50"
+            >
+              {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+            </button>
+          </form>
         )}
 
-        {mode === 'reset' ? (
-          <button
-            type="button"
-            onClick={() => switchMode('login')}
-            className="w-full text-xs text-text-muted hover:text-text-primary py-1 transition"
-          >
-            Volver al inicio de sesión
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => switchMode(mode === 'login' ? 'signup' : 'login')}
-            className="w-full text-xs text-text-muted hover:text-text-primary py-1 transition"
-          >
-            {mode === 'login' ? '¿No tenés cuenta? Creá una' : '¿Ya tenés cuenta? Entrá'}
-          </button>
+        {step === 'password_signup' && (
+          <form onSubmit={handlePasswordSignup} className="space-y-4 animate-in fade-in duration-200">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-sm font-medium text-text-secondary">Email</label>
+                <button
+                  type="button"
+                  onClick={handleChangeEmail}
+                  className="text-xs text-accent font-medium hover:underline"
+                >
+                  Cambiar
+                </button>
+              </div>
+              <div className="px-3 py-2 bg-surface-0 border border-border rounded-control text-sm text-text-primary">
+                {email}
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="signup-password" className="block text-sm font-medium text-text-secondary mb-1">
+                Creá tu contraseña
+              </label>
+              <input
+                ref={passwordRef}
+                id="signup-password"
+                type="password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full"
+                autoComplete="new-password"
+              />
+              <p className="text-xs text-text-muted mt-1">
+                Mínimo 6 caracteres (te sugerimos 8 o más combinando letras y números).
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="signup-confirm-password" className="block text-sm font-medium text-text-secondary mb-1">
+                Repetí la contraseña
+              </label>
+              <input
+                id="signup-confirm-password"
+                type="password"
+                required
+                minLength={6}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full"
+                autoComplete="new-password"
+              />
+            </div>
+
+            {error && <p className="text-sm text-expense font-medium">{error}</p>}
+            {notice && <p className="text-sm text-income font-medium">{notice}</p>}
+
+            <button
+              id="btn-submit"
+              type="submit"
+              disabled={loading || !password || !confirmPassword}
+              className="w-full bg-accent text-[color:var(--on-accent)] py-3 rounded-control font-medium hover:opacity-90 transition disabled:opacity-50"
+            >
+              {loading ? 'Creando cuenta...' : 'Crear cuenta'}
+            </button>
+          </form>
         )}
-      </form>
+
+        {step === 'reset' && (
+          <form onSubmit={handleResetPassword} className="space-y-4 animate-in fade-in duration-200">
+            <p className="text-sm text-text-muted">
+              {resetSent
+                ? 'Revisá tu casilla de correo. El link de restablecimiento te permitirá elegir una contraseña nueva.'
+                : 'Ingresá el email de tu cuenta y te mandamos un link para elegir una contraseña nueva.'}
+            </p>
+
+            <div>
+              <label htmlFor="reset-email" className="block text-sm font-medium text-text-secondary mb-1">
+                Email
+              </label>
+              <input
+                id="reset-email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  if (resetSent) setResetSent(false)
+                }}
+                className="w-full"
+                autoComplete="email"
+              />
+            </div>
+
+            {error && <p className="text-sm text-expense font-medium">{error}</p>}
+            {notice && <p className="text-sm text-income font-medium">{notice}</p>}
+
+            {resetSent ? (
+              <div className="space-y-3 pt-1">
+                <button
+                  ref={backToLoginRef}
+                  id="btn-back-to-login"
+                  type="button"
+                  onClick={handleBackToLogin}
+                  className="w-full bg-accent text-[color:var(--on-accent)] py-3 rounded-control font-medium hover:opacity-90 transition shadow-sm"
+                >
+                  Volver al inicio de sesión
+                </button>
+
+                <button
+                  id="btn-resend-link"
+                  type="submit"
+                  disabled={loading || !emailIsValid}
+                  className="w-full text-xs text-text-muted hover:text-text-primary py-1 transition disabled:opacity-50 text-center block"
+                >
+                  {loading ? 'Reenviando...' : '¿No te llegó? Reenviar link'}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3 pt-1">
+                <button
+                  id="btn-send-reset-link"
+                  type="submit"
+                  disabled={loading || !emailIsValid}
+                  className="w-full bg-accent text-[color:var(--on-accent)] py-3 rounded-control font-medium hover:opacity-90 transition disabled:opacity-50"
+                >
+                  {loading ? 'Un momento...' : 'Mandar link'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleBackToLogin}
+                  className="w-full text-xs text-text-muted hover:text-text-primary py-1 transition"
+                >
+                  Volver al inicio de sesión
+                </button>
+              </div>
+            )}
+          </form>
+        )}
+      </div>
     </main>
   )
 }

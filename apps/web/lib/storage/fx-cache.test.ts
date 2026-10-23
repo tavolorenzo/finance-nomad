@@ -63,4 +63,24 @@ describe('fx-cache', () => {
     expect(getCachedRate('AUD', 'USD')?.rate).toBe(0.65)
     expect(getCachedRate('EUR', 'USD')?.rate).toBe(1.08)
   })
+
+  it('respeta isManual y no expira aun después de 24 horas', () => {
+    const past = Date.now() - 48 * 60 * 60 * 1000 // 48h atrás
+    setCachedRate('USD', 'ARS', 1280, past, true)
+
+    const res = getCachedRate('USD', 'ARS')
+    expect(res?.rate).toBe(1280)
+    expect(res?.isExpired).toBe(false)
+    expect(res?.isManual).toBe(true)
+  })
+
+  it('no sobrescribe tasas manuales al guardar una matriz automática', () => {
+    setCachedRate('USD', 'ARS', 1280, Date.now(), true)
+
+    saveRatesMatrix({
+      'USD_ARS': 1050 // tasa oficial de la API
+    })
+
+    expect(getCachedRate('USD', 'ARS')?.rate).toBe(1280)
+  })
 })

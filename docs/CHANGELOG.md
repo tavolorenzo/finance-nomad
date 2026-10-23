@@ -12,6 +12,151 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-10-23
+### Modificado
+- **Diferenciación de Tarjetas de Crédito y Exclusión de Inversión en Asistente Inicial (`components/WelcomeWizard.tsx`, `app/welcome/actions.ts`)**:
+  - **Límite de Crédito Dinámico en Tarjetas (`credit_card`)**: El formulario del paso 2 conmuta el campo de importe a *"Límite de crédito"* cuando el tipo de cuenta es tarjeta de crédito, vinculándolo directamente a la columna estructural `accounts.credit_limit` y eliminando valores preestablecidos hardcodeados.
+  - **Integridad Contable en Ledger (`seedUserSpaceAction`)**: Se evita la creación indebida de asientos iniciales `ADJUSTMENT` positivos en `master_transactions` para tarjetas de crédito, garantizando que el saldo inicial de la tarjeta arranque en cero de deuda y su crédito disponible coincida exactamente con el límite establecido (`availableCredit = creditLimit - totalCommitted`).
+  - **Exclusión del Tipo Inversión (`investing`)**: Se remueve la opción de inversión del selector de tipos de cuenta del wizard de bienvenida, posponiéndola para el futuro módulo especializado de inversiones que contará con su propio asistente dedicado.
+  - **Accesibilidad e Interacción en Formulario**: Se enlazan etiquetas accesibles (`htmlFor` / `id`) y se limpian automáticamente los valores cruzados de saldo o límite al alternar entre tarjeta y cuentas transaccionales (`checking`, `savings`, `cash`).
+
+### Agregado
+- **Cobertura Total de Pruebas Unitarias para Componentes UI (100% de componentes testeados)**:
+  - Se crearon 23 suites de pruebas dedicadas para alcanzar la cobertura completa de los 33 componentes en [`apps/web/components/`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components):
+    - **Formularios y flujos clave**: [`TransactionForm.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/TransactionForm.test.tsx), [`RegisterCardPaymentModal.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/RegisterCardPaymentModal.test.tsx), [`ExpressAdjustModal.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/ExpressAdjustModal.test.tsx), [`CurrencySelector.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/CurrencySelector.test.tsx), [`UpdatePasswordForm.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/UpdatePasswordForm.test.tsx), [`WhatsAppTemplateForm.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/WhatsAppTemplateForm.test.tsx).
+    - **Vistas cliente y listados**: [`DashboardClient.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/DashboardClient.test.tsx), [`AccountsClient.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/AccountsClient.test.tsx), [`TransactionsList.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/TransactionsList.test.tsx), [`CategoryList.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/CategoryList.test.tsx), [`Navigation.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/Navigation.test.tsx), [`PersonActions.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/PersonActions.test.tsx), [`WhatsAppNotifyModal.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/WhatsAppNotifyModal.test.tsx).
+    - **Botones y controles de UI**: [`Modal.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/Modal.test.tsx), [`ConfirmTransactionButton.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/ConfirmTransactionButton.test.tsx), [`DeleteTransactionButton.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/DeleteTransactionButton.test.tsx), [`ExecutePaymentButton.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/ExecutePaymentButton.test.tsx), [`LogoutButton.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/LogoutButton.test.tsx), [`SendResetLinkButton.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/SendResetLinkButton.test.tsx), [`SyncStatusBadge.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/SyncStatusBadge.test.tsx), [`SystemInfoCard.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/SystemInfoCard.test.tsx), [`ThemeToggle.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/ThemeToggle.test.tsx), [`TourTriggerButton.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/TourTriggerButton.test.tsx).
+  - La suite global alcanza **52 archivos de pruebas y 258 tests automatizados** ejecutándose al 100% de éxito.
+- **Configuración Automatizada de ESLint (`.eslintrc.json`)**:
+  - Incorporación de reglas `next/core-web-vitals` para validación estática continua sin bloqueos interactivos.
+- **Suites de Pruebas Unitarias de Asistente Inicial (`components/WelcomeWizard.test.tsx`)**:
+  - Verificación de la no inclusión de la opción *Inversión* en el selector de tipo de cuenta.
+  - Verificación de la conmutación a *"Límite de crédito"* al añadir o editar una tarjeta de crédito y la correcta transmisión del payload hacia `seedUserSpaceAction`.
+- **Centro de Ayuda y FAQ (`lib/help-data.ts`)**:
+  - Actualización de la pregunta frecuente `faq-welcome-wizard` y la guía interactiva `guide-welcome-wizard` para documentar la carga de límites de crédito en tarjetas.
+
+## [2.7.1] - 2026-10-22
+### Corregido
+- **Desacople de `/welcome` del Layout Protegido (`app/welcome/page.tsx`, `app/welcome/actions.ts`)**:
+  - Resuelve el error crítico de hidratación React (`Expected server HTML to contain a matching <div> in <div>`) provocado por el anidamiento de `/welcome` dentro de `ProtectedLayout` (`apps/web/app/(protected)/layout.tsx`), donde colisionaban el slot paralelo `@modal` y el árbol de `<Navigation />`.
+  - Proporciona una experiencia de incorporación a pantalla completa (*full-screen*) limpia y enfocada, eliminando el desplazamiento horizontal de 224px (`md:pl-56`), la cabecera móvil y el tab bar inferior que interferían con los controles del asistente.
+  - Mantiene la seguridad y control de acceso validando la sesión del usuario mediante `getAuthenticatedUser()` y redirigiendo a `/dashboard` si el onboarding ya fue completado o si ya posee cuentas configuradas.
+- **Corrección de Redirección Inteligente en Cold Start (`app/(protected)/dashboard/page.tsx`)**:
+  - Incorpora `rethrowIfRedirect(error)` en el bloque `catch` de consultas iniciales en `DashboardPage`, evitando que el error interno `NEXT_REDIRECT` de Next.js sea silenciado por el fallback offline.
+  - Asegura que cualquier usuario nuevo sin cuentas ni configuración inicial sea redirigido de forma inmediata a `/welcome` al ingresar a la plataforma.
+- **Protección de Ruta en Middleware (`lib/supabase/middleware.ts`)**:
+  - Agrega `'/welcome'` a `PROTECTED_PREFIXES` en `updateSession` para rechazar accesos no autenticados directamente en el Edge sin costo de renderizado.
+- **Suites de Pruebas Unitarias de Redirección y Servidor**:
+  - Añade [`app/welcome/page.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/welcome/page.test.tsx) validando las cuatro ramas de redirección y renderizado en servidor.
+  - Añade [`app/(protected)/dashboard/page.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/dashboard/page.test.tsx) validando la redirección inteligente hacia `/welcome` para usuarios nuevos.
+
+## [2.7.0] - 2026-10-22
+### Agregado
+- **Soporte Dinámico de Divisas y Monedas Regionales (PRD §3.1, `currency-catalog.ts`, `0012_active_currencies.sql`)**:
+  - **Catálogo Global de +30 Monedas (`lib/currency-catalog.ts`)**: Base de datos de más de 30 divisas mundiales y regionales (Pesos Argentinos - ARS, Reales Brasileños - BRL, Pesos Chilenos - CLP, Pesos Colombianos - COP, Pesos Mexicanos - MXN, Soles Peruanos - PEN, Francos Suizos - CHF, Libras Esterlinas - GBP, etc.) con banderas, símbolos y búsqueda en tiempo real por código y nombre.
+  - **Estructura en Base de Datos (`supabase/migrations/0012_active_currencies.sql`)**: Nueva columna `active_currencies jsonb` en la tabla `user_settings` con valores por defecto y migración segura.
+  - **Modal de Selección y Búsqueda de Catálogo (`CurrencySelector.tsx`)**: Diálogo accesible y estilizado con filtrado en vivo, chips de divisas activas e inserción directa en el listado activo del usuario.
+  - **Gestor de Divisas Activas en Ajustes (`CurrencyManagerCard.tsx`, `/settings`)**: Módulo interactivo en la pantalla de Ajustes que permite agregar divisas del catálogo, alternar cada divisa secundaria entre modo *Auto (Mercado)* y *Manual*, y definir tipos de cambio personalizados con persistencia instantánea mediante Server Action (`updateActiveCurrencies`).
+- **Gestión de Tipos de Cambio Manuales Directos contra la Divisa Global (`lib/storage/fx-cache.ts`, `lib/networth.ts`)**:
+  - **Anclaje Directo a Moneda Global**: Los tipos de cambio manuales se expresan directamente en términos de la moneda global del usuario (`1 [GLOBAL] = X [DIVISA]`, e.g., `1 USD = 1.280 ARS` para Dólar Blue/MEP), facilitando la lectura e ingreso natural sin necesidad de calcular tasas inversas.
+  - **Inmunidad contra Sobreescrituras de Mercado (`fx-cache.ts`)**: Implementación del flag `isManual` en el caché local de cotizaciones con bypass de TTL (24h), impidiendo que consultas en segundo plano a la API de mercado sobreescriban los tipos de cambio fijados por el usuario.
+  - **Inyección en Servidor y Contexto Ledger (`api/bootstrap/route.ts`, `ledger-context.tsx`, `dashboard/page.tsx`)**: El endpoint de arranque precarga las cotizaciones manuales del perfil en la matriz FX y en el almacenamiento local del cliente (`isManual = true`), garantizando que la consolidación del patrimonio neto y el balance general respeten la cotización manual tanto en Server Components como en cliente offline.
+- **Evolución del Asistente Inicial de Bienvenida (`WelcomeWizard.tsx`)**:
+  - **Detección Regional de Argentina**: Inferencia automática de `ARS` y sugerencia de `USD` / `ARS` ante locales o husos horarios de Argentina (`es-AR`, `America/Buenos_Aires`, etc.).
+  - **Selector de Moneda con Catálogo Modal**: Integración del selector dinámico con modal de catálogo completo en el Paso 1.
+  - **Píldora de Cotización Directa en Paso 2**: Para cuentas creadas en una divisa diferente a la divisa global elegida, se muestra una píldora contextual interactiva con el contravalor calculado y la opción de ingresar una cotización manual directa en el acto.
+- **Suites de Pruebas Unitarias**:
+  - `currency-catalog.test.ts` (3 tests)
+  - `CurrencyManagerCard.test.tsx` (3 tests)
+  - `fx-cache.test.ts` (8 tests actualizados)
+  - `fx.test.ts` (5 tests de Networth con custom rates)
+  - `WelcomeWizard.test.tsx` (11 tests actualizados)
+
+### Modificado
+- **Formulario de Movimientos (`TransactionForm.tsx`, `/transactions/new`)**:
+  - Reemplazo del listado estático de 5 divisas por las monedas activas del usuario y monedas nativas de sus cuentas bancarias.
+  - Detección de cotizaciones manuales del perfil (`isManualProfileRate`), bloqueando consultas de mercado automáticas que pisen la tasa del usuario.
+- **Formulario de Cuentas (`AccountForm.tsx`)**:
+  - Desplegable de divisas alimentado dinámicamente desde las monedas activas de `user_settings` o cuentas existentes del usuario.
+- **Centro de Ayuda, FAQ y Wiki (`lib/help-data.ts`)**:
+  - Enriquecimiento del artículo `wiki-fx` ("Multi-moneda y Cotizaciones en Vivo").
+  - Incorporación de preguntas frecuentes `faq-fx-custom-currency` y `faq-fx-manual-profile-rate`.
+  - Nueva guía rápida `guide-manage-currencies` ("Agregar una moneda personalizada y fijar su cotización").
+- **Documento de Requisitos de Producto (`docs/PRD.md`)**:
+  - Actualización de las secciones 3.1, 4.11 y 5 con la especificación de monedas dinámicas, `active_currencies` y cotizaciones directas manuales.
+- **Sincronización Total de Versión**: Incremento a `2.7.0` en `package.json`, `version.ts`, `version.test.ts` y documentación.
+
+### Corregido
+- **Blindaje ante Cuentas en Divisas Nuevas en `transactions/new`**: Eliminada la restricción de 5 divisas fijas en el formulario de transacciones que provocaba desincronización visual cuando se seleccionaba una cuenta con una divisa como ARS o BRL.
+
+## [2.6.0] - 2026-10-22
+### Agregado
+- **Asistente Inicial de Bienvenida Interactivo en 5 Pasos (`/welcome`, `WelcomeWizard.tsx`)** (PRD §4.11):
+  - **Acceso Exclusivo para Nuevos Usuarios (`welcome/page.tsx`)**: Blindaje de ruta que verifica si el usuario ya posee cuentas activas o completó el onboarding, redirigiendo de inmediato a `/dashboard` para evitar duplicaciones accidentales de datos. Se removió el acceso redundante desde Ajustes (`settings/page.tsx`).
+  - **Validación de Conectividad en Vivo**: Integración de `useOnlineStatus()` mostrando banner preventivo y deshabilitando la inicialización en caso de estar offline (requiere conexión con Supabase).
+  - **Paso 1 — Moneda Universal con Detección Regional**: Inferencia automática de divisa según el timezone y locale del navegador (`detectRecommendedCurrency`) sugiriendo la moneda local (EUR, USD, AUD, UYU, GBP, NZD) con badge *"Sugerida por tu región"*.
+  - **Paso 2 — Instituciones, Cuentas y Saldo Inicial**: Constructor interactivo y dinámico que permite definir múltiples instituciones (bancos, fintechs, billetera de efectivo) con sus respectivas cuentas, tipos, divisas nativas y saldo real actual.
+  - **Integración Contable de Saldo Inicial en Ledger (`welcome/actions.ts`)**: Para cuentas con saldo inicial distinto de cero, el backend genera asientos contables atómicos de tipo `ADJUSTMENT` (`status: 'COMPLETED'`) con fecha actual y nota `"Saldo inicial de configuración"`, permitiendo arrancar con el saldo real de inmediato sin distorsionar gastos ni presupuesto del mes.
+  - **Paso 3 — Categorías**: Catálogo estándar de vida nómada seleccionable con formulario en línea para añadir categorías personalizadas al vuelo.
+  - **Paso 4 — Personas y Gastos Compartidos (Split Pay)**: Explicación didáctica sobre compras grupales, préstamos y extensiones de tarjeta de crédito, manteniendo `Personal` para consumo propio y permitiendo agregar contactos con chips dinámicos.
+  - **Paso 5 — Cierre, Transición y Arquitectura para Wizards Secundarios**: Resumen interactivo de configuración, botón *"Configurá mi espacio →"* y animación interactiva por etapas (*"Configurando moneda..."* $\rightarrow$ *"Creando cuentas..."* $\rightarrow$ *"Asentando saldos en el ledger..."* $\rightarrow$ *"¡Todo listo!"*), con hook preparado para futuros wizards de compromisos de tarjeta, primer movimiento y presupuesto.
+- **Suite de Pruebas Unitarias (`WelcomeWizard.test.tsx`)**: 9 tests cubriendo la detección regional de moneda, progreso de 5 pasos, edición dinámica de instituciones y cuentas, saldo inicial, agregado de categorías y personas, animación de confirmación y resiliencia offline.
+
+### Modificado
+- **Centro de Ayuda & Wiki (`lib/help-data.ts`)**: Actualización de la FAQ `faq-welcome-wizard` y de la receta paso a paso `guide-welcome-wizard` para reflejar el flujo interactivo de 5 pasos.
+- **Sincronización Total de Versión**: Incremento a `2.6.0` en `package.json`, `version.ts`, `version.test.ts` y `PRD.md`.
+
+
+## [2.5.1] - 2026-10-21
+### Modificado
+- **Refinamiento de UX en Recuperación de Contraseña (`LoginPage.tsx`)**:
+  - **Jerarquía y Foco Automático Post-Envío**: Una vez enviado el correo de restablecimiento, el botón *"Volver al inicio de sesión"* pasa a ser la acción primaria destacada y recibe el foco del teclado inmediatamente para guiar al usuario de forma natural.
+  - **Minimización de Atención en Reenvío**: El botón de envío inicial se minimiza a una acción secundaria sutil (*"¿No te llegó? Reenviar link"*), evitando reenvíos innecesarios o confusión visual.
+  - **Suite de Pruebas**: Test unitario específico en `app/login/page.test.tsx` verificando el cambio de foco y jerarquía visual tras el envío del enlace.
+  - **Sincronización Total de Versión**: Incremento a `2.5.1` en `package.json`, `version.ts` y pruebas unitarias.
+
+## [2.5.0] - 2026-10-21
+### Agregado
+- **Flujo Progresivo Email-First en Login y Registro (`LoginPage.tsx`)**:
+  - **Punto de Entrada Unificado**: Acceso prioritario con *"Continuar con Google"* en la parte superior con divisor semántico, seguido por el campo de email con validación reactiva de formato que habilita dinámicamente el botón *"Continuar"*.
+  - **Detección Automática de Estado de Usuario**: Consulta en segundo plano mediante la función RPC `check_user_exists` para bifurcar la experiencia sin fricción ni pestañas:
+    - *Usuario Registrado*: Despliegue animado del campo de contraseña con foco automático, enlace contextual *"¿Olvidaste tu contraseña?"* y botón *"Iniciar sesión"*, incorporando botón *"Cambiar"* para rectificar el email sin recargar.
+    - *Usuario Nuevo*: Título orientativo *"Creá tu contraseña para empezar"*, dos campos de contraseña (creación y confirmación) con advertencias preventivas de complejidad y botón *"Crear cuenta"*.
+    - *Finalización de Registro*: Limpieza de credenciales y retorno automático al estado inicial con aviso positivo de verificación por correo.
+- **Función RPC en Base de Datos (`supabase/migrations/0011_check_user_exists.sql`)**:
+  - Función PostgreSQL `check_user_exists(lookup_email text)` con `SECURITY DEFINER` para responder de forma rápida y segura a clientes anónimos y autenticados sobre la existencia de un usuario en `auth.users`.
+- **Módulo y Tests de Verificación de Email (`lib/auth/user-lookup.ts` y `.test.ts`)**:
+  - Funciones `isValidEmail` y `checkUserExists` con suite completa de pruebas unitarias cubriendo sintaxis, respuestas afirmativas/negativas y tolerancia a fallos.
+- **Suites de Pruebas de Integración de Login (`app/login/page.test.tsx`)**:
+  - 6 tests validando el comportamiento dinámico del botón de continuar, transiciones automáticas a login o registro, cambio de correo y retorno al estado inicial tras signup.
+- **Centro de Ayuda y FAQ (`lib/help-data.ts`)**:
+  - Pregunta frecuente `faq-login-progressive-flow` explicando el nuevo flujo de acceso y registro en un solo paso.
+
+### Modificado
+- **Script Maestro de Producción (`supabase/setup_production.sql`)**: Incorporación de la función `check_user_exists` en la sección de funciones RPC del ledger.
+- **Sincronización Total de Versión**: Incremento a `2.5.0` en `package.json`, `version.ts` y pruebas unitarias de versión.
+
+## [2.4.1] - 2026-10-21
+### Corregido
+- **Mapeo y Feedback de Errores de Contraseñas en Supabase Auth (`UpdatePasswordForm.tsx`, `lib/auth/password-errors.ts`)**:
+  - **Diagnóstico y fin del error genérico opaco**: Reemplazo del mensaje estático `"No pudimos actualizar la contraseña. Intentá de nuevo."` por el módulo `getPasswordErrorMessage` que inspecciona códigos y mensajes de Supabase (`weak_password`, status 422, `same_password`, `session_expired` / 401, rate limits).
+  - **Causas reales y claras**: Ahora el usuario recibe feedback exacto cuando su contraseña no alcanza la longitud mínima requerida por la política, cuando no cumple la combinación de caracteres, cuando fue vulnerada en brechas públicas (HaveIBeenPwned / HIBP), o cuando intenta utilizar la misma contraseña previa.
+  - **Resiliencia ante links expirados**: Incorporación de mensaje explicativo y enlace directo para pedir un nuevo link de recuperación si el token temporal caducó.
+- **Traducción de Errores en Registro y Login (`LoginPage.tsx`)**:
+  - Integración de `getSignUpErrorMessage` y `getSignInErrorMessage` para advertir sobre emails ya registrados, confirmaciones pendientes de correo o contraseñas débiles al crear cuentas.
+
+### Agregado
+- **Avisos Preventivos en Formularios**:
+  - Textos de orientación bajo los campos de contraseña en `UpdatePasswordForm` y `LoginPage` (modo registro) indicando el mínimo de 6 caracteres y sugiriendo 8 o más combinando letras y números.
+- **Módulo y Tests de Errores de Autenticación (`lib/auth/password-errors.ts` y `.test.ts`)**:
+  - Suite de pruebas unitarias cubriendo casos de contraseña repetida, longitud mínima, complejidad, brechas HIBP, sesiones vencidas y control de tasa.
+- **Centro de Ayuda y FAQ (`lib/help-data.ts`)**:
+  - Incorporación de la pregunta frecuente `faq-password-requirements` detallando los requisitos de seguridad de contraseñas y el flujo de recuperación.
+
+### Modificado
+- **Copy Deck (`docs/design-system.md`)**: Incorporación de claves para `error.password_weak`, `error.password_same` y `error.password_session_expired`.
+- **Sincronización Total de Versión**: Incremento a `2.4.1` en `package.json`, `version.ts` y pruebas unitarias de versión.
+
 ## [2.4.0] - 2026-10-19
 ### Agregado
 - **Autenticación Rápida con OAuth (Google)**:

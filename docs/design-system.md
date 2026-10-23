@@ -246,6 +246,9 @@ Breakpoints: `sm 375px` (mobile base) · `md 768px` · `lg 1024px` · `xl 1440px
 | error.signup_failed | No pudimos crear la cuenta. Revisá el email e intentá de nuevo. |
 | error.reset_failed | No pudimos enviar el link. Revisá el email e intentá de nuevo. |
 | error.password_update_failed | No pudimos actualizar la contraseña. Intentá de nuevo. |
+| error.password_weak | La contraseña es muy débil. Te sugerimos usar al menos 8 caracteres combinando letras y números. |
+| error.password_same | La nueva contraseña tiene que ser distinta a la actual. |
+| error.password_session_expired | El link de restablecimiento expiró o no es válido. Solicitá uno nuevo desde el inicio de sesión. |
 | error.password_mismatch | Las contraseñas no coinciden. |
 | error.confirmacion_invalida | El link no es válido o ya se usó. Pedí uno nuevo. |
 | error.save_failed | No se pudo guardar. Intentá de nuevo. |

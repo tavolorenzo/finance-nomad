@@ -1,6 +1,7 @@
 export interface CachedRateEntry {
   rate: number
   timestamp: number
+  isManual?: boolean
 }
 
 export type FxCacheMap = Record<string, CachedRateEntry>
@@ -39,7 +40,7 @@ export function getCachedRate(
   from: string,
   to: string,
   now = Date.now()
-): { rate: number; isExpired: boolean; timestamp: number } | null {
+): { rate: number; isExpired: boolean; timestamp: number; isManual?: boolean } | null {
   if (from.toUpperCase() === to.toUpperCase()) {
     return { rate: 1, isExpired: false, timestamp: now }
   }
@@ -52,11 +53,12 @@ export function getCachedRate(
     return null
   }
 
-  const isExpired = now - entry.timestamp > FX_CACHE_TTL_MS
+  const isExpired = entry.isManual ? false : now - entry.timestamp > FX_CACHE_TTL_MS
   return {
     rate: entry.rate,
     isExpired,
-    timestamp: entry.timestamp
+    timestamp: entry.timestamp,
+    ...(entry.isManual !== undefined ? { isManual: entry.isManual } : {})
   }
 }
 
@@ -64,7 +66,8 @@ export function setCachedRate(
   from: string,
   to: string,
   rate: number,
-  timestamp = Date.now()
+  timestamp = Date.now(),
+  isManual = false
 ): void {
   if (from.toUpperCase() === to.toUpperCase() || rate <= 0) return
 
@@ -74,13 +77,13 @@ export function setCachedRate(
   try {
     const all = getAllCachedRates()
     const directKey = getPairKey(from, to)
-    all[directKey] = { rate, timestamp }
+    all[directKey] = { rate, timestamp, isManual }
 
     // Calcular e inferir inversa automáticamente si no existe o es más antigua
     const inverseKey = getPairKey(to, from)
     const inverseRate = Math.round((1 / rate) * 1000000) / 1000000
-    if (!all[inverseKey] || all[inverseKey].timestamp < timestamp) {
-      all[inverseKey] = { rate: inverseRate, timestamp }
+    if (!all[inverseKey] || all[inverseKey].timestamp < timestamp || isManual) {
+      all[inverseKey] = { rate: inverseRate, timestamp, isManual }
     }
 
     storage.setItem(STORAGE_KEY, JSON.stringify(all))
@@ -91,7 +94,8 @@ export function setCachedRate(
 
 export function saveRatesMatrix(
   matrix: Record<string, number>,
-  timestamp = Date.now()
+  timestamp = Date.now(),
+  overwriteManual = false
 ): void {
   const storage = getStorage()
   if (!storage) return
@@ -100,7 +104,11 @@ export function saveRatesMatrix(
     const all = getAllCachedRates()
     for (const [pair, rate] of Object.entries(matrix)) {
       if (typeof rate === 'number' && rate > 0) {
-        all[pair.toUpperCase()] = { rate, timestamp }
+        const key = pair.toUpperCase()
+        if (all[key]?.isManual && !overwriteManual) {
+          continue // Proteger cotización manual configurada por el usuario
+        }
+        all[key] = { rate, timestamp, isManual: false }
       }
     }
     storage.setItem(STORAGE_KEY, JSON.stringify(all))

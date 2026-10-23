@@ -26,7 +26,11 @@ El proyecto toma como referencia directa la hoja de cálculo **`Finances 2026`**
 * **Moneda Global por Defecto (Display Currency):** Definible desde los ajustes (ej. AUD, EUR, USD). La pantalla principal convierte y consolida todo el Patrimonio Neto y Balance General en esta divisa en tiempo real. Se puede cambiar en 1 clic.
 * **Saldos Nominales Reales:** En la vista de Cuentas y Bancos, los saldos se muestran en la moneda nativa de cada producto sin conversión forzada.
 * **Soporte Dual en Transacciones:** Toda transacción guarda el importe original (moneda del gasto local) y el importe convertido (moneda de la cuenta impactada).
-* **Tipos de Cambio (FX):** Motor de cotizaciones estructurado con `open.er-api.com` (tiempo real y tasas cruzadas fiables para UYU, AUD, NZD, EUR, USD) con fallback a Frankfurter API para cotizaciones del BCE y series históricas. Posee caché en memoria con TTL de 1 hora, paralelización con `Promise.all` y soporte para sobrescritura manual persistente (`rate_overridden: true`) por parte del usuario.
+* **Tipos de Cambio (FX) y Cotizaciones Dinámicas:** Motor de cotizaciones estructurado con `open.er-api.com` (tiempo real y tasas fiables para más de 30 monedas globales y regionales como ARS, BRL, CLP, COP, MXN, UYU, AUD, NZD, EUR, USD) con fallback a Frankfurter API para cotizaciones del BCE.
+* **Catálogo de Divisas Activas (`active_currencies`):** Cada usuario puede activar monedas del catálogo y configurar para cada divisa secundaria su modalidad:
+  - `auto`: Consulta de mercado en vivo periódica con TTL de 1 hora en caché local.
+  - `manual`: Cotización fija directa contra la moneda global (`1 [GLOBAL] = X [DIVISA]`, e.g. Dólar Blue o MEP), protegida de sobreescrituras automáticas de mercado y sincronizada en toda la aplicación.
+* **Sobreescritura Manual en Transacciones:** Soporte para sobreescritura manual puntual a nivel transacción (`rate_overridden: true`) para respetar comisiones y tipos de cambio bancarios específicos.
 
 ### 3.2. Estructura Jerárquica de Bancos y Productos
 Institución Financiera (Banco/Broker) -> Productos:
@@ -125,6 +129,17 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
 * **Buscador Hero en Vivo**: Filtrado instantáneo por texto libre y selector de categorías con contador de coincidencias y restablecimiento en 1 clic.
 * **Integración del Tour Guiado**: Disparador de `OnboardingTour` embebido para repasar el recorrido interactivo de 5 pasos en cualquier momento.
 
+### 4.11. Asistente Inicial de Bienvenida (`/welcome`)
+* **Propósito**: Resolver el problema de "cold start" guiando a los nuevos usuarios en la configuración inicial de su patrimonio sin tablas vacías ni fricción.
+* **Acceso Exclusivo**: Reservado estrictamente a nuevos usuarios sin cuentas o con `onboarding_completed: false`. Si un usuario existente accede a la ruta, se redirige automáticamente a `/dashboard`.
+* **Flujo Interactivo en 5 Pasos**:
+  1. *Moneda Universal*: Detección automática por región (locale/timezone, ej. Argentina -> USD/ARS) para sugerir la divisa más familiar para el usuario con badge indicativo y catálogo modal con más de 30 monedas.
+  2. *Instituciones, Cuentas y Saldo Inicial*: Creación flexible y dinámica de múltiples instituciones (bancos, fintechs, billeteras de efectivo) con sus respectivas cuentas, divisas nativas y saldo inicial actual (registrado como asiento `ADJUSTMENT` en el ledger sin distorsionar gastos ni presupuestos), con previsualización de contravalor y ajuste directo de cotización en el momento.
+  3. *Categorías de Gastos e Ingresos*: Selección de categorías nómadas estándar y creación rápida de categorías personalizadas en el momento.
+  4. *Personas (Split Pay y Extensiones)*: Explicación amigable del funcionamiento de gastos compartidos con amigos/familiares y extensiones de tarjetas sin mezclar con consumos propios (`Personal`).
+  5. *Cierre y Transición*: Resumen integral, botón *"Configurá mi espacio"* y animación interactiva por etapas mientras se siembra la base de datos, con enlace preparado para futuros wizards secundarios.
+* **Requisito Online**: Valida conectividad en vivo (`useOnlineStatus()`), mostrando advertencia preventiva e impidiendo la inicialización si el dispositivo está sin conexión.
+
 ---
 
 ## 5. Esquema Simplificado de Base de Datos
@@ -136,6 +151,13 @@ CREATE TABLE user_settings (
     display_currency VARCHAR(5) NOT NULL DEFAULT 'EUR',
     theme VARCHAR(10) NOT NULL DEFAULT 'dark',
     whatsapp_template TEXT NULL,
+    active_currencies JSONB NOT NULL DEFAULT '[
+      {"code": "EUR", "mode": "auto"},
+      {"code": "USD", "mode": "auto"},
+      {"code": "AUD", "mode": "auto"},
+      {"code": "UYU", "mode": "auto"},
+      {"code": "NZD", "mode": "auto"}
+    ]'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

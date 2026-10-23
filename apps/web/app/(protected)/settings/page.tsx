@@ -3,23 +3,26 @@ import { HelpCircle, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthenticatedUser } from '@/lib/supabase/auth-helper'
 import { CurrencySelector } from '@/components/CurrencySelector'
+import { CurrencyManagerCard } from '@/components/CurrencyManagerCard'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { LogoutButton } from '@/components/LogoutButton'
 import { SendResetLinkButton } from '@/components/SendResetLinkButton'
 import { UpdatePasswordForm } from '@/components/UpdatePasswordForm'
 import { SystemInfoCard } from '@/components/SystemInfoCard'
 import { TourTriggerButton } from '@/components/TourTriggerButton'
+import { DEFAULT_ACTIVE_CURRENCIES } from '@/lib/currency-catalog'
+import type { ActiveCurrency } from '@/lib/types'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
   const user = await getAuthenticatedUser(supabase)
-  let settings: { display_currency: string } | null = null
+  let settings: { display_currency: string; active_currencies?: ActiveCurrency[] } | null = null
 
   if (user) {
     try {
       const { data } = await supabase
         .from('user_settings')
-        .select('display_currency')
+        .select('display_currency, active_currencies')
         .eq('user_id', user.id)
         .maybeSingle()
       settings = data
@@ -27,6 +30,9 @@ export default async function SettingsPage() {
       // Modo offline
     }
   }
+
+  const currentDisplay = settings?.display_currency ?? 'EUR'
+  const activeCurrs = settings?.active_currencies ?? DEFAULT_ACTIVE_CURRENCIES
 
   return (
     <main className="max-w-2xl mx-auto p-4 md:p-6 space-y-4">
@@ -42,11 +48,19 @@ export default async function SettingsPage() {
 
       <div className="bg-surface-1 border border-border rounded-card p-4">
         <p className="text-sm font-medium text-text-secondary mb-2">Moneda global</p>
-        <CurrencySelector current={settings?.display_currency ?? 'EUR'} />
+        <CurrencySelector
+          current={currentDisplay}
+          options={activeCurrs.map((c) => c.code)}
+        />
         <p className="text-xs text-text-muted mt-2">
           El patrimonio neto y los totales del dashboard se muestran en esta moneda.
         </p>
       </div>
+
+      <CurrencyManagerCard
+        initialCurrencies={activeCurrs}
+        displayCurrency={currentDisplay}
+      />
 
       <div className="bg-surface-1 border border-border rounded-card p-4 space-y-3">
         <div>
@@ -64,13 +78,6 @@ export default async function SettingsPage() {
             Centro de Ayuda & Wiki
           </Link>
           <TourTriggerButton currentCurrency={settings?.display_currency ?? 'EUR'} />
-          <Link
-            href="/welcome"
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-control text-sm font-medium bg-surface-2 text-text-primary hover:bg-surface-0 border border-border transition"
-          >
-            <Sparkles size={16} className="text-accent" />
-            Asistente Inicial
-          </Link>
         </div>
       </div>
 

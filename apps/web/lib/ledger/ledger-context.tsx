@@ -136,8 +136,22 @@ export function LedgerProvider({
 
         // Guardar tasas FX en la caché local para disponibilidad offline (24h TTL)
         if (fresh.fxRates) {
-          const { saveRatesMatrix } = await import('../storage/fx-cache')
+          const { saveRatesMatrix, setCachedRate } = await import('../storage/fx-cache')
           saveRatesMatrix(fresh.fxRates)
+
+          // Registrar explícitamente las cotizaciones manuales del usuario como isManual
+          if (fresh.settings?.active_currencies && Array.isArray(fresh.settings.active_currencies)) {
+            const displayCurr = fresh.settings.display_currency || 'EUR'
+            for (const c of fresh.settings.active_currencies) {
+              if (
+                c.rate_mode === 'manual' &&
+                typeof c.custom_rate_against_global === 'number' &&
+                c.custom_rate_against_global > 0
+              ) {
+                setCachedRate(displayCurr, c.code, c.custom_rate_against_global, Date.now(), true)
+              }
+            }
+          }
         }
 
         // Guardar snapshot actualizado en IndexedDB para la próxima sesión

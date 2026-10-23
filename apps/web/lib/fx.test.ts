@@ -33,4 +33,17 @@ describe('FX Engine & Networth', () => {
     const total = await convertToDisplayCurrency(balances, 'EUR', '2026-10-09')
     expect(total).toBe(800)
   })
+
+  it('applies customRates when provided without querying external API', async () => {
+    const balances = [
+      { accountId: 'galicia', currency: 'ARS', balance: 128000 },
+      { accountId: 'wise', currency: 'USD', balance: 500 }
+    ]
+    // 1 USD = 1280 ARS -> 1 ARS = 1/1280 USD = 0.00078125 USD -> 128000 ARS = 100 USD
+    const customRates = {
+      'ARS_USD': 1 / 1280
+    }
+    const total = await convertToDisplayCurrency(balances, 'USD', '2026-10-09', customRates)
+    expect(total).toBe(600) // 500 USD + 100 USD
+  })
 })

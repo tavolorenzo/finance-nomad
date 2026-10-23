@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { getPasswordErrorMessage } from '@/lib/auth/password-errors'
 
 export function UpdatePasswordForm({ afterSave = '/dashboard' }: { afterSave?: string }) {
   const router = useRouter()
@@ -26,7 +28,7 @@ export function UpdatePasswordForm({ afterSave = '/dashboard' }: { afterSave?: s
     const supabase = createClient()
     const { error: updateError } = await supabase.auth.updateUser({ password })
     if (updateError) {
-      setError('No pudimos actualizar la contraseña. Intentá de nuevo.')
+      setError(getPasswordErrorMessage(updateError))
       setLoading(false)
       return
     }
@@ -47,8 +49,9 @@ export function UpdatePasswordForm({ afterSave = '/dashboard' }: { afterSave?: s
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">Nueva contraseña</label>
+        <label htmlFor="new-password" className="block text-sm font-medium text-text-secondary mb-1">Nueva contraseña</label>
         <input
+          id="new-password"
           type="password"
           required
           minLength={6}
@@ -57,11 +60,15 @@ export function UpdatePasswordForm({ afterSave = '/dashboard' }: { afterSave?: s
           className="w-full"
           autoComplete="new-password"
         />
+        <p className="text-xs text-text-muted mt-1">
+          Mínimo 6 caracteres (te sugerimos 8 o más combinando letras y números).
+        </p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-text-secondary mb-1">Repetí la contraseña</label>
+        <label htmlFor="confirm-password" className="block text-sm font-medium text-text-secondary mb-1">Repetí la contraseña</label>
         <input
+          id="confirm-password"
           type="password"
           required
           minLength={6}
@@ -72,7 +79,16 @@ export function UpdatePasswordForm({ afterSave = '/dashboard' }: { afterSave?: s
         />
       </div>
 
-      {error && <p className="text-sm text-expense font-medium">{error}</p>}
+      {error && (
+        <div className="space-y-1">
+          <p className="text-sm text-expense font-medium">{error}</p>
+          {(error.includes('expiró') || error.includes('link')) && (
+            <Link href="/login" className="inline-block text-xs text-accent font-medium hover:underline">
+              Pedí un nuevo enlace acá
+            </Link>
+          )}
+        </div>
+      )}
       {notice && <p className="text-sm text-income font-medium">{notice}</p>}
 
       <button

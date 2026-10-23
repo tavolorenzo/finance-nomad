@@ -98,14 +98,23 @@ export async function getAccountPendingAmount(
 
 // Convierte una lista de balances en distintas monedas a una sola moneda de
 // visualización, usando el tipo de cambio del día pedido en paralelo.
+// Soporta tasas manuales personalizadas (customRates) definidas por el usuario.
 export async function convertToDisplayCurrency(
   balances: AccountBalance[],
   displayCurrency: string,
-  date: string
+  date: string,
+  customRates?: Record<string, number>
 ): Promise<number> {
   const converted = await Promise.all(
     balances.map(async (b) => {
       if (b.balance === 0) return 0
+      if (b.currency.toUpperCase() === displayCurrency.toUpperCase()) {
+        return b.balance
+      }
+      const pairKey = `${b.currency.toUpperCase()}_${displayCurrency.toUpperCase()}`
+      if (customRates && typeof customRates[pairKey] === 'number') {
+        return b.balance * customRates[pairKey]
+      }
       try {
         const rate = await getRate(date, b.currency, displayCurrency)
         return b.balance * rate
