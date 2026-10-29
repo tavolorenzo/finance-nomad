@@ -8,7 +8,7 @@ export default async function EditPersonPage({ params }: { params: Promise<{ id:
   const { id } = await params
   const supabase = await createClient()
 
-  const [{ data: person }, { data: pending }] = await Promise.all([
+  const [{ data: person }, { data: pending }, { data: existingPeople }] = await Promise.all([
     supabase
       .from('people')
       .select('*')
@@ -19,7 +19,11 @@ export default async function EditPersonPage({ params }: { params: Promise<{ id:
       .select('amount_account')
       .eq('person_id', id)
       .eq('type', 'OUTCOME')
-      .is('settled_at', null)
+      .is('settled_at', null),
+    supabase
+      .from('people')
+      .select('*')
+      .returns<Person[]>()
   ])
 
   if (!person) notFound()
@@ -37,7 +41,7 @@ export default async function EditPersonPage({ params }: { params: Promise<{ id:
       </Link>
       <h1 className="font-display text-xl font-bold tracking-tight">Editar persona</h1>
       <div className="bg-surface-2 border border-border rounded-card">
-        <PersonForm person={person} hasPendingBalance={hasPendingBalance} />
+        <PersonForm person={person} hasPendingBalance={hasPendingBalance} existingPeople={existingPeople ?? []} />
       </div>
     </main>
   )

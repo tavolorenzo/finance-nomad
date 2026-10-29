@@ -30,14 +30,26 @@ export function buildTransactionBundle(input: BuildTransactionInput): LedgerBund
       : calculateAccountAmount(input.amountOriginal, fee, rate)
 
   const installmentTotal = Math.max(1, input.installmentTotal ?? 1)
-  const accountAmounts =
-    installmentTotal === 1
-      ? [totalAccountAmount]
-      : splitInstallments(totalAccountAmount, installmentTotal)
-  const originalAmounts =
-    installmentTotal === 1
-      ? [input.amountOriginal]
-      : splitInstallments(input.amountOriginal, installmentTotal)
+  const installmentCurrent = Math.min(installmentTotal, Math.max(1, input.installmentCurrent ?? 1))
+
+  let accountAmounts: number[]
+  let originalAmounts: number[]
+
+  if (installmentCurrent > 1) {
+    // Si arranca en una cuota intermedia (ej. 4 de 12), amountOriginal ya representa el valor de la cuota
+    const remainingCount = installmentTotal - installmentCurrent + 1
+    originalAmounts = Array(remainingCount).fill(input.amountOriginal)
+    accountAmounts = Array(remainingCount).fill(totalAccountAmount)
+  } else {
+    accountAmounts =
+      installmentTotal === 1
+        ? [totalAccountAmount]
+        : splitInstallments(totalAccountAmount, installmentTotal)
+    originalAmounts =
+      installmentTotal === 1
+        ? [input.amountOriginal]
+        : splitInstallments(input.amountOriginal, installmentTotal)
+  }
 
   const parentId = crypto.randomUUID()
   const parentDate = calculateInstallmentDate(input.date, 0)
@@ -59,7 +71,7 @@ export function buildTransactionBundle(input: BuildTransactionInput): LedgerBund
     account_id: input.accountId,
     category_id: input.categoryId ?? null,
     person_id: input.personId ?? null,
-    installment_current: 1,
+    installment_current: installmentCurrent,
     installment_total: installmentTotal,
     status: parentStatus,
     notes: input.notes?.trim() || null,
@@ -67,7 +79,8 @@ export function buildTransactionBundle(input: BuildTransactionInput): LedgerBund
   }
 
   const childRows: MasterTransaction[] = []
-  for (let i = 1; i < installmentTotal; i++) {
+  const countToGenerate = installmentTotal - installmentCurrent
+  for (let i = 1; i <= countToGenerate; i++) {
     const instDate = calculateInstallmentDate(input.date, i)
     childRows.push({
       id: crypto.randomUUID(),
@@ -85,7 +98,7 @@ export function buildTransactionBundle(input: BuildTransactionInput): LedgerBund
       account_id: input.accountId,
       category_id: input.categoryId ?? null,
       person_id: input.personId ?? null,
-      installment_current: i + 1,
+      installment_current: installmentCurrent + i,
       installment_total: installmentTotal,
       status: 'PENDING',
       notes: input.notes?.trim() || null,

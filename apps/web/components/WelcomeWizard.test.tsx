@@ -108,11 +108,22 @@ describe('WelcomeWizard', () => {
     expect(screen.getByText('Paso 4 de 5')).toBeInTheDocument()
     expect(screen.getByText('Personal (Tus consumos propios)')).toBeInTheDocument()
 
-    // Agregar contacto
     const personInput = screen.getByPlaceholderText('Nombre del contacto (ej. Diego, Romina, Gladys, Mamá...)')
+
+    // Intentar agregar "Personal" (palabra reservada)
+    fireEvent.change(personInput, { target: { value: 'Personal' } })
+    fireEvent.click(screen.getByText('Agregar'))
+    expect(screen.getByText(/"Personal" es una palabra reservada del sistema/i)).toBeInTheDocument()
+
+    // Agregar contacto válido
     fireEvent.change(personInput, { target: { value: 'Diego' } })
     fireEvent.click(screen.getByText('Agregar'))
     expect(screen.getByText('Diego')).toBeInTheDocument()
+
+    // Intentar agregar contacto duplicado
+    fireEvent.change(personInput, { target: { value: 'diego' } })
+    fireEvent.click(screen.getByText('Agregar'))
+    expect(screen.getByText(/ya existe una persona con ese nombre/i)).toBeInTheDocument()
   })
 
   it('avanza al paso 5 de confirmación y lanza la animación interactiva al inicializar', async () => {
@@ -216,5 +227,15 @@ describe('WelcomeWizard', () => {
       expect(cardAccount.creditLimit).toBe(250000)
       expect(cardAccount.initialBalance).toBeUndefined()
     })
+
+    // Comprobar que aparece el prompt opcional de consumos de tarjeta
+    await waitFor(() => {
+      expect(screen.getByText('¿Tenés consumos o cuotas en tu tarjeta?')).toBeInTheDocument()
+      expect(screen.getByText('Cargar consumos ahora')).toBeInTheDocument()
+    })
+
+    // Click en Cargar consumos ahora navega a /welcome/credit-card
+    fireEvent.click(screen.getByText('Cargar consumos ahora'))
+    expect(mockPush).toHaveBeenCalledWith('/welcome/credit-card')
   })
 })

@@ -7,7 +7,8 @@ import {
   Edit2,
   SlidersHorizontal,
   CreditCard,
-  Building2
+  Building2,
+  Sparkles
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { formatMoney } from '@/lib/currency'
@@ -158,13 +159,22 @@ export default async function AccountDetailPage({
           </div>
 
           {/* Botón de acción: Registrar pago para Tarjetas de Crédito, Ajuste express para el resto */}
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
             {isCreditCard ? (
-              <RegisterCardPaymentModal
-                cardAccount={account}
-                currentBalance={currentBalance}
-                fundingAccounts={allAccounts ?? []}
-              />
+              <>
+                <Link
+                  href={`/accounts/${account.id}/bulk`}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-semibold bg-surface-2 hover:bg-surface-0 text-text-primary border border-border transition shadow-xs"
+                >
+                  <Sparkles size={13} className="text-accent" />
+                  <span>Carga rápida</span>
+                </Link>
+                <RegisterCardPaymentModal
+                  cardAccount={account}
+                  currentBalance={currentBalance}
+                  fundingAccounts={allAccounts ?? []}
+                />
+              </>
             ) : (
               <ExpressAdjustModal account={account} currentBalance={currentBalance} />
             )}

@@ -91,6 +91,8 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
 
 ### 4.5. Personas & Cuentas por Cobrar
 * Directorio de contactos (`/people`) con Saldo Pendiente Total consolidado por moneda.
+* **Contacto de Sistema "Personal"**: Entidad reservada del sistema asignada por defecto a los consumos propios del usuario. No puede renombrarse, desactivarse ni duplicarse (protegida como palabra reservada `Personal` en frontend y backend).
+* **Prevención de Nombres Duplicados y Aviso en Tiempo Real**: Si el usuario tipea el nombre de una persona ya existente (activa o desactivada), el formulario muestra un aviso preventivo sugiriendo incorporar una inicial o apellido (ej. *"Diego M."*) para garantizar que los contactos se reconozcan de manera inequívoca en selectores de consumos y cobros.
 * CRUD completo de contactos (`/people/new`, `/people/[id]/edit`) con baja lógica protegida (la desactivación se bloquea si la persona tiene movimientos pendientes de cobro).
 * Ficha de Persona (`/people/[id]`): Deuda actual, cuotas comprometidas futuras e historial de movimientos.
 * Acciones en ficha de persona:
@@ -137,8 +139,18 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
   2. *Instituciones, Cuentas y Saldo Inicial*: Creación flexible y dinámica de múltiples instituciones (bancos, fintechs, billeteras de efectivo) con sus respectivas cuentas, divisas nativas y saldo inicial actual (registrado como asiento `ADJUSTMENT` en el ledger sin distorsionar gastos ni presupuestos), con previsualización de contravalor y ajuste directo de cotización en el momento.
   3. *Categorías de Gastos e Ingresos*: Selección de categorías nómadas estándar y creación rápida de categorías personalizadas en el momento.
   4. *Personas (Split Pay y Extensiones)*: Explicación amigable del funcionamiento de gastos compartidos con amigos/familiares y extensiones de tarjetas sin mezclar con consumos propios (`Personal`).
-  5. *Cierre y Transición*: Resumen integral, botón *"Configurá mi espacio"* y animación interactiva por etapas mientras se siembra la base de datos, con enlace preparado para futuros wizards secundarios.
+  5. *Cierre y Transición*: Resumen integral, botón *"Configurá mi espacio"* y animación interactiva por etapas mientras se siembra la base de datos. Si el usuario configuró una o más tarjetas de crédito, presenta un prompt opcional para saltar a la carga rápida de consumos o continuar directo al Dashboard.
 * **Requisito Online**: Valida conectividad en vivo (`useOnlineStatus()`), mostrando advertencia preventiva e impidiendo la inicialización si el dispositivo está sin conexión.
+
+### 4.12. Asistente de Carga Rápida de Tarjetas de Crédito (`/welcome/credit-card` y `/accounts/[id]/bulk`)
+* **Propósito**: Resolver la brecha de deuda del resumen actual y arrastre de cuotas vigentes al dar de alta una tarjeta de crédito, evitando la carga manual movimiento por movimiento.
+* **Paso Opcional y Re-accesible**: Se ofrece como paso complementario 100% opcional tras el Asistente de Bienvenida, y permanece accesible de forma permanente desde la ficha de cada tarjeta (`/accounts/[id]/bulk`).
+* **Dual-Mode de Entrada**:
+  - **Grilla Spreadsheet-like**: Navegación fluida por teclado (`Tab`/`Enter`), auto-categorización heurística en tiempo real a partir del comercio tipeado, y selector de cuotas con chips rápidos (`1/1`, `3`, `6`, `12`, o cuota intermedia personalizada `C de T`).
+  - **Pegado Mágico (Smart Text Parser)**: Área de texto para volcar líneas en texto plano de extractos bancarios o emails; un motor de expresiones regulares extrae automáticamente fecha, comercio, plan de cuotas (`C.04/12`), divisas y montos volcándolos prellenados a la tabla.
+* **Lógica Contable de Cuotas Intermedias**: Al ingresar una cuota $C$ de $T$ (ej: 4 de 12), el sistema asienta la cuota corriente en el período actual y genera automáticamente las cuotas $C+1$ a $T$ como transacciones `PENDING` futuras vinculadas por `parent_transaction_id`, sin ensuciar el libro con cuotas pasadas ya canceladas.
+* **Integración con Personas (Split Pay)**: Cada consumo adopta por defecto *"Personal"*. Permite asignar selectivamente gastos a terceros (con selector de contactos sin opciones duplicadas y preasignación en pegado mágico), resaltando visualmente los consumos compartidos en la grilla y discriminando en la barra de impacto financiero el monto personal frente al total a cobrar.
+* **Live Impact Bar**: Cálculo en vivo de consumos del resumen actual, compromisos diferidos futuros, límite de crédito disponible remanente y desglose de gastos propios vs. a cobrar.
 
 ---
 

@@ -155,11 +155,20 @@ export async function seedUserSpaceAction(input: SeedSpaceInput) {
     }
   }
 
-  // 6. Crear personas (por defecto Personal + contactos extras)
-  const peopleNames = Array.from(new Set(input.people.map((p) => p.trim()).filter(Boolean)))
-  if (!peopleNames.includes('Personal')) {
-    peopleNames.unshift('Personal')
+  // 6. Crear personas (por defecto Personal + contactos extras sin duplicados)
+  const rawPeople = input.people.map((p) => p.trim()).filter(Boolean)
+  const customPeople = rawPeople.filter((p) => p.toLowerCase() !== 'personal')
+  const seenNames = new Set<string>()
+  const deduplicatedCustomPeople: string[] = []
+  for (const p of customPeople) {
+    const lower = p.toLowerCase()
+    if (!seenNames.has(lower)) {
+      seenNames.add(lower)
+      deduplicatedCustomPeople.push(p)
+    }
   }
+
+  const peopleNames = ['Personal', ...deduplicatedCustomPeople]
 
   const peopleToInsert = peopleNames.map((name) => ({
     user_id: user.id,

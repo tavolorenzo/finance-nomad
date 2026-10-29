@@ -1,5 +1,5 @@
 -- ==============================================================================
--- Finance Nomad — Setup Inicial de Base de Datos para Producción (v2.8.0)
+-- Finance Nomad — Setup Inicial de Base de Datos para Producción (v2.10.0)
 -- ==============================================================================
 -- Este script consolida las 12 migraciones del proyecto (0001 a 0012) en una sola
 -- ejecución directa para inicializar un nuevo proyecto de Supabase en producción.

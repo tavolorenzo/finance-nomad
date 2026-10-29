@@ -108,9 +108,14 @@ export const WIKI_ARTICLES: WikiArticle[] = [
         title: 'Pago del Resumen de Tarjeta',
         content: 'El pago de la tarjeta no es un gasto nuevo (el gasto ya se computó al comprar), sino una transferencia interna entre tu cuenta bancaria y tu tarjeta de crédito. Usá el botón "Pagar tarjeta" desde la ficha de la cuenta para precargar el saldo adeudado y saldarlo en un solo clic.',
         tip: 'Pagar la tarjeta nunca reduce tu presupuesto de consumo mensual porque se registra contablemente como TRANSFER.'
+      },
+      {
+        title: 'Carga Rápida en Bloque (Bulk Ingest) y Pegado Mágico',
+        content: 'Para evitar cargar consumos y cuotas una por una, disponés del Asistente de Carga Rápida. Podés usar la grilla con atajos de teclado (Tab/Enter) o el "Pegado Mágico", donde pegás directamente el texto de tu resumen de homebanking o notificaciones de compra. El sistema detecta en milisegundos fechas, comercios, planes de cuotas (ej: C.04/12) y montos, volcándolos a la tabla para su revisión con cálculo en vivo de impacto financiero.',
+        tip: 'El asistente se ofrece opcionalmente tras el Welcome Wizard y está siempre disponible desde el detalle de tu tarjeta con el botón "Carga rápida".'
       }
     ],
-    relatedFaqIds: ['faq-card-installments', 'faq-card-payment', 'faq-card-dates']
+    relatedFaqIds: ['faq-card-installments', 'faq-card-payment', 'faq-card-dates', 'faq-card-bulk', 'faq-card-magic-paste']
   },
   {
     id: 'wiki-people',
@@ -136,9 +141,14 @@ export const WIKI_ARTICLES: WikiArticle[] = [
         title: 'Notificación Interactiva por WhatsApp',
         content: 'Tocá "Notificar por WhatsApp" en la ficha de una persona para abrir el modal interactivo. Podés verificar el número de teléfono, revisar el texto generado y modificarlo antes de enviar. En Ajustes podés personalizar la plantilla con variables como $Nombre, $Total, $Detalle, $Cantidad y $Fecha.',
         tip: 'La desactivación de una persona se bloquea si todavía tiene saldos pendientes de cobro, protegiendo tus números.'
+      },
+      {
+        title: 'Contacto de Sistema "Personal" y Prevención de Duplicados',
+        content: 'El contacto "Personal" es una palabra clave reservada del sistema creada por defecto para representar tus consumos propios (no puede modificarse, desactivarse ni duplicarse). Para evitar confusiones en los selectores y cuentas por cobrar, si ingresás un nombre ya existente, el sistema te avisa para que sumes una inicial o apellido (ej. "Diego M.").',
+        tip: 'Asignar una inicial a contactos con nombres similares garantiza que reconozcas al instante a quién le prestaste dinero.'
       }
     ],
-    relatedFaqIds: ['faq-people-share', 'faq-people-partial', 'faq-people-whatsapp']
+    relatedFaqIds: ['faq-people-share', 'faq-people-partial', 'faq-people-whatsapp', 'faq-people-reserved']
   },
   {
     id: 'wiki-accounts',
@@ -352,6 +362,24 @@ export const FAQ_ITEMS: FaqItem[] = [
     relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
   },
   {
+    id: 'faq-card-bulk',
+    question: '¿Cómo cargo los consumos actuales o cuotas viejas de mi tarjeta sin cargarlas una a una?',
+    answer: 'Podés usar el Asistente de Carga Rápida ("Carga rápida" desde la ficha de tu tarjeta o el paso opcional post-onboarding). Te permite tipear múltiples filas en segundos con navegación ágil por teclado (Tab/Enter) o pegar directamente el texto copiado de tu resumen bancario. Además, cada consumo viene asignado a "Personal" por defecto, pero podés reasignarlo a un contacto si fue un gasto compartido a cobrar.',
+    category: 'cards',
+    categoryLabel: 'Tarjetas & Cuotas',
+    tags: ['carga rápida', 'bulk', 'resumen', 'pegar texto', 'cuotas vigentes', 'tarjeta', 'personas', 'split pay'],
+    relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
+  },
+  {
+    id: 'faq-card-magic-paste',
+    question: '¿Qué formato de texto reconoce el Pegado Mágico de resúmenes?',
+    answer: 'Reconoce líneas en texto plano con fecha (DD/MM o DD/MM/YYYY), nombre del comercio, patrón de cuotas (ej. C.04/12, Cuota 3 de 6, 04/12) e importes en formato local ($ 14.500,00) o internacional (USD 45.00). Además, auto-detecta la categoría según palabras clave de comercios comunes.',
+    category: 'cards',
+    categoryLabel: 'Tarjetas & Cuotas',
+    tags: ['pegado mágico', 'copiar y pegar', 'resumen bancario', 'parser', 'extracto'],
+    relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
+  },
+  {
     id: 'faq-people-share',
     question: '¿Cómo cargo un gasto que pagué yo pero le corresponde a otra persona?',
     answer: 'Al cargar el movimiento, en el desplegable "Persona" elegí el nombre de tu contacto en vez de "Personal". El monto se debitará de tu cuenta o tarjeta pero se imputará como saldo a favor en la ficha de esa persona bajo Cuentas por Cobrar.',
@@ -376,6 +404,15 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'people',
     categoryLabel: 'Personas & Cobros',
     tags: ['whatsapp', 'mensaje', 'plantilla', 'recordatorio'],
+    relatedWikiSlug: 'personas-y-cuentas-por-cobrar'
+  },
+  {
+    id: 'faq-people-reserved',
+    question: '¿Por qué no puedo crear una persona llamada "Personal" o con un nombre repetido?',
+    answer: '"Personal" es una palabra reservada del sistema creada por defecto para tus consumos propios, evitando mezclar tus gastos con deudas de terceros. Si intentás registrar a alguien con el nombre de un contacto existente, la app te avisará para que sumes una inicial o apellido (ej. "Diego M.") y así puedas distinguirlos sin confusiones al cargar movimientos o registrar cobros.',
+    category: 'people',
+    categoryLabel: 'Personas & Cobros',
+    tags: ['personal', 'reservado', 'duplicado', 'nombre', 'inicial', 'contacto', 'personas'],
     relatedWikiSlug: 'personas-y-cuentas-por-cobrar'
   },
   {
@@ -590,6 +627,22 @@ export const QUICK_GUIDES: QuickGuide[] = [
       'Cambiá el modo de cotización de "Auto" a "Manual".',
       'Escribí el valor directo contra tu moneda global (por ejemplo: si tu base es USD y el Blue cotiza a 1.280, poné 1280).',
       'Listo: tus cuentas y transacciones en esa divisa se calcularán siempre con tu tipo de cambio personalizado.'
+    ]
+  },
+  {
+    id: 'guide-card-bulk-ingest',
+    title: 'Cargar consumos y cuotas pendientes de tarjeta en bloque',
+    description: 'Importá los consumos de tu resumen bancario o compras en cuotas en segundos con la grilla rápida o pegado de texto.',
+    iconName: 'CreditCard',
+    route: '/accounts',
+    routeLabel: 'Ir a Cuentas',
+    steps: [
+      'Entrá a Cuentas y abrí tu tarjeta de crédito.',
+      'Tocá en "Carga rápida" junto a Pagar tarjeta (o ingresá tras el Asistente Inicial de Bienvenida).',
+      'Elegí entre cargar filas ágilmente con teclado o tocar "Pegar Resumen Mágico" para pegar el texto copiado de tu banco.',
+      'Si tenés compras en cuotas intermedias (ej. cuota 4 de 12), seleccionalo en el chip de cuotas: se computará la cuota 4 en el resumen y se agendarán automáticamente las cuotas 5 a 12 en meses futuros.',
+      'Si pagaste gastos de un contacto, reasigná la columna Persona de "Personal" al contacto: se computará a cobrar y podrás ver el desglose en vivo.',
+      'Verificá el cálculo en vivo de impacto financiero y tocá "Guardar consumos".'
     ]
   }
 ]

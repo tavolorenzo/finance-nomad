@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CloudOff } from 'lucide-react'
+import { CloudOff, AlertTriangle, AlertCircle } from 'lucide-react'
 import { useModal } from '@/components/Modal'
 import { createPerson, updatePerson, setPersonActive } from '@/app/(protected)/people/actions'
 import { useOptionalLedger } from '@/lib/ledger/ledger-context'
@@ -11,10 +11,12 @@ import type { Person } from '@/lib/types'
 
 export function PersonForm({
   person,
-  hasPendingBalance = false
+  hasPendingBalance = false,
+  existingPeople
 }: {
   person?: Person
   hasPendingBalance?: boolean
+  existingPeople?: Person[]
 }) {
   const router = useRouter()
   const { isModal, close } = useModal()
@@ -28,12 +30,34 @@ export function PersonForm({
   const isPersonal = person?.name === 'Personal'
   const isDeactivated = person?.is_active === false
 
+  const peopleList = existingPeople ?? ledger?.people ?? []
+  const trimmedName = name.trim()
+  const isReservedWord = trimmedName.toLowerCase() === 'personal'
+  const duplicatePerson =
+    trimmedName.length > 0 && !isReservedWord
+      ? peopleList.find(
+          (p) =>
+            p.id !== person?.id &&
+            p.name.trim().toLowerCase() === trimmedName.toLowerCase()
+        )
+      : null
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
 
     if (!isOnline) {
       setError('No tenés conexión a internet. Conectate para continuar.')
+      return
+    }
+
+    if (!isPersonal && isReservedWord) {
+      setError('"Personal" es una palabra reservada del sistema para tus consumos propios. Elegí otro nombre.')
+      return
+    }
+
+    if (duplicatePerson) {
+      setError('Ya existe una persona con ese nombre. Agregá una inicial para que puedas distinguirla.')
       return
     }
 
@@ -100,7 +124,10 @@ export function PersonForm({
           id="person-name"
           type="text"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value)
+            if (error) setError(null)
+          }}
           placeholder="Ej. Gladys, Diego, Ale..."
           className="w-full"
           required
@@ -109,6 +136,32 @@ export function PersonForm({
         />
         {isPersonal && (
           <p className="text-xs text-text-muted mt-1">El nombre del contacto Personal no se puede modificar.</p>
+        )}
+
+        {!isPersonal && isReservedWord && (
+          <div className="mt-2 flex items-start gap-2 p-2.5 rounded-control bg-surface-2 border border-expense/40 text-xs text-expense">
+            <AlertCircle size={15} className="shrink-0 mt-0.5" />
+            <div>
+              <span className="font-semibold block">&quot;Personal&quot; es una palabra reservada del sistema.</span>
+              <span className="text-text-muted mt-0.5 block">
+                Este nombre está reservado para tus consumos propios por defecto. Elegí otro nombre para este contacto.
+              </span>
+            </div>
+          </div>
+        )}
+
+        {!isPersonal && duplicatePerson && (
+          <div className="mt-2 flex items-start gap-2 p-2.5 rounded-control bg-surface-2 border border-border text-xs text-text-secondary">
+            <AlertTriangle size={15} className="text-pending shrink-0 mt-0.5" />
+            <div>
+              <span className="font-semibold text-text-primary block">
+                Ya existe una persona con ese nombre{duplicatePerson.is_active === false ? ' (desactivada)' : ''}.
+              </span>
+              <span className="text-text-muted mt-0.5 block">
+                Agregá una inicial para que puedas distinguirla en tus gastos y cuentas por cobrar.
+              </span>
+            </div>
+          </div>
         )}
       </div>
 
@@ -133,7 +186,7 @@ export function PersonForm({
 
       <button
         type="submit"
-        disabled={loading || !isOnline}
+        disabled={loading || !isOnline || (!isPersonal && isReservedWord) || Boolean(duplicatePerson)}
         className="w-full bg-accent text-[color:var(--on-accent)] py-3 rounded-control font-medium hover:opacity-90 transition disabled:opacity-50"
       >
         {!isOnline ? 'Sin conexión a internet' : loading ? 'Guardando...' : person ? 'Guardar cambios' : 'Crear persona'}

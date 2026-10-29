@@ -100,6 +100,45 @@ describe('buildTransactionBundle', () => {
     expect(child2.date).toBe('2026-12-09')
   })
 
+  it('genera cuotas restantes cuando arranca en cuota intermedia (ej. 4 de 6)', () => {
+    const bundle = buildTransactionBundle({
+      type: 'OUTCOME',
+      amountOriginal: 42000,
+      currencyOriginal: 'ARS',
+      currencyAccount: 'ARS',
+      date: '2026-10-15',
+      institutionId: 'inst-1',
+      accountId: 'acc-1',
+      installmentCurrent: 4,
+      installmentTotal: 6,
+      today: '2026-10-15'
+    })
+
+    // Debe generar 3 filas: cuota 4 (actual), cuota 5 (futura), cuota 6 (futura)
+    expect(bundle.rows).toHaveLength(3)
+
+    const parent = bundle.rows[0]
+    expect(parent.installment_current).toBe(4)
+    expect(parent.installment_total).toBe(6)
+    expect(parent.amount_original).toBe(42000)
+    expect(parent.status).toBe('COMPLETED')
+    expect(parent.date).toBe('2026-10-15')
+
+    const child1 = bundle.rows[1]
+    expect(child1.installment_current).toBe(5)
+    expect(child1.installment_total).toBe(6)
+    expect(child1.amount_original).toBe(42000)
+    expect(child1.status).toBe('PENDING')
+    expect(child1.date).toBe('2026-11-15')
+
+    const child2 = bundle.rows[2]
+    expect(child2.installment_current).toBe(6)
+    expect(child2.installment_total).toBe(6)
+    expect(child2.amount_original).toBe(42000)
+    expect(child2.status).toBe('PENDING')
+    expect(child2.date).toBe('2026-12-15')
+  })
+
   it('adjusts installment remainder on the last installment', () => {
     const bundle = buildTransactionBundle({
       type: 'OUTCOME',

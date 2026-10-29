@@ -12,6 +12,63 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-10-28
+### Agregado
+- **Protección de Palabra Reservada del Sistema "Personal" (`PersonForm.tsx`, `people/actions.ts`, `WelcomeWizard.tsx`, `welcome/actions.ts`)**:
+  - **Reserva Estricta en Catálogo**: Protección integral que impide crear contactos o renombrar personas existentes con el nombre *"Personal"* (insensible a mayúsculas/minúsculas y espacios: *"personal"*, *" PERSONAL "*), reservándolo exclusivamente para los consumos propios del usuario configurados por defecto.
+  - **Mensajes Preventivos y Claros**: Mensaje contextual en Rioplatense explicando que *"Personal"* es una palabra reservada del sistema asignada a consumos propios e invitando a elegir otro nombre.
+- **Aviso Reactivo y Prevención de Nombres Duplicados (`PersonForm.tsx`, `WelcomeWizard.tsx`)**:
+  - **Aviso en Tiempo Real con Sugerencia de Inicial**: Detección dinámica conforme el usuario escribe en el campo `Nombre`. Si coincide con un contacto existente (activo o desactivado), se muestra una tarjeta semántica con ícono de advertencia: *"Ya existe una persona con ese nombre. Agregá una inicial para que puedas distinguirla."*
+  - **Desbloqueo Inmediato**: Al agregar una inicial o apellido (ej. *"Diego M."*), el aviso desaparece de inmediato y habilita el guardado.
+  - **Detección de Contactos Desactivados**: Si el nombre coincide con una persona desactivada, el aviso detalla *"Ya existe una persona con ese nombre (desactivada)"* para prevenir duplicidades con historiales contables previos.
+  - **Validación Segura en Server Actions**: Doble chequeo en `createPerson` y `updatePerson` mediante consultas `ilike` en Supabase garantizando coherencia en la base de datos sin permitir colisiones homónimas.
+  - **Pre-carga de Personas en Formularios**: Consulta y paso optimizado de `existingPeople` en `NewPersonPage`, `NewPersonModal`, `EditPersonPage` y `EditPersonModal`, con fallback al contexto transaccional `ledger.people`.
+- **Centro de Ayuda, Wiki y Preguntas Frecuentes (`help-data.ts`, `docs/PRD.md`)**:
+  - Nueva sección en el artículo wiki de Personas (`wiki-people`): *"Contacto de Sistema Personal y Prevención de Duplicados"*.
+  - Nueva pregunta frecuente interactiva `faq-people-reserved` detallando el rol del contacto *"Personal"* y la recomendación de usar iniciales para homónimos.
+  - Actualización de la especificación técnica en la sección 4.5 de [`docs/PRD.md`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/docs/PRD.md).
+- **Cobertura de Pruebas Unitarias Automatizadas**:
+  - [`components/PersonForm.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/PersonForm.test.tsx): 15 pruebas unitarias cubriendo bloqueo de palabra reservada "Personal", aviso reactivo de homónimos, distinción con iniciales y desactivación.
+  - [`app/(protected)/people/actions.test.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/people/actions.test.ts): 7 pruebas unitarias de server actions validando rechazo de "Personal" y duplicados en `createPerson` y `updatePerson`.
+  - [`components/WelcomeWizard.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/WelcomeWizard.test.tsx): prueba de validación y error al ingresar "Personal" o contactos duplicados en el onboarding.
+  - [`lib/version.test.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/version.test.ts): actualización de pruebas a la versión `2.10.0`.
+
+## [2.9.1] - 2026-10-27
+### Agregado
+- **Integración con Personas y Split Pay en Asistente de Carga Rápida (`components/credit-card-bulk/`, `lib/parsers/card-statement-parser.ts`, `app/(protected)/accounts/bulk-card-actions.ts`)**:
+  - **Asignación de Persona por Defecto ("Personal")**: Cada fila nueva o pegada adopta por defecto el registro *"Personal"*, evitando selecciones huérfanas y garantizando coherencia contable con el ledger.
+  - **Selector de Personas sin Duplicados (`BulkMovementRow.tsx`)**: Filtrado automático que previene la aparición duplicada de la opción "Personal" cuando ya existe una entidad con ese nombre en el catálogo maestro de contactos.
+  - **Diferenciación Visual de Consumos Compartidos**: Resaltado con estilo de acento (`bg-accent/10 border-accent/40 text-accent font-semibold`) en las filas asignadas a personas/amigos para identificar rápidamente gastos a cobrar.
+  - **Desglose en Vivo de Consumos Personales vs. a Cobrar (`BulkImpactSummary.tsx`)**: Nueva sección informativa en la barra de impacto con ícono de contactos que discrimina el monto propio del resumen frente al saldo a cobrar a terceros y el recuento de consumos compartidos.
+  - **Selector de Persona en Pegado Mágico (`SmartPasteModal.tsx`)**: Selector desplegable en la cabecera del modal para preasignar la persona destino a todos los movimientos parseados de la tanda, con badges individuales en la previsualización interactiva.
+  - **Revalidación Automática de Cuentas por Cobrar (`bulk-card-actions.ts`)**: Inclusión de `revalidatePath('/people')` al persistir los movimientos para sincronizar de inmediato los saldos adeudados en la vista de Personas.
+  - **Cobertura de Pruebas Unitarias Automatizadas**:
+    - Nuevos casos de prueba en [`CreditCardBulkWizard.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/credit-card-bulk/CreditCardBulkWizard.test.tsx), [`SmartPasteModal.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/credit-card-bulk/SmartPasteModal.test.tsx) y [`card-statement-parser.test.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/parsers/card-statement-parser.test.ts) validando asignación de personas, desglose de montos y persistencia.
+
+## [2.9.0] - 2026-10-27
+### Agregado
+- **Asistente de Carga Rápida (Bulk Ingest) y Resumen de Tarjetas de Crédito (`components/credit-card-bulk/`, `app/welcome/credit-card/`, `app/(protected)/accounts/[id]/bulk/`)**:
+  - **Grilla Spreadsheet-like con Atajos de Teclado**: Carga ágil de múltiples consumos con navegación fluida (`Tab` / `Enter`), selector de planes de cuotas e inputs numéricos directos.
+  - **Selector Inteligente de Cuotas (`QuotaBadgeSelector.tsx`)**: Chips rápidos (`1 pago`, `3`, `6`, `12`, `18`) y popover para cuotas intermedias personalizadas (ej. cuota 4 de 12).
+  - **Motor Heurístico de Parseo de Resúmenes (`lib/parsers/card-statement-parser.ts`)**: Extracción automática de fecha, comercio, plan de cuotas (`C.04/12`, `CUOTA 4 DE 12`), divisas y montos en formatos rioplatenses e internacionales.
+  - **Pegado Mágico de Resumen (`SmartPasteModal.tsx`)**: Modal interactivo para pegar texto copiado del extracto bancario o notificaciones por email con previsualización en tiempo real y volcado instantáneo a la tabla.
+  - **Auto-Categorización Heurística**: Detección de palabras clave de comercios comunes (Supermercado, Transporte, Servicios, Salidas) asignando automáticamente la categoría correspondiente.
+  - **Barra de Impacto Financiero en Vivo (`BulkImpactSummary.tsx`)**: Cálculo en tiempo real de consumos del resumen actual, compromisos diferidos futuros y límite disponible restante de la tarjeta.
+  - **Persistencia en Ledger y Cuotas Futuras (`app/(protected)/accounts/bulk-card-actions.ts`, `lib/ledger/builder.ts`)**: Soporte contable para cuotas intermedias en `buildTransactionBundle`, generando la cuota actual en el período en curso y agendando las cuotas restantes en estado `PENDING` para meses futuros sin ensuciar el pasado.
+  - **Flujo Opcional Post-Onboarding (`WelcomeWizard.tsx`, `app/welcome/credit-card/page.tsx`)**: Prompt interactivo no invasivo al finalizar la siembra del espacio si el usuario creó tarjetas de crédito, permitiendo cargar consumos o ir directo al Dashboard.
+  - **Punto de Re-acceso Permanente (`app/(protected)/accounts/[id]/bulk/page.tsx`)**: Botón *"Carga rápida"* en la cabecera de cuentas de tipo tarjeta de crédito para reingresar consumos en cualquier momento.
+  - **Suites de Pruebas Unitarias Automatizadas**:
+    - [`card-statement-parser.test.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/parsers/card-statement-parser.test.ts): 17 pruebas unitarias de parseo, fechas, montos y cuotas.
+    - [`CreditCardBulkWizard.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/credit-card-bulk/CreditCardBulkWizard.test.tsx): 6 pruebas de renderizado, cálculo de impacto, adición/eliminación de filas y guardado.
+    - [`SmartPasteModal.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/credit-card-bulk/SmartPasteModal.test.tsx): 2 pruebas de carga de ejemplo, parseo y volcado a grilla.
+    - [`app/welcome/credit-card/page.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/welcome/credit-card/page.test.tsx): 3 pruebas de redirección y renderizado en servidor.
+    - [`lib/ledger/builder.test.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/ledger/builder.test.ts): prueba unitaria de cuota intermedia en `buildTransactionBundle`.
+- **Centro de Ayuda, FAQ y PRD (`lib/help-data.ts`, `docs/PRD.md`)**:
+  - Incorporación de sección en el artículo de la Wiki de tarjetas sobre Carga Rápida y Pegado Mágico.
+  - Nuevas preguntas frecuentes `faq-card-bulk` y `faq-card-magic-paste`.
+  - Nueva guía rápida interactiva `guide-card-bulk-ingest`.
+  - Documentación en PRD sección 4.12 y actualización de la sección 4.11.
+
 ## [2.8.0] - 2026-10-23
 ### Modificado
 - **Diferenciación de Tarjetas de Crédito y Exclusión de Inversión en Asistente Inicial (`components/WelcomeWizard.tsx`, `app/welcome/actions.ts`)**:

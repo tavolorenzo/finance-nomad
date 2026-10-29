@@ -276,5 +276,85 @@ describe('PersonForm', () => {
       expect(personActions.createPerson).not.toHaveBeenCalled()
     })
   })
+
+  it('previene crear una persona con el nombre "Personal" por ser palabra reservada del sistema', () => {
+    render(<PersonForm />)
+
+    const nameInput = screen.getByPlaceholderText(/Gladys, Diego, Ale/i)
+    fireEvent.change(nameInput, { target: { value: 'Personal' } })
+
+    expect(screen.getByText(/"Personal" es una palabra reservada del sistema/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /crear persona/i })).toBeDisabled()
+
+    // Caso insensitivo: 'personal' minúscula
+    fireEvent.change(nameInput, { target: { value: 'personal' } })
+    expect(screen.getByText(/"Personal" es una palabra reservada del sistema/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /crear persona/i })).toBeDisabled()
+  })
+
+  it('muestra aviso si se ingresa una persona duplicada y sugiere agregar una inicial', () => {
+    const existing = [
+      {
+        id: 'p-1',
+        user_id: 'u-1',
+        name: 'Diego',
+        phone: null,
+        is_active: true,
+        created_at: new Date().toISOString()
+      }
+    ]
+
+    render(<PersonForm existingPeople={existing} />)
+
+    const nameInput = screen.getByPlaceholderText(/Gladys, Diego, Ale/i)
+    fireEvent.change(nameInput, { target: { value: 'Diego' } })
+
+    expect(screen.getByText(/ya existe una persona con ese nombre/i)).toBeInTheDocument()
+    expect(screen.getByText(/agregá una inicial para que puedas distinguirla/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /crear persona/i })).toBeDisabled()
+
+    // Si agrega una inicial para distinguirla, el aviso desaparece y el botón se habilita
+    fireEvent.change(nameInput, { target: { value: 'Diego M.' } })
+    expect(screen.queryByText(/ya existe una persona con ese nombre/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /crear persona/i })).not.toBeDisabled()
+  })
+
+  it('indica si el nombre duplicado pertenece a un contacto desactivado', () => {
+    const existing = [
+      {
+        id: 'p-2',
+        user_id: 'u-1',
+        name: 'Romina',
+        phone: null,
+        is_active: false,
+        created_at: new Date().toISOString()
+      }
+    ]
+
+    render(<PersonForm existingPeople={existing} />)
+
+    const nameInput = screen.getByPlaceholderText(/Gladys, Diego, Ale/i)
+    fireEvent.change(nameInput, { target: { value: 'romina' } })
+
+    expect(screen.getByText(/ya existe una persona con ese nombre \(desactivada\)/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /crear persona/i })).toBeDisabled()
+  })
+
+  it('no marca duplicado al editar una persona manteniendo su propio nombre', () => {
+    const mockPerson = {
+      id: 'p-10',
+      user_id: 'u-1',
+      name: 'Ale',
+      phone: null,
+      is_active: true,
+      created_at: new Date().toISOString()
+    }
+    const existing = [mockPerson]
+
+    render(<PersonForm person={mockPerson} existingPeople={existing} />)
+
+    expect(screen.queryByText(/ya existe una persona con ese nombre/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /guardar cambios/i })).not.toBeDisabled()
+  })
 })
 

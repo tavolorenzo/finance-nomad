@@ -192,10 +192,12 @@ export function WelcomeWizard() {
   // Contactos Split Pay
   const [customPeople, setCustomPeople] = useState<string[]>([])
   const [newPersonInput, setNewPersonInput] = useState('')
+  const [personError, setPersonError] = useState<string | null>(null)
 
   // Estado de sumisión y animación de transición
   const [submitting, setSubmitting] = useState(false)
   const [transitionStage, setTransitionStage] = useState(0)
+  const [postOnboardingCardPrompt, setPostOnboardingCardPrompt] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Detección automática de moneda regional al montar
@@ -406,9 +408,16 @@ export function WelcomeWizard() {
     e.preventDefault()
     const trimmed = newPersonInput.trim()
     if (!trimmed) return
-    if (!customPeople.includes(trimmed) && trimmed !== 'Personal') {
-      setCustomPeople([...customPeople, trimmed])
+    if (trimmed.toLowerCase() === 'personal') {
+      setPersonError('"Personal" es una palabra reservada del sistema para tus consumos propios.')
+      return
     }
+    if (customPeople.some((p) => p.toLowerCase() === trimmed.toLowerCase())) {
+      setPersonError('Ya existe una persona con ese nombre. Agregá una inicial para que puedas distinguirla.')
+      return
+    }
+    setPersonError(null)
+    setCustomPeople([...customPeople, trimmed])
     setNewPersonInput('')
   }
 
@@ -490,12 +499,15 @@ export function WelcomeWizard() {
 
       setTransitionStage(4)
 
-      setTimeout(() => {
-        // Conexión futura a wizard secundario:
-        // (Cargar compromisos actuales si configuró TC, cargar primer movimiento, presupuesto)
-        router.push('/dashboard')
-        router.refresh()
-      }, 700)
+      const hasCreditCards = flattenedAccounts.some((a) => a.type === 'credit_card')
+      if (hasCreditCards) {
+        setPostOnboardingCardPrompt(true)
+      } else {
+        setTimeout(() => {
+          router.push('/dashboard')
+          router.refresh()
+        }, 700)
+      }
     } catch {
       clearTimeout(t1)
       clearTimeout(t2)
@@ -678,9 +690,47 @@ export function WelcomeWizard() {
                 ) : (
                   <div className="w-4 h-4 rounded-full border border-border" />
                 )}
-                <span>¡Todo listo para despegar! Entrando al Dashboard...</span>
+                <span>
+                  {postOnboardingCardPrompt
+                    ? '¡Espacio inicializado con éxito!'
+                    : '¡Todo listo para despegar! Entrando al Dashboard...'}
+                </span>
               </div>
             </div>
+
+            {postOnboardingCardPrompt && (
+              <div className="p-5 bg-surface-0 border border-accent/40 rounded-card space-y-3.5 animate-in fade-in max-w-md mx-auto text-center shadow-lg">
+                <div className="flex items-center justify-center gap-2 text-accent">
+                  <CreditCard className="w-5 h-5" />
+                  <h3 className="font-display text-sm font-bold text-text-primary">
+                    ¿Tenés consumos o cuotas en tu tarjeta?
+                  </h3>
+                </div>
+                <p className="text-xs text-text-secondary leading-relaxed">
+                  Podés asentar en 1 minuto las compras en cuotas y gastos del resumen actual para que tus saldos arranquen exactos, o ir directo al Dashboard.
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => router.push('/welcome/credit-card')}
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 bg-accent text-[color:var(--on-accent)] px-4 py-2 rounded-control text-xs font-semibold hover:opacity-90 transition shadow-sm"
+                  >
+                    <span>Cargar consumos ahora</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      router.push('/dashboard')
+                      router.refresh()
+                    }}
+                    className="w-full sm:w-auto text-xs font-medium text-text-secondary hover:text-text-primary px-3 py-2 rounded-control hover:bg-surface-2 transition"
+                  >
+                    Ir al Dashboard
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1095,7 +1145,10 @@ export function WelcomeWizard() {
                 <input
                   type="text"
                   value={newPersonInput}
-                  onChange={(e) => setNewPersonInput(e.target.value)}
+                  onChange={(e) => {
+                    setNewPersonInput(e.target.value)
+                    if (personError) setPersonError(null)
+                  }}
                   placeholder="Nombre del contacto (ej. Diego, Romina, Gladys, Mamá...)"
                   className="flex-1 bg-surface-0 border border-border rounded-control px-3.5 py-2 text-sm text-text-primary focus:border-accent outline-none"
                 />
@@ -1106,6 +1159,9 @@ export function WelcomeWizard() {
                   Agregar
                 </button>
               </form>
+              {personError && (
+                <p className="text-xs text-expense font-medium -mt-1">{personError}</p>
+              )}
 
               <div className="space-y-2 pt-1">
                 <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider block">

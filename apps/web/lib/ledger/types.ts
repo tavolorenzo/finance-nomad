@@ -27,6 +27,7 @@ export interface BuildTransactionInput {
   accountId: string
   categoryId?: string | null
   personId?: string | null
+  installmentCurrent?: number
   installmentTotal?: number
   notes?: string | null
   today?: string

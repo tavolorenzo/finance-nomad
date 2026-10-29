@@ -143,6 +143,22 @@ export async function createPerson(name: string, phone?: string | null) {
   const trimmedName = name.trim()
   if (!trimmedName) throw new Error('Completá el nombre para continuar.')
 
+  if (trimmedName.toLowerCase() === 'personal') {
+    throw new Error('"Personal" es una palabra reservada del sistema para tus consumos propios. Elegí otro nombre.')
+  }
+
+  // Prevenir duplicados (case-insensitive) para el usuario
+  const { data: existing } = await supabase
+    .from('people')
+    .select('id')
+    .eq('user_id', user.id)
+    .ilike('name', trimmedName)
+    .maybeSingle()
+
+  if (existing) {
+    throw new Error('Ya existe una persona con ese nombre. Agregá una inicial para que puedas distinguirla.')
+  }
+
   const { data, error } = await supabase
     .from('people')
     .insert({
@@ -173,8 +189,25 @@ export async function updatePerson(id: string, name: string, phone?: string | nu
     .eq('user_id', user.id)
     .single()
 
-  if (current?.name === 'Personal' && trimmedName !== 'Personal') {
+  if (current?.name === 'Personal' && trimmedName.toLowerCase() !== 'personal') {
     throw new Error('No podés renombrar el contacto de sistema Personal.')
+  }
+
+  if (current?.name !== 'Personal' && trimmedName.toLowerCase() === 'personal') {
+    throw new Error('"Personal" es una palabra reservada del sistema para tus consumos propios. Elegí otro nombre.')
+  }
+
+  // Verificar si ya existe otra persona con ese nombre (case-insensitive, excluyendo la actual)
+  const { data: duplicate } = await supabase
+    .from('people')
+    .select('id')
+    .eq('user_id', user.id)
+    .neq('id', id)
+    .ilike('name', trimmedName)
+    .maybeSingle()
+
+  if (duplicate) {
+    throw new Error('Ya existe una persona con ese nombre. Agregá una inicial para que puedas distinguirla.')
   }
 
   const { error } = await supabase
