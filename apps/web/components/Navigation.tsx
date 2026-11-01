@@ -23,7 +23,7 @@ const MORE_ITEMS = [
   { href: '/categories', label: 'Categorías', icon: Tags, ready: true },
   { href: '/people', label: 'Personas', icon: Users, ready: true },
   { href: '/budget', label: 'Presupuesto', icon: PiggyBank, ready: true },
-  { href: '/loans', label: 'Préstamos', icon: Landmark, ready: false },
+  { href: '/loans', label: 'Préstamos', icon: Landmark, ready: true },
   { href: '/portfolio', label: 'Portafolio', icon: TrendingUp, ready: false },
   { href: '/help', label: 'Ayuda & Wiki', icon: HelpCircle, ready: true },
   { href: '/settings', label: 'Ajustes', icon: Settings, ready: true }

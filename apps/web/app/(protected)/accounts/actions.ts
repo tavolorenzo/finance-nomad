@@ -11,6 +11,7 @@ export interface AccountInput {
   type: AccountType
   currencyNative: string
   creditLimit: number | null
+  closingDay?: number | null
 }
 
 async function requireUser() {
@@ -35,13 +36,22 @@ export async function createAccount(input: AccountInput) {
     throw new Error('Esta institución está desactivada. Reactivala para agregarle cuentas.')
   }
 
+  const closingDayValue =
+    input.type === 'credit_card' &&
+    typeof input.closingDay === 'number' &&
+    input.closingDay >= 1 &&
+    input.closingDay <= 31
+      ? input.closingDay
+      : null
+
   const { error } = await supabase.from('accounts').insert({
     user_id: user.id,
     institution_id: input.institutionId,
     name: input.name.trim(),
     type: input.type,
     currency_native: input.currencyNative,
-    credit_limit: input.type === 'credit_card' ? input.creditLimit : null
+    credit_limit: input.type === 'credit_card' ? input.creditLimit : null,
+    closing_day: closingDayValue
   })
   if (error) throw new Error('No se pudo guardar. Intentá de nuevo.')
 
@@ -52,13 +62,22 @@ export async function updateAccount(id: string, input: Omit<AccountInput, 'insti
   const { supabase, user } = await requireUser()
   if (!input.name.trim()) throw new Error('Completá este campo para continuar.')
 
+  const closingDayValue =
+    input.type === 'credit_card' &&
+    typeof input.closingDay === 'number' &&
+    input.closingDay >= 1 &&
+    input.closingDay <= 31
+      ? input.closingDay
+      : null
+
   const { error } = await supabase
     .from('accounts')
     .update({
       name: input.name.trim(),
       type: input.type,
       currency_native: input.currencyNative,
-      credit_limit: input.type === 'credit_card' ? input.creditLimit : null
+      credit_limit: input.type === 'credit_card' ? input.creditLimit : null,
+      closing_day: closingDayValue
     })
     .eq('id', id)
     .eq('user_id', user.id)

@@ -54,6 +54,7 @@ export function AccountForm({
     account?.currency_native ?? ledger?.settings?.display_currency ?? 'EUR'
   )
   const [creditLimit, setCreditLimit] = useState(account?.credit_limit?.toString() ?? '')
+  const [closingDay, setClosingDay] = useState(account?.closing_day?.toString() ?? '')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -68,11 +69,13 @@ export function AccountForm({
 
     setLoading(true)
     try {
+      const parsedClosingDay = closingDay ? parseInt(closingDay, 10) : null
       const input = {
         name,
         type,
         currencyNative: currency,
-        creditLimit: creditLimit ? parseFloat(creditLimit) : null
+        creditLimit: creditLimit ? parseFloat(creditLimit) : null,
+        ...(parsedClosingDay !== null || account?.closing_day != null ? { closingDay: parsedClosingDay } : {})
       }
       if (account) {
         await updateAccount(account.id, input)
@@ -192,18 +195,38 @@ export function AccountForm({
       </div>
 
       {type === 'credit_card' && (
-        <div>
-          <label htmlFor="account-credit-limit" className="block text-sm font-medium text-text-secondary mb-1">
-            Límite de crédito
-          </label>
-          <input
-            id="account-credit-limit"
-            type="number"
-            step="0.01"
-            value={creditLimit}
-            onChange={(e) => setCreditLimit(e.target.value)}
-            className="w-full"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="account-credit-limit" className="block text-sm font-medium text-text-secondary mb-1">
+              Límite de crédito
+            </label>
+            <input
+              id="account-credit-limit"
+              type="number"
+              step="0.01"
+              value={creditLimit}
+              onChange={(e) => setCreditLimit(e.target.value)}
+              className="w-full"
+            />
+          </div>
+          <div>
+            <label htmlFor="account-closing-day" className="block text-sm font-medium text-text-secondary mb-1">
+              Día de cierre (opcional)
+            </label>
+            <input
+              id="account-closing-day"
+              type="number"
+              min="1"
+              max="31"
+              placeholder="Ej. 24"
+              value={closingDay}
+              onChange={(e) => setClosingDay(e.target.value)}
+              className="w-full font-mono"
+            />
+            <p className="text-[11px] text-text-muted mt-1">
+              Si lo configurás, sugeriremos el próximo resumen cuando cargues compras posteriores al cierre.
+            </p>
+          </div>
         </div>
       )}
 

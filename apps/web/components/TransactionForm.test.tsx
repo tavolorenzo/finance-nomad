@@ -143,4 +143,46 @@ describe('TransactionForm', () => {
     expect(screen.getByText(/cuenta origen/i)).toBeInTheDocument()
     expect(screen.getByText(/cuenta destino/i)).toBeInTheDocument()
   })
+
+  it('muestra selector de mes contable en tarjetas de crédito y sugiere el próximo mes si supera el día de cierre', async () => {
+    const accountsWithCard: (Account & { institutions: { id: string; name: string } })[] = [
+      {
+        id: 'card-1',
+        institution_id: 'inst-1',
+        name: 'Visa Itaú',
+        type: 'credit_card',
+        currency_native: 'UYU',
+        credit_limit: 100000,
+        closing_day: 24,
+        is_active: true,
+        institutions: { id: 'inst-1', name: 'Itaú' }
+      }
+    ]
+
+    render(
+      <TransactionForm
+        accounts={accountsWithCard}
+        categories={mockCategories}
+        people={mockPeople}
+        defaultDate="2026-10-28"
+      />
+    )
+
+    expect(screen.getByText(/mes contable \(estado de cuenta\)/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /mes actual \(octubre 2026\)/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /próximo mes \(noviembre 2026\)/i })).toBeInTheDocument()
+
+    // Como 28 > 24 (closing_day), debe auto-seleccionar 2026-11
+    fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '1500' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar transacción/i }))
+
+    await waitFor(() => {
+      expect(mockAddTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          accountId: 'card-1',
+          accountingPeriod: '2026-11'
+        })
+      )
+    })
+  })
 })

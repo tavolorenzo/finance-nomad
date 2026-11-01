@@ -16,15 +16,18 @@ export interface BulkCardMovementInput {
   installmentTotal: number
   categoryId?: string | null
   personId?: string | null
+  accountingPeriod?: string | null
 }
 
 export interface SaveBulkCardMovementsParams {
   accountId: string
+  accountingPeriod?: string | null
   movements: BulkCardMovementInput[]
 }
 
 export async function saveBulkCardMovementsAction({
   accountId,
+  accountingPeriod,
   movements
 }: SaveBulkCardMovementsParams) {
   if (!accountId) {
@@ -74,6 +77,7 @@ export async function saveBulkCardMovementsAction({
       currencyAccount: account.currency_native,
       exchangeRate: rate,
       date: m.date,
+      accountingPeriod: m.accountingPeriod || accountingPeriod || m.date.slice(0, 7),
       institutionId: account.institution_id,
       accountId: account.id,
       categoryId: m.categoryId || null,

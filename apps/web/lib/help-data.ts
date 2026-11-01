@@ -8,7 +8,7 @@ export interface WikiArticle {
   id: string
   slug: string
   title: string
-  category: 'core' | 'accounts' | 'transactions' | 'cards' | 'people' | 'budget' | 'analytics' | 'offline'
+  category: 'core' | 'accounts' | 'transactions' | 'cards' | 'people' | 'budget' | 'analytics' | 'offline' | 'loans'
   categoryLabel: string
   iconName: string
   summary: string
@@ -23,7 +23,7 @@ export interface FaqItem {
   id: string
   question: string
   answer: string
-  category: 'core' | 'accounts' | 'cards' | 'people' | 'budget' | 'offline'
+  category: 'core' | 'accounts' | 'cards' | 'people' | 'budget' | 'offline' | 'loans'
   categoryLabel: string
   tags: string[]
   relatedWikiSlug?: string
@@ -43,6 +43,7 @@ export const HELP_CATEGORIES = [
   { id: 'all', label: 'Todo' },
   { id: 'core', label: 'Multi-moneda (FX)' },
   { id: 'cards', label: 'Tarjetas & Cuotas' },
+  { id: 'loans', label: 'Préstamos & Marcha' },
   { id: 'people', label: 'Personas & Cobros' },
   { id: 'accounts', label: 'Cuentas & Bancos' },
   { id: 'transactions', label: 'Movimientos & Ledger' },
@@ -113,9 +114,14 @@ export const WIKI_ARTICLES: WikiArticle[] = [
         title: 'Carga Rápida en Bloque (Bulk Ingest) y Pegado Mágico',
         content: 'Para evitar cargar consumos y cuotas una por una, disponés del Asistente de Carga Rápida. Podés usar la grilla con atajos de teclado (Tab/Enter) o el "Pegado Mágico", donde pegás directamente el texto de tu resumen de homebanking o notificaciones de compra. El sistema detecta en milisegundos fechas, comercios, planes de cuotas (ej: C.04/12) y montos, volcándolos a la tabla para su revisión con cálculo en vivo de impacto financiero.',
         tip: 'El asistente se ofrece opcionalmente tras el Welcome Wizard y está siempre disponible desde el detalle de tu tarjeta con el botón "Carga rápida".'
+      },
+      {
+        title: 'Mes Contable, Día de Cierre y Verificación del Resumen',
+        content: 'Como la fecha de cierre de tu tarjeta no siempre coincide con el último día del mes, cada consumo guarda su "Mes contable" (el resumen en el que realmente impacta). Si configurás el "Día de cierre" en tu tarjeta, al cargar una compra posterior a ese día la app te sugerirá automáticamente imputarla al "Próximo mes" (desplazando en cascada todas las cuotas si compraste en pagos). Además, desde el botón "Verificar resumen" podés comparar línea por línea tus registros contra el estado de cuenta del banco, ver totales bimonetarios, confirmar ítems, corregir importes o pasar consumos al mes siguiente.',
+        tip: 'Durante los últimos 5 y los primeros 5 días de cada mes, el Dashboard te mostrará un recordatorio directo para conciliar tus tarjetas en segundos.'
       }
     ],
-    relatedFaqIds: ['faq-card-installments', 'faq-card-payment', 'faq-card-dates', 'faq-card-bulk', 'faq-card-magic-paste']
+    relatedFaqIds: ['faq-card-installments', 'faq-card-payment', 'faq-card-dates', 'faq-card-bulk', 'faq-card-magic-paste', 'faq-card-accounting-period', 'faq-card-verify-statement']
   },
   {
     id: 'wiki-people',
@@ -285,6 +291,38 @@ export const WIKI_ARTICLES: WikiArticle[] = [
       }
     ],
     relatedFaqIds: ['faq-offline-airplane', 'faq-offline-sync']
+  },
+  {
+    id: 'wiki-loans',
+    slug: 'prestamos-y-amortizaciones',
+    title: 'Préstamos y Amortizaciones (Itaú Uruguay)',
+    category: 'loans',
+    categoryLabel: 'Préstamos & Marcha',
+    iconName: 'Landmark',
+    badge: 'Fase 4',
+    targetRoute: '/loans',
+    targetLabel: 'Ir a Préstamos',
+    summary: 'Control integral de préstamos tomados (bancarios/deudas), préstamos otorgados a terceros e intermediaciones con el sistema de amortización francés de Banco Itaú Uruguay.',
+    sections: [
+      {
+        title: 'Sistema Francés de Banco Itaú Uruguay',
+        content: 'Las cuotas se calculan bajo el sistema de cuota nivelada constante (francés) tomando la Tasa Efectiva Anual (TEA) y convirtiéndola exponencialmente a tasa mensual. En las primeras cuotas el interés es mayor y decrece con cada pago, mientras que la porción de amortización de capital aumenta. Adicionalmente, se puede activar el IVA del 22% sobre intereses reglamentario en Uruguay.',
+        tip: 'Si tenés la carátula de tu préstamo de Itaú, podés ingresar la TEA directa en el simulador para que el cronograma coincida con tu extracto bancario.'
+      },
+      {
+        title: 'Imputación Contable de la Cuota (Opción B)',
+        content: 'Al pagar cada cuota, el sistema genera dos filas atómicas en el libro contable: una por la amortización de capital (que cancela tu pasivo sin computar como consumo innecesario) y otra por los intereses devengados (imputada a la categoría de gastos financieros). De este modo, tus analíticas de gastos en /analytics y tu presupuesto en /budget reflejan el costo real sin duplicar montos.'
+      },
+      {
+        title: 'Intermediación y Préstamos a Terceros',
+        content: 'Si tomás un préstamo en el banco para ayudar a un amigo o familiar, podés vincular la Institución (el banco que te presta a vos) y la Persona (quien te debe las cuotas). También podés registrar préstamos directos otorgados a terceros con fondos propios de tus cuentas.'
+      },
+      {
+        title: 'Pagos Secuenciales Estrictos',
+        content: 'Para garantizar la precisión contable del cuadro de marcha, las cuotas deben abonarse en estricto orden cronológico correlativo (cuota 1, 2, 3... N). Cada pago cancela la cuota vigente y actualiza el saldo deudor remanente.'
+      }
+    ],
+    relatedFaqIds: ['faq-loans-calc', 'faq-loans-ledger', 'faq-loans-intermediary', 'faq-loans-extraordinary']
   }
 ]
 
@@ -377,6 +415,24 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'cards',
     categoryLabel: 'Tarjetas & Cuotas',
     tags: ['pegado mágico', 'copiar y pegar', 'resumen bancario', 'parser', 'extracto'],
+    relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
+  },
+  {
+    id: 'faq-card-accounting-period',
+    question: '¿Qué pasa cuando compro con tarjeta después de la fecha de cierre?',
+    answer: 'Al cargar un gasto con tarjeta de crédito vas a ver el selector "Mes contable (estado de cuenta)" con las opciones "Mes actual" y "Próximo mes". Si configuraste el día de cierre en tu tarjeta (por ejemplo, día 24) y cargás una compra del día 26, el sistema selecciona automáticamente "Próximo mes". Si la compra es en cuotas, todas las cuotas se desplazan en bloque a partir del próximo resumen.',
+    category: 'cards',
+    categoryLabel: 'Tarjetas & Cuotas',
+    tags: ['mes contable', 'cierre', 'próximo mes', 'resumen', 'corte', 'cuotas', 'tarjeta'],
+    relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
+  },
+  {
+    id: 'faq-card-verify-statement',
+    question: '¿Cómo verifico y concilio el estado de cuenta mensual de mi tarjeta?',
+    answer: 'Entrá al detalle de tu tarjeta de crédito y tocá "Verificar resumen" (o accedé desde el banner recordatorio que aparece en el Dashboard durante los últimos 5 y primeros 5 días del mes). Vas a ver las pills con el total en moneda local y moneda extranjera, y debajo cada consumo con botones para Confirmar, Corregir el importe, Asignar al próximo mes (desplazando en cascada sus cuotas si aplica) o Agregar un gasto que no habías anotado.',
+    category: 'cards',
+    categoryLabel: 'Tarjetas & Cuotas',
+    tags: ['verificar', 'conciliar', 'estado de cuenta', 'resumen', 'confirmar', 'corregir', 'próximo mes'],
     relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
   },
   {
@@ -528,10 +584,76 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'core',
     categoryLabel: 'Multi-moneda (FX)',
     tags: ['login', 'registro', 'email', 'acceso', 'cuenta', 'contraseña']
+  },
+  {
+    id: 'faq-loans-calc',
+    question: '¿Cómo se calculan las cuotas de un préstamo?',
+    answer: 'Finance Nomad utiliza el sistema francés de amortización con cuota nivelada, estándar de Banco Itaú Uruguay. A partir de la TEA (Tasa Efectiva Anual), calcula exponencialmente la tasa mensual y desglosa en cada cuota el capital amortizado y los intereses decrecientes, con opción de aplicar el 22% de IVA uruguayo.',
+    category: 'loans',
+    categoryLabel: 'Préstamos & Marcha',
+    tags: ['préstamo', 'itaú', 'cuota', 'amortización', 'sistema francés', 'tea', 'iva', 'interés'],
+    relatedWikiSlug: 'prestamos-y-amortizaciones'
+  },
+  {
+    id: 'faq-loans-ledger',
+    question: '¿Cómo impacta el pago de una cuota en mis gastos y presupuesto?',
+    answer: 'Se aplica la Opción B de imputación contable: el pago genera dos movimientos ligados. El capital reduce tu deuda sin computar como consumo del mes, y los intereses se imputan a una categoría de costo financiero para reflejarse con total exactitud en tus gráficos de Análisis y en tu Presupuesto.',
+    category: 'loans',
+    categoryLabel: 'Préstamos & Marcha',
+    tags: ['pago', 'cuota', 'ledger', 'intereses', 'capital', 'gastos', 'presupuesto'],
+    relatedWikiSlug: 'prestamos-y-amortizaciones'
+  },
+  {
+    id: 'faq-loans-intermediary',
+    question: '¿Puedo tomar un préstamo de un banco y asignárselo a otra persona?',
+    answer: 'Sí. Al crear el préstamo, podés indicar la Institución financiera que te otorgó los fondos (ej. Itaú) y seleccionar la Persona del directorio que es la beneficiaria real. De este modo, la app te ayuda a controlar tanto tu compromiso ante el banco como la deuda que esa persona tiene con vos.',
+    category: 'loans',
+    categoryLabel: 'Préstamos & Marcha',
+    tags: ['intermediario', 'banco', 'persona', 'garante', 'amigos', 'terceros'],
+    relatedWikiSlug: 'prestamos-y-amortizaciones'
+  },
+  {
+    id: 'faq-loans-extraordinary',
+    question: '¿Puedo realizar pagos adelantados o saltear cuotas?',
+    answer: 'En esta etapa no se permiten pagos extraordinarios ni salteados. Las cuotas deben cancelarse en estricto orden cronológico correlativo (primero la cuota 1, luego la 2, etc.) para mantener la consistencia matemática de la marcha de amortización.',
+    category: 'loans',
+    categoryLabel: 'Préstamos & Marcha',
+    tags: ['pagos extraordinarios', 'adelanto', 'orden secuencial', 'cuotas'],
+    relatedWikiSlug: 'prestamos-y-amortizaciones'
   }
 ]
 
 export const QUICK_GUIDES: QuickGuide[] = [
+  {
+    id: 'guide-verify-statement',
+    title: 'Verificar y conciliar el resumen de tu tarjeta',
+    description: 'Compará tus gastos registrados contra el estado de cuenta mensual, corregí diferencias o pasá compras post-cierre al próximo mes.',
+    iconName: 'CreditCard',
+    route: '/accounts',
+    routeLabel: 'Ir a Cuentas',
+    steps: [
+      'Abrí tu tarjeta de crédito desde Cuentas (o desde el banner del Dashboard a fin/principio de mes) y tocá "Verificar resumen".',
+      'Elegí el Mes contable que querés auditar y revisá las pills superiores con los totales por moneda y el estado de conciliación.',
+      'Tocá "Confirmar" en cada gasto que coincida con tu extracto, o "Corregir" si necesitás ajustar el monto o comercio.',
+      'Si una compra entró después de la fecha de cierre, tocá "Asignar al próximo mes" (si tiene cuotas, todas se correrán en cascada).',
+      'Si en el resumen figura un cargo que olvidaste anotar, sumalo en el acto con "Agregar gasto al resumen".'
+    ]
+  },
+  {
+    id: 'guide-loans',
+    title: 'Crear un préstamo y registrar el pago de cuotas',
+    description: 'Calculá tu cuadro de amortización francesa de Banco Itaú y debitá cuotas con desglose exacto de capital e intereses.',
+    iconName: 'Landmark',
+    route: '/loans',
+    routeLabel: 'Ir a Préstamos',
+    steps: [
+      'Entrá a "Préstamos" desde el menú y tocá "Nuevo Préstamo".',
+      'Definí si es una deuda tomada o dinero que prestaste vos, completá el capital, la divisa, el plazo y la TEA (ej. 28.5%).',
+      'Si el dinero ingresó a tu banco, activá la casilla para registrar el desembolso inicial automáticamente.',
+      'Revisá la simulación interactiva de cuotas en vivo y confirmá la creación.',
+      'En la ficha del préstamo, tocá "Pagar Cuota" en el vencimiento vigente, seleccioná tu cuenta de débito y confirmá.'
+    ]
+  },
   {
     id: 'guide-shared-dinner',
     title: 'Cargar una cena compartida con amigos',

@@ -38,7 +38,7 @@ export async function GET() {
 
     supabase
       .from('accounts')
-      .select('id, institution_id, name, type, currency_native, credit_limit, is_active, institutions!inner(id, name, is_active)')
+      .select('id, institution_id, name, type, currency_native, credit_limit, closing_day, is_active, institutions!inner(id, name, is_active)')
       .eq('is_active', true)
       .eq('institutions.is_active', true)
       .order('name'),

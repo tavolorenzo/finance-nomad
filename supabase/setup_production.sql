@@ -1,13 +1,13 @@
 -- ==============================================================================
--- Finance Nomad — Setup Inicial de Base de Datos para Producción (v2.10.0)
+-- Finance Nomad — Setup Inicial de Base de Datos para Producción (v2.11.0)
 -- ==============================================================================
--- Este script consolida las 12 migraciones del proyecto (0001 a 0012) en una sola
+-- Este script consolida las 13 migraciones del proyecto (0001 a 0013) en una sola
 -- ejecución directa para inicializar un nuevo proyecto de Supabase en producción.
 --
 -- Incluye:
 --  1. Extensión pgcrypto para generación de UUIDs.
 --  2. 10 tablas completas con constraints, defaults y soft-deletes (is_active).
---  3. Índices optimizados para Ledger Maestro, cuentas, personas y categorías.
+--  3. Índices optimizados para Ledger Maestro, cuentas, personas, categorías y préstamos.
 --  4. Triggers de protección contra borrado físico (prevent_hard_delete).
 --  5. Funciones RPC para cálculo de saldos y sincronización atómica (Ledger Bundles),
 --     verificación de existencia de usuario (check_user_exists) y monedas dinámicas.
@@ -39,6 +39,7 @@ create table if not exists accounts (
   type text not null check (type in ('checking','savings','investing','credit_card','cash')),
   currency_native text not null,    -- EUR, USD, AUD, UYU, etc.
   credit_limit numeric(12,2),       -- solo para type = 'credit_card'
+  closing_day int check (closing_day between 1 and 31), -- día de cierre para tarjetas
   is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
@@ -88,6 +89,9 @@ create table if not exists master_transactions (
   notes text,
   settled_at timestamptz,
   settled_amount numeric(12,2) not null default 0,
+  accounting_period text check (accounting_period is null or accounting_period ~ '^[0-9]{4}-[0-9]{2}$'),
+  is_verified boolean not null default false,
+  verified_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -112,7 +116,19 @@ create table if not exists loans (
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
   principal numeric(12,2) not null,
+  currency text not null default 'USD',
   direction text not null check (direction in ('BORROWED','LENT')),
+  counterparty_institution_id uuid references institutions(id) on delete set null,
+  beneficiary_person_id uuid references people(id) on delete set null,
+  tea_rate numeric(6,4) not null default 0,
+  includes_vat_22 boolean not null default false,
+  total_installments int not null default 1 check (total_installments >= 1),
+  start_date date not null default current_date,
+  due_day int check (due_day between 1 and 31),
+  disbursement_account_id uuid references accounts(id) on delete set null,
+  notes text,
+  status text not null default 'ACTIVE' check (status in ('ACTIVE', 'PAID', 'CANCELLED')),
+  is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
 
@@ -124,8 +140,12 @@ create table if not exists loan_installments (
   interest numeric(12,2) not null default 0,
   payment numeric(12,2) not null,
   balance numeric(12,2) not null,
+  vat_amount numeric(12,2) not null default 0,
   due_date date,
-  paid boolean not null default false
+  paid boolean not null default false,
+  paid_at timestamptz,
+  account_id uuid references accounts(id) on delete set null,
+  transaction_bundle_id uuid
 );
 
 -- ── 2.8 Portafolio de Inversiones ──
@@ -166,6 +186,7 @@ create table if not exists user_settings (
 
 create index if not exists idx_master_transactions_user_date on master_transactions(user_id, date desc);
 create index if not exists idx_master_transactions_account on master_transactions(account_id);
+create index if not exists idx_master_transactions_account_period on master_transactions(account_id, accounting_period);
 create index if not exists idx_master_transactions_person on master_transactions(person_id);
 create index if not exists idx_master_transactions_person_pending on master_transactions (person_id, settled_at) where settled_at is null;
 create index if not exists idx_master_transactions_person_settlement on master_transactions (person_id, settled_at) where person_id is not null;
@@ -174,6 +195,11 @@ create index if not exists idx_institutions_active on institutions (user_id, is_
 create index if not exists idx_accounts_active on accounts (institution_id, is_active);
 create index if not exists idx_people_active on people (user_id, is_active);
 create index if not exists idx_categories_user_active on categories (user_id, is_active);
+create index if not exists idx_loans_user_active on loans (user_id, is_active);
+create index if not exists idx_loans_counterparty_inst on loans (counterparty_institution_id);
+create index if not exists idx_loans_beneficiary_person on loans (beneficiary_person_id);
+create index if not exists idx_loan_installments_loan_period on loan_installments (loan_id, period);
+create index if not exists idx_loan_installments_paid on loan_installments (loan_id, paid);
 
 -- ==============================================================================
 -- 4. TRIGGERS DE PROTECCIÓN (SOFT DELETE)
@@ -268,7 +294,10 @@ begin
     status text,
     notes text,
     settled_at timestamptz,
-    settled_amount numeric(12,2)
+    settled_amount numeric(12,2),
+    accounting_period text,
+    is_verified boolean,
+    verified_at timestamptz
   )
   loop
     insert into master_transactions (
@@ -293,7 +322,10 @@ begin
       status,
       notes,
       settled_at,
-      settled_amount
+      settled_amount,
+      accounting_period,
+      is_verified,
+      verified_at
     ) values (
       r.id,
       auth.uid(),
@@ -316,11 +348,17 @@ begin
       coalesce(r.status, 'COMPLETED'),
       r.notes,
       r.settled_at,
-      coalesce(r.settled_amount, 0)
+      coalesce(r.settled_amount, 0),
+      coalesce(r.accounting_period, to_char(r.date, 'YYYY-MM')),
+      coalesce(r.is_verified, false),
+      r.verified_at
     )
     on conflict (id) do update set
       settled_at = excluded.settled_at,
-      settled_amount = coalesce(excluded.settled_amount, master_transactions.settled_amount);
+      settled_amount = coalesce(excluded.settled_amount, master_transactions.settled_amount),
+      accounting_period = coalesce(excluded.accounting_period, master_transactions.accounting_period),
+      is_verified = coalesce(excluded.is_verified, master_transactions.is_verified),
+      verified_at = coalesce(excluded.verified_at, master_transactions.verified_at);
     
     inserted_count := inserted_count + 1;
   end loop;

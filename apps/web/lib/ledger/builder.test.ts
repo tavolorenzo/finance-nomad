@@ -1,9 +1,34 @@
 import { describe, it, expect } from 'vitest'
 import {
   calculateInstallmentDate,
+  calculateAccountingPeriod,
+  resolveDefaultAccountingPeriod,
+  formatAccountingPeriodLabel,
   buildTransactionBundle,
   buildTransferBundle
 } from './builder'
+
+describe('calculateAccountingPeriod & helpers', () => {
+  it('calculates accounting period across year boundaries', () => {
+    expect(calculateAccountingPeriod('2026-10', 0)).toBe('2026-10')
+    expect(calculateAccountingPeriod('2026-10', 1)).toBe('2026-11')
+    expect(calculateAccountingPeriod('2026-11', 2)).toBe('2027-01')
+    expect(calculateAccountingPeriod('2026-01', -1)).toBe('2025-12')
+  })
+
+  it('resolves default accounting period based on card closing day', () => {
+    expect(resolveDefaultAccountingPeriod('2026-10-20', 24)).toBe('2026-10')
+    expect(resolveDefaultAccountingPeriod('2026-10-24', 24)).toBe('2026-10')
+    expect(resolveDefaultAccountingPeriod('2026-10-25', 24)).toBe('2026-11')
+    expect(resolveDefaultAccountingPeriod('2026-12-28', 24)).toBe('2027-01')
+    expect(resolveDefaultAccountingPeriod('2026-10-28', null)).toBe('2026-10')
+  })
+
+  it('formats accounting period label in Spanish', () => {
+    expect(formatAccountingPeriodLabel('2026-10')).toBe('Octubre 2026')
+    expect(formatAccountingPeriodLabel('2027-01')).toBe('Enero 2027')
+  })
+})
 
 describe('calculateInstallmentDate', () => {
   it('calculates next month safely without skew', () => {
@@ -98,6 +123,29 @@ describe('buildTransactionBundle', () => {
     expect(child2.amount_account).toBe(100)
     expect(child2.parent_transaction_id).toBe(parent.id)
     expect(child2.date).toBe('2026-12-09')
+    expect(parent.accounting_period).toBe('2026-10')
+    expect(child1.accounting_period).toBe('2026-11')
+    expect(child2.accounting_period).toBe('2026-12')
+  })
+
+  it('desplaza en cascada el accounting_period de todas las cuotas cuando se asigna al próximo mes', () => {
+    const bundle = buildTransactionBundle({
+      type: 'OUTCOME',
+      amountOriginal: 300,
+      currencyOriginal: 'UYU',
+      currencyAccount: 'UYU',
+      date: '2026-10-28',
+      accountingPeriod: '2026-11',
+      institutionId: 'inst-1',
+      accountId: 'acc-1',
+      installmentTotal: 3,
+      today: '2026-10-28'
+    })
+
+    expect(bundle.rows).toHaveLength(3)
+    expect(bundle.rows[0].accounting_period).toBe('2026-11')
+    expect(bundle.rows[1].accounting_period).toBe('2026-12')
+    expect(bundle.rows[2].accounting_period).toBe('2027-01')
   })
 
   it('genera cuotas restantes cuando arranca en cuota intermedia (ej. 4 de 6)', () => {

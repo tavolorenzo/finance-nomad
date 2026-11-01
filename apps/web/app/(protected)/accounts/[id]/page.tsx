@@ -8,10 +8,13 @@ import {
   SlidersHorizontal,
   CreditCard,
   Building2,
-  Sparkles
+  Sparkles,
+  ClipboardCheck,
+  CheckCircle2
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { formatMoney } from '@/lib/currency'
+import { formatAccountingPeriodLabel } from '@/lib/ledger/builder'
 import { getSingleAccountBalance, getAccountPendingAmount } from '@/lib/networth'
 import { ExpressAdjustModal } from '@/components/ExpressAdjustModal'
 import { RegisterCardPaymentModal } from '@/components/RegisterCardPaymentModal'
@@ -66,16 +69,22 @@ export default async function AccountDetailPage({
 
   if (!account) notFound()
 
-  // Calcular saldo nominal y compromisos pendientes en memoria a partir de las transacciones
+  const isCreditCard = account.type === 'credit_card'
+  const currentPeriod = today.slice(0, 7)
+
+  // Calcular saldo nominal (o deuda del resumen en curso en tarjetas) y compromisos futuros
   let currentBalance = 0
   let pendingAmount = 0
   for (const t of transactions ?? []) {
-    if (t.status === 'COMPLETED' && t.date <= today) {
+    const effectivePeriod = t.accounting_period || t.date.slice(0, 7)
+    const isFutureStatement = isCreditCard && effectivePeriod > currentPeriod
+
+    if (!isFutureStatement && t.status === 'COMPLETED' && t.date <= today) {
       let delta = Number(t.amount_account)
       if (t.type === 'OUTCOME') delta = -Math.abs(delta)
       else if (t.type === 'INCOME') delta = Math.abs(delta)
       currentBalance += delta
-    } else if (t.status === 'PENDING') {
+    } else if (t.status === 'PENDING' || isFutureStatement) {
       let delta = Number(t.amount_account)
       if (t.type === 'OUTCOME') delta = Math.abs(delta)
       else if (t.type === 'INCOME') delta = -Math.abs(delta)
@@ -86,11 +95,15 @@ export default async function AccountDetailPage({
   currentBalance = Math.round(currentBalance * 100) / 100
   pendingAmount = Math.round(pendingAmount * 100) / 100
 
-  // Estadísticas del mes en curso (únicamente transacciones completadas)
+  // Estadísticas del mes en curso (en tarjetas de crédito, según el mes contable actual)
   const { start, end } = monthRange()
-  const thisMonthTx = (transactions ?? []).filter(
-    (t) => t.date >= start && t.date <= end && t.status === 'COMPLETED'
-  )
+  const thisMonthTx = (transactions ?? []).filter((t) => {
+    if (isCreditCard) {
+      const effectivePeriod = t.accounting_period || t.date.slice(0, 7)
+      return effectivePeriod === currentPeriod
+    }
+    return t.date >= start && t.date <= end && t.status === 'COMPLETED'
+  })
 
   let monthlyIncome = 0
   let monthlyExpense = 0
@@ -106,7 +119,6 @@ export default async function AccountDetailPage({
   }
 
   // Si es tarjeta de crédito: límites, compromisos diferidos y disponible
-  const isCreditCard = account.type === 'credit_card'
   const creditLimit = account.credit_limit ?? 0
   const usedCredit = currentBalance < 0 ? Math.abs(currentBalance) : 0
   const totalCommitted = usedCredit + pendingAmount
@@ -163,6 +175,13 @@ export default async function AccountDetailPage({
             {isCreditCard ? (
               <>
                 <Link
+                  href={`/accounts/${account.id}/verify`}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-semibold bg-surface-2 hover:bg-surface-0 text-text-primary border border-border transition shadow-xs"
+                >
+                  <ClipboardCheck size={13} className="text-income" />
+                  <span>Verificar resumen</span>
+                </Link>
+                <Link
                   href={`/accounts/${account.id}/bulk`}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-semibold bg-surface-2 hover:bg-surface-0 text-text-primary border border-border transition shadow-xs"
                 >
@@ -185,7 +204,9 @@ export default async function AccountDetailPage({
         <div className="pt-2 border-t border-border flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2">
           <div>
             <p className="text-xs text-text-muted uppercase tracking-wider font-medium">
-              {isCreditCard ? 'Deuda actual del mes' : 'Saldo actual'}
+              {isCreditCard
+                ? `Deuda del resumen en curso (${formatAccountingPeriodLabel(currentPeriod)})`
+                : 'Saldo actual'}
             </p>
             <div className="flex items-baseline gap-2 flex-wrap">
               <p
@@ -302,10 +323,24 @@ export default async function AccountDetailPage({
                               Pendiente
                             </span>
                           )}
+                          {isCreditCard && t.is_verified && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.2 rounded bg-income/15 text-income font-medium">
+                              <CheckCircle2 size={10} />
+                              Confirmado
+                            </span>
+                          )}
                         </div>
 
-                        <div className="flex items-center gap-2 text-xs text-text-muted">
+                        <div className="flex items-center gap-2 text-xs text-text-muted flex-wrap">
                           <span>{t.date}</span>
+                          {isCreditCard && t.accounting_period && (
+                            <>
+                              <span>·</span>
+                              <span className="font-mono text-[11px]">
+                                Resumen {formatAccountingPeriodLabel(t.accounting_period)}
+                              </span>
+                            </>
+                          )}
                           {t.categories?.name && (
                             <>
                               <span>·</span>
@@ -418,6 +453,12 @@ export default async function AccountDetailPage({
                 <span className="text-text-muted">Tipo</span>
                 <span>{ACCOUNT_TYPE_LABELS[account.type] ?? account.type}</span>
               </div>
+              {isCreditCard && account.closing_day && (
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Día de cierre</span>
+                  <span className="font-mono font-medium">Día {account.closing_day}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

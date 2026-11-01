@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { DashboardClient } from './DashboardClient'
+import { DashboardClient, isStatementVerificationWindow } from './DashboardClient'
 import * as ledgerContext from '@/lib/ledger/ledger-context'
 import type { Account, MasterTransaction } from '@/lib/types'
 import type { AccountBalance } from '@/lib/ledger/types'
@@ -94,5 +94,13 @@ describe('DashboardClient', () => {
     expect(screen.getByText('Análisis de Datos & Flujo')).toBeInTheDocument()
     expect(screen.getByText(/Cuenta Principal/)).toBeInTheDocument()
     expect(screen.getByText('Supermercado')).toBeInTheDocument()
+  })
+
+  it('evalúa correctamente la ventana de verificación (primeros 5 o últimos 5 días del mes)', () => {
+    expect(isStatementVerificationWindow(new Date(2026, 9, 1))).toBe(true) // 1 oct
+    expect(isStatementVerificationWindow(new Date(2026, 9, 5))).toBe(true) // 5 oct
+    expect(isStatementVerificationWindow(new Date(2026, 9, 15))).toBe(false) // 15 oct
+    expect(isStatementVerificationWindow(new Date(2026, 9, 27))).toBe(true) // 27 oct (últimos 5 de 31)
+    expect(isStatementVerificationWindow(new Date(2026, 9, 31))).toBe(true) // 31 oct
   })
 })

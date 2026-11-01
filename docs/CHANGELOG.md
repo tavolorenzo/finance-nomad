@@ -12,6 +12,82 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.12.0] - 2026-10-31
+### Agregado
+- **Módulo de Verificación de Estado de Cuenta y Mes Contable (`/accounts/[id]/verify`, PRD §4.2, §4.13)**:
+  - **Mes Contable (`accounting_period` en `master_transactions`)**:
+    - Persistencia del período contable (`YYYY-MM`) en el que impacta cada consumo en el resumen mensual de la tarjeta de crédito.
+    - En el formulario de transacciones (`TransactionForm.tsx`), al elegir una tarjeta de crédito se despliega el selector de **Mes actual** y **Próximo mes**, con preselección automática del próximo mes cuando la fecha de compra supera el `closing_day` configurado en la tarjeta.
+    - Proyección automática de planes de cuotas encadenados a partir del mes contable seleccionado (`calculateAccountingPeriod`).
+  - **Día de Cierre en Tarjetas de Crédito (`closing_day` en `accounts`)**:
+    - Nuevo campo opcional (1 a 31) en `AccountForm.tsx` y `accounts/actions.ts` para tarjetas de crédito.
+  - **Pantalla de Verificación de Resumen (`/accounts/[id]/verify`, `CreditCardStatementVerifier.tsx`, `verify-card-actions.ts`)**:
+    - **Summary con Pills**: Total consolidado en moneda nativa, desglose separado por moneda de origen cuando existen consumos bimonetarios (ej. UYU + USD), progreso de ítems confirmados vs. pendientes y total de gastos compartidos a recuperar.
+    - **Confirmar gasto**: Marca individual o masivamente los consumos auditados (`is_verified = true`, `verified_at`).
+    - **Corregir gasto**: Modal de edición rápida para enmendar descripción, fecha, monto original/convertido, moneda, categoría o persona asignada, confirmándolo en el acto.
+    - **Asignar al próximo mes (Opción A en cascada)**: Desplaza el consumo al mes contable siguiente; si pertenece a una compra en cuotas, desplaza en cascada esa cuota y todas las cuotas posteriores del plan.
+    - **Agregar gasto faltante**: Modal para incorporar directamente en el estado de cuenta auditado un consumo que no había sido registrado previamente.
+  - **Deuda del Resumen en Curso en Ficha de Tarjeta (`/accounts/[id]/page.tsx`)**:
+    - El indicador principal de la tarjeta muestra específicamente la **Deuda del resumen en curso** (filtrada por el `accounting_period` actual), separando en compromisos futuros los consumos diferidos al próximo resumen y las cuotas pendientes.
+    - Botón de acceso directo **Verificar resumen** en la cabecera de la tarjeta.
+  - **Banner Recordatorio en Dashboard (`DashboardClient.tsx`)**:
+    - Detección automática de ventana de cierre (`isStatementVerificationWindow`: primeros 5 días o últimos 5 días del mes) para usuarios con tarjetas de crédito activas, mostrando un banner con enlace directo a la verificación del estado de cuenta.
+- **Base de Datos y Migraciones**:
+  - Creación de [`supabase/migrations/0014_credit_card_statement_verification.sql`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/supabase/migrations/0014_credit_card_statement_verification.sql) y actualización de [`supabase/setup_production.sql`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/supabase/setup_production.sql).
+- **Centro de Ayuda, Wiki y FAQ (`help-data.ts`)**:
+  - Nueva sección en Wiki de tarjetas, 2 nuevas FAQs (`faq-card-accounting-period`, `faq-card-verify-statement`) y nueva receta paso a paso (`guide-verify-statement`).
+
+## [2.11.0] - 2026-10-31
+### Agregado
+- **Módulo Integral de Préstamos (`/loans`, PRD §4.7)**:
+  - **Doble Sentido y Roles**: Gestión completa de préstamos tomados (`BORROWED`, deudas propias/pasivos) y préstamos otorgados a terceros (`LENT`, acreencias por cobrar).
+  - **Soporte de Intermediación Financiera**: Capacidad de registrar préstamos tomados de un banco o institución (ej. Banco Itaú) pero asignados a una persona del directorio (`beneficiary_person_id`) actuando como intermediario/garante.
+  - **Motor de Amortización Francés — Banco Itaú Uruguay (`lib/loans/itau-amortization.ts`)**:
+    - Cálculo matemático exacto de cuotas constantes fijas con base en Tasa Efectiva Anual (TEA), cálculo exponencial de tasa mensual ($i = (1 + \text{TEA})^{1/12} - 1$), desglose de interés decreciente y amortización de capital creciente.
+    - Soporte integrado de IVA del 22% sobre intereses reglamentario en Uruguay para préstamos personales al consumo.
+    - Cálculo de fechas de vencimiento con ajuste seguro a fines de mes (Feb 28/29, Abr 30).
+    - Suite de pruebas unitarias exhaustivas con 11 casos de prueba en `lib/loans/itau-amortization.test.ts`.
+  - **Imputación Contable de Cuotas — Opción B (`payLoanInstallmentAction`, `lib/loans/actions.ts`)**:
+    - Generación atómica en `master_transactions` de dos filas ligadas mediante `parent_transaction_id`:
+      - *Fila 1 (Amortización de Capital)*: Disminuye la deuda nominal sin computar como consumo o gasto del mes.
+      - *Fila 2 (Costo Financiero)*: Imputa los intereses devengados (+ IVA) en la categoría de gastos financieros para reflejar el costo real en `/analytics` y en `/budget`.
+  - **Orden Secuencial Estricto de Cancelación**:
+    - Validación en servidor que impide pagos salteados o desordenados; las cuotas se abonan en estricto orden cronológico correlativo (1, 2, ..., N).
+    - Actualización automática del estado del préstamo a `PAID` cuando se completa la última cuota.
+  - **Desembolso Inicial Opcional en Cuenta**:
+    - Casilla interactiva en el alta para acreditar automáticamente el capital recibido (`INCOME`) o debitarlo (`OUTCOME` si es prestado) en la cuenta bancaria seleccionada con conversión FX si difiere la divisa.
+  - **Formulario con Simulación en Vivo (`LoanForm.tsx`, `/loans/new`)**:
+    - Previsualización dinámica de marcha y métricas clave (cuota nivelada, total de intereses, IVA 22% y total a pagar) recalculadas en tiempo real mientras el usuario escribe.
+    - Protección preventiva para usuarios sin conexión mediante `useOnlineStatus()`.
+  - **Vista Principal y Directorio (`LoansClient.tsx`, `LoanCard.tsx`, `/loans`)**:
+    - Tarjetas KPI consolidadas: Deuda Activa (en divisa preferida), Total por Cobrar y Próximo Vencimiento más urgente.
+    - Filtros por tabs: *Activos*, *Mis Deudas*, *Por Cobrar*, *Intermediados* y *Finalizados*, con buscador en tiempo real.
+    - Barra de avance porcentual de amortización y botón rápido 1-tap para abonar la próxima cuota.
+  - **Ficha de Detalle y Tabla de Amortización (`LoanDetailClient.tsx`, `AmortizationTable.tsx`, `/loans/[id]`)**:
+    - Vista panorámica de todas las cuotas con badges de estado (`Pagada`, `Próxima`, `Vencida`, `Pendiente`).
+    - Modal interactivo `PayLoanInstallmentModal.tsx` con desglose de cuota y selector de cuenta de débito/crédito.
+    - Baja lógica con diálogo de confirmación (`is_active = false`).
+  - **Navegación Activa (`Navigation.tsx`)**:
+    - Habilitación oficial de la ruta `/loans` con `ready: true` en el menú principal y móvil.
+- **Base de Datos y Migraciones**:
+  - Creación de [`supabase/migrations/0013_loans_enhancement.sql`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/supabase/migrations/0013_loans_enhancement.sql) con soporte multi-moneda, TEA, IVA 22%, contrapartes e índices de rendimiento.
+  - Sincronización completa de [`supabase/setup_production.sql`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/supabase/setup_production.sql) para inicializaciones directas en producción con v2.11.0.
+- **Centro de Ayuda, Wiki y Preguntas Frecuentes (`help-data.ts`, `docs/PRD.md`)**:
+  - Nuevo artículo en la Wiki: *Préstamos y Amortizaciones (Itaú Uruguay)* (`wiki-loans`).
+  - Nueva categoría de ayuda *Préstamos & Marcha* (`loans`).
+  - 4 nuevas preguntas frecuentes interactivas (`faq-loans-calc`, `faq-loans-ledger`, `faq-loans-intermediary`, `faq-loans-extraordinary`).
+  - Nueva guía paso a paso `guide-loans`: *Crear un préstamo y registrar el pago de cuotas*.
+  - Actualización de cobertura al 96% en [`docs/prd-gap-analysis.md`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/docs/prd-gap-analysis.md) y cierre de especificación en [`docs/PRD.md`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/docs/PRD.md).
+- **Cobertura de Pruebas Unitarias Automatizadas**:
+  - Nuevas suites de pruebas en Vitest:
+    - `lib/loans/itau-amortization.test.ts` (11 tests)
+    - `app/(protected)/loans/actions.test.ts` (6 tests)
+    - `components/LoanCard.test.tsx` (2 tests)
+    - `components/LoanForm.test.tsx` (3 tests)
+    - `components/AmortizationTable.test.tsx` (1 test)
+    - `components/PayLoanInstallmentModal.test.tsx` (1 test)
+  - Suite global pasando al 100% (63 suites y más de 325 tests).
+
 ## [2.10.0] - 2026-10-28
 ### Agregado
 - **Protección de Palabra Reservada del Sistema "Personal" (`PersonForm.tsx`, `people/actions.ts`, `WelcomeWizard.tsx`, `welcome/actions.ts`)**:

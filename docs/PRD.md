@@ -64,7 +64,9 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
 
 ### 4.2. Cuentas, Bancos e Instituciones
 * Acordeones agrupados por Institución Financiera con totales consolidados y soporte de baja lógica (`is_active`).
-* **Ficha de Detalle de Cuenta (`/accounts/[id]`):** Saldo nominal, balance disponible y compromisos diferidos/retención (para tarjetas de crédito), métricas del mes en curso, feed de transacciones filtrado y acceso directo a modales de acción:
+* **Día de Cierre en Tarjetas de Crédito (`closing_day`):** Campo opcional en la configuración de tarjetas (1 a 31) que permite preseleccionar automáticamente el mes contable siguiente cuando se registra una compra posterior al cierre.
+* **Ficha de Detalle de Cuenta (`/accounts/[id]`):** Saldo nominal (o **Deuda del resumen en curso** en tarjetas de crédito filtrada por `accounting_period`), balance disponible y compromisos diferidos/retención (para tarjetas de crédito), métricas del mes en curso, feed de transacciones filtrado y acceso directo a acciones:
+  - **Verificar Resumen (`/accounts/[id]/verify`):** Acceso al módulo de conciliación mensual de estados de cuenta de tarjeta de crédito.
   - **Ajuste Express de Saldo (`ExpressAdjustModal`):** Crea un movimiento automático de corrección contable (`ADJUSTMENT`) por la diferencia con el extracto bancario.
   - **Registrar Pago de Tarjeta (`RegisterCardPaymentModal`):** Precarga inteligente del saldo adeudado y genera la transferencia inter-cuenta de liquidación.
 * **Inversiones:** Valor de mercado y P&L.
@@ -105,10 +107,18 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
 * Carga automática de las cuotas vigentes del mes desde la BD Maestra.
 * Acción 1-Tap **"Ejecutar Pago"** para convertir la estimación en transacción real.
 
-### 4.7. Préstamos Formales (Loans)
-* Control de Préstamos Tomados (Deudas) y Otorgados.
-* Tabla de Amortización Dinámica (Capital, Interés, Cuota Total, Vencimiento VTO, Estado Paid/Unpaid).
-* Botón de Pago de Cuota (Desglosa capital e interés como gasto operativo en *Fees*).
+### 4.7. Préstamos Formales y Amortizaciones (Loans)
+* **Doble Sentido y Roles**: Control de Préstamos Tomados (Deudas bancarias / pasivos) y Otorgados (Acreencias por cobrar a terceros).
+* **Intermediación Financiera**: Soporte para tomar un préstamo de una entidad bancaria (ej. Itaú) y asignarlo a una persona del directorio (`beneficiary_person_id`), actuando como intermediario/garante.
+* **Sistema de Amortización Francés (Banco Itaú Uruguay)**:
+  - Cálculo de cuota fija nivelada constante a partir de la Tasa Efectiva Anual (TEA) con conversión exponencial a tasa mensual: $i = (1 + \text{TEA})^{1/12} - 1$.
+  - Desglose cronológico de interés decreciente y amortización de capital creciente.
+  - Soporte para IVA sobre intereses del 22% reglamentario en Uruguay.
+  - Simulador y Previsualización en Vivo (*Live Preview*) en el formulario de alta antes de guardar.
+* **Desembolso Inicial Opcional**: Selector para acreditar automáticamente el capital en una cuenta bancaria (`INCOME` si es tomado) o debitarlo (`OUTCOME` si es otorgado).
+* **Imputación Contable de Cuotas (Opción B)**:
+  - Generación de Ledger Bundle atómico con dos filas ligadas: amortización de capital (reduce el pasivo sin computar como consumo) e intereses (+ IVA) imputados a la categoría de gastos financieros para su reflejo en `/analytics` y `/budget`.
+* **Cancelación Secuencial Estricta**: Pago correlativo cuota por cuota (1 a N) con modal interactivo `PayLoanInstallmentModal` y estado de préstamo (`ACTIVE` / `PAID`).
 
 ### 4.8. Portafolio de Inversiones (Portfolio)
 * Integración de cotizaciones y valor de mercado.
@@ -151,6 +161,17 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
 * **Lógica Contable de Cuotas Intermedias**: Al ingresar una cuota $C$ de $T$ (ej: 4 de 12), el sistema asienta la cuota corriente en el período actual y genera automáticamente las cuotas $C+1$ a $T$ como transacciones `PENDING` futuras vinculadas por `parent_transaction_id`, sin ensuciar el libro con cuotas pasadas ya canceladas.
 * **Integración con Personas (Split Pay)**: Cada consumo adopta por defecto *"Personal"*. Permite asignar selectivamente gastos a terceros (con selector de contactos sin opciones duplicadas y preasignación en pegado mágico), resaltando visualmente los consumos compartidos en la grilla y discriminando en la barra de impacto financiero el monto personal frente al total a cobrar.
 * **Live Impact Bar**: Cálculo en vivo de consumos del resumen actual, compromisos diferidos futuros, límite de crédito disponible remanente y desglose de gastos propios vs. a cobrar.
+
+### 4.13. Módulo de Verificación de Estado de Cuenta y Mes Contable (`/accounts/[id]/verify`)
+* **Mes Contable (`accounting_period`):** Cada movimiento en `master_transactions` almacena el período contable (`YYYY-MM`) en el que impacta. Al registrar un gasto con tarjeta de crédito, el formulario presenta opciones rápidas de **Mes actual** y **Próximo mes** (con sugerencia automática si la fecha supera el `closing_day` de la tarjeta) y proyecta las cuotas subsecuentes a partir del mes elegido.
+* **Pantalla de Verificación (`/accounts/[id]/verify`):**
+  - **Summary con Pills:** Total consolidado en moneda nativa de la tarjeta, desglose separado por moneda de origen cuando hay consumos bimonetarios (ej. moneda local + USD), progreso de ítems confirmados vs. pendientes y total de gastos compartidos a recuperar.
+  - **Acciones por Gasto:**
+    - **Confirmar:** Marca el consumo como verificado (`is_verified = true`, `verified_at`).
+    - **Corregir:** Modal para ajustar importe, moneda, fecha, descripción, categoría o persona asignada, confirmándolo automáticamente.
+    - **Asignar al próximo mes (Opción A en cascada):** Desplaza el `accounting_period` al mes siguiente; si es una compra en cuotas, desplaza en cascada esa cuota y todas las cuotas siguientes del plan.
+    - **Agregar gasto faltante:** Permite incorporar directamente en el período un cargo presente en el resumen bancario que no había sido registrado.
+* **Banner Recordatorio en Dashboard:** Durante los últimos 5 días y los primeros 5 días de cada mes, si el usuario posee tarjetas de crédito activas, el Dashboard muestra un banner con acceso directo a la verificación de sus resúmenes.
 
 ---
 

@@ -2,10 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, ArrowRightLeft } from 'lucide-react'
+import { ArrowRight, ArrowRightLeft, CalendarClock } from 'lucide-react'
 import { fetchExchangeRate } from '@/app/(protected)/transactions/new/actions'
 import { useModal } from '@/components/Modal'
 import { useLedger } from '@/lib/ledger/ledger-context'
+import {
+  calculateAccountingPeriod,
+  resolveDefaultAccountingPeriod,
+  formatAccountingPeriodLabel
+} from '@/lib/ledger/builder'
 import { getCachedRate, setCachedRate } from '@/lib/storage/fx-cache'
 import { useOnlineStatus } from '@/lib/hooks/use-online-status'
 import type { Account, Category, Person } from '@/lib/types'
@@ -16,26 +21,34 @@ export function TransactionForm({
   accounts,
   categories,
   people,
-  defaultDate
+  defaultDate,
+  defaultAccountId,
+  defaultAccountingPeriod,
+  onSuccess
 }: {
   accounts: (Account & { institutions: { id: string; name: string } })[]
   categories: Category[]
   people: Person[]
   defaultDate: string
+  defaultAccountId?: string
+  defaultAccountingPeriod?: string
+  onSuccess?: () => void
 }) {
   const isOnline = useOnlineStatus()
   const router = useRouter()
   const { isModal, close } = useModal()
   const ledger = useLedger()
 
+  const initialAccount = accounts.find((a) => a.id === defaultAccountId) ?? accounts[0]
+
   const [type, setType] = useState<'OUTCOME' | 'INCOME' | 'TRANSFER'>('OUTCOME')
-  const [accountId, setAccountId] = useState(accounts[0]?.id ?? '')
+  const [accountId, setAccountId] = useState(initialAccount?.id ?? '')
   const [toAccountId, setToAccountId] = useState(
-    accounts.find((a) => a.id !== accounts[0]?.id)?.id ?? accounts[1]?.id ?? ''
+    accounts.find((a) => a.id !== initialAccount?.id)?.id ?? accounts[1]?.id ?? ''
   )
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState(
-    accounts[0]?.currency_native ?? ledger.settings?.display_currency ?? 'EUR'
+    initialAccount?.currency_native ?? ledger.settings?.display_currency ?? 'EUR'
   )
   const [fee, setFee] = useState('0')
   const [rate, setRate] = useState<number>(1)
@@ -43,6 +56,11 @@ export function TransactionForm({
   const [rateFetchedAt, setRateFetchedAt] = useState<string | null>(null)
   const [isManualProfileRate, setIsManualProfileRate] = useState(false)
   const [date, setDate] = useState(defaultDate)
+  const [accountingPeriod, setAccountingPeriod] = useState<string>(() =>
+    defaultAccountingPeriod ||
+    resolveDefaultAccountingPeriod(defaultDate, initialAccount?.closing_day)
+  )
+  const [periodManuallySelected, setPeriodManuallySelected] = useState(Boolean(defaultAccountingPeriod))
   const [categoryId, setCategoryId] = useState<string | null>(categories[0]?.id ?? null)
   const [personId, setPersonId] = useState<string | null>(
     people.find((p) => p.name === 'Personal')?.id ?? null
@@ -55,6 +73,21 @@ export function TransactionForm({
   const isTransfer = type === 'TRANSFER'
   const account = accounts.find((a) => a.id === accountId)
   const toAccount = accounts.find((a) => a.id === toAccountId)
+
+  const currentMonthPeriod = date.slice(0, 7)
+  const nextMonthPeriod = calculateAccountingPeriod(currentMonthPeriod, 1)
+
+  // Actualizar período contable sugerido cuando cambia la fecha o la tarjeta (si no se forzó manualmente)
+  useEffect(() => {
+    if (defaultAccountingPeriod) return
+    const suggested = resolveDefaultAccountingPeriod(date, account?.closing_day)
+    if (!periodManuallySelected) {
+      setAccountingPeriod(suggested)
+    } else if (accountingPeriod !== currentMonthPeriod && accountingPeriod !== nextMonthPeriod) {
+      setAccountingPeriod(suggested)
+      setPeriodManuallySelected(false)
+    }
+  }, [date, accountId, account?.closing_day, periodManuallySelected, currentMonthPeriod, nextMonthPeriod, accountingPeriod, defaultAccountingPeriod])
 
   // Divisas disponibles dinámicas (cuentas del usuario + settings + predeterminadas)
   const activeCurrsFromSettings = (ledger.settings?.active_currencies || []).map((c) => c.code)
@@ -180,6 +213,7 @@ export function TransactionForm({
           rateFetchedAt,
           currencyAccount: targetCurrency,
           date,
+          accountingPeriod: account?.type === 'credit_card' ? accountingPeriod : date.slice(0, 7),
           institutionId: account?.institution_id ?? '',
           accountId,
           categoryId,
@@ -187,6 +221,11 @@ export function TransactionForm({
           installmentTotal: installments,
           notes: notes.trim() || null
         })
+      }
+
+      if (onSuccess) {
+        onSuccess()
+        return
       }
 
       // Cierre y navegación inmediata (< 16ms)
@@ -407,6 +446,61 @@ export function TransactionForm({
         </div>
       )}
 
+      {/* Mes contable para Tarjetas de Crédito */}
+      {!isTransfer && account?.type === 'credit_card' && (
+        <div className="bg-surface-0 border border-border/80 rounded-control p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
+              <CalendarClock size={14} className="text-accent" />
+              <span>Mes contable (estado de cuenta)</span>
+            </label>
+            {account.closing_day && (
+              <span className="text-[10px] text-text-muted font-mono">
+                Cierre: día {account.closing_day}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setAccountingPeriod(currentMonthPeriod)
+                setPeriodManuallySelected(true)
+              }}
+              className={`py-2 px-2.5 rounded-control text-xs font-medium border transition ${
+                accountingPeriod === currentMonthPeriod
+                  ? 'bg-accent/15 border-accent text-accent font-semibold'
+                  : 'bg-surface-1 border-border text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              Mes actual ({formatAccountingPeriodLabel(currentMonthPeriod)})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAccountingPeriod(nextMonthPeriod)
+                setPeriodManuallySelected(true)
+              }}
+              className={`py-2 px-2.5 rounded-control text-xs font-medium border transition ${
+                accountingPeriod === nextMonthPeriod
+                  ? 'bg-accent/15 border-accent text-accent font-semibold'
+                  : 'bg-surface-1 border-border text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              Próximo mes ({formatAccountingPeriodLabel(nextMonthPeriod)})
+            </button>
+          </div>
+          {account.closing_day && Number(date.slice(8, 10)) > account.closing_day && (
+            <p className="text-[11px] text-text-muted">
+              Como la fecha supera el día de cierre ({account.closing_day}), sugerimos imputarlo en{' '}
+              <span className="font-medium text-text-secondary">
+                {formatAccountingPeriodLabel(nextMonthPeriod)}
+              </span>.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Si es transferencia: solo fecha */}
       {isTransfer && (
         <div>
@@ -472,6 +566,18 @@ export function TransactionForm({
             {installments > 1 && (
               <p className="text-[11px] text-text-muted mt-1.5">
                 1 cuota hoy (Completada) + {installments - 1} {installments === 2 ? 'cuota mensual futura' : 'cuotas mensuales futuras'} (Pendientes) vinculadas al plan.
+                {account?.type === 'credit_card' && (
+                  <>
+                    {' '}Imputación: Cuota 1 en{' '}
+                    <span className="font-medium text-text-secondary">
+                      {formatAccountingPeriodLabel(accountingPeriod)}
+                    </span>{' '}
+                    hasta Cuota {installments} en{' '}
+                    <span className="font-medium text-text-secondary">
+                      {formatAccountingPeriodLabel(calculateAccountingPeriod(accountingPeriod, installments - 1))}
+                    </span>.
+                  </>
+                )}
               </p>
             )}
           </div>

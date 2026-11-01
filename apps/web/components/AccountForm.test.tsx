@@ -126,11 +126,45 @@ describe('AccountForm', () => {
     render(<AccountForm institutions={mockInstitutions} />)
 
     expect(screen.queryByLabelText(/límite de crédito/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/día de cierre/i)).not.toBeInTheDocument()
 
     const typeSelect = screen.getByLabelText(/tipo de cuenta/i)
     fireEvent.change(typeSelect, { target: { value: 'credit_card' } })
 
     expect(screen.getByLabelText(/límite de crédito/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/día de cierre/i)).toBeInTheDocument()
+  })
+
+  it('envía closingDay cuando se configura día de cierre en una tarjeta de crédito', async () => {
+    vi.mocked(accountActions.createAccount).mockResolvedValueOnce({ id: 'acc-card' } as any)
+
+    render(<AccountForm institutions={mockInstitutions} />)
+
+    fireEvent.change(screen.getByLabelText(/nombre de la cuenta/i), {
+      target: { value: 'Visa Itaú' }
+    })
+    fireEvent.change(screen.getByLabelText(/tipo de cuenta/i), {
+      target: { value: 'credit_card' }
+    })
+    fireEvent.change(screen.getByLabelText(/límite de crédito/i), {
+      target: { value: '120000' }
+    })
+    fireEvent.change(screen.getByLabelText(/día de cierre/i), {
+      target: { value: '24' }
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /crear cuenta/i }))
+
+    await waitFor(() => {
+      expect(accountActions.createAccount).toHaveBeenCalledWith({
+        name: 'Visa Itaú',
+        type: 'credit_card',
+        currencyNative: 'EUR',
+        creditLimit: 120000,
+        closingDay: 24,
+        institutionId: 'inst-1'
+      })
+    })
   })
 
   it('renderiza en modo edición y permite guardar cambios', async () => {

@@ -2,13 +2,29 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import { ArrowDownLeft, ArrowUpRight, SlidersHorizontal, ArrowRightLeft, Sparkles, X, BarChart3 } from 'lucide-react'
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  SlidersHorizontal,
+  ArrowRightLeft,
+  Sparkles,
+  X,
+  BarChart3,
+  ClipboardCheck
+} from 'lucide-react'
 import { formatMoney } from '@/lib/currency'
 import { useLedger } from '@/lib/ledger/ledger-context'
 import { convertToDisplayCurrency } from '@/lib/networth'
 import { OnboardingTour } from './OnboardingTour'
 import type { Account, MasterTransaction } from '@/lib/types'
 import type { AccountBalance } from '@/lib/ledger/types'
+
+// Determina si la fecha cae en los primeros 5 días o los últimos 5 días del mes
+export function isStatementVerificationWindow(date = new Date()): boolean {
+  const day = date.getDate()
+  const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+  return day <= 5 || day >= daysInMonth - 4
+}
 
 interface DashboardEstimate {
   id: string
@@ -51,6 +67,7 @@ export function DashboardClient({
 
   const [tourOpen, setTourOpen] = useState(false)
   const [showTourBanner, setShowTourBanner] = useState(false)
+  const [dismissedCardBanner, setDismissedCardBanner] = useState(false)
 
   useEffect(() => {
     try {
@@ -134,6 +151,13 @@ export function DashboardClient({
   const budgetPct =
     estimatedTotal > 0 ? Math.min(100, Math.round((realSpent / estimatedTotal) * 100)) : 0
 
+  const creditCardAccounts = useMemo(
+    () => accounts.filter((a) => a.type === 'credit_card' && a.is_active !== false),
+    [accounts]
+  )
+  const showCardVerifyBanner =
+    creditCardAccounts.length > 0 && isStatementVerificationWindow() && !dismissedCardBanner
+
   return (
     <main className="max-w-6xl mx-auto p-4 md:p-6 lg:p-8">
       {showTourBanner && (
@@ -173,6 +197,45 @@ export function DashboardClient({
             >
               Iniciar tour
             </button>
+          </div>
+        </div>
+      )}
+
+      {showCardVerifyBanner && (
+        <div className="mb-6 p-4 rounded-card bg-surface-1 border border-income/40 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="p-2 rounded-full bg-income/15 text-income mt-0.5">
+              <ClipboardCheck size={18} />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-text-primary">
+                ¿Te llegó el resumen de la tarjeta?
+              </p>
+              <p className="text-xs text-text-muted mt-0.5">
+                Revisá tu estado de cuenta mensual en un toque: confirmá los consumos registrados, corregí diferencias o asigná gastos al próximo mes.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-center flex-wrap shrink-0">
+            <button
+              type="button"
+              onClick={() => setDismissedCardBanner(true)}
+              className="px-2.5 py-1.5 text-xs text-text-muted hover:text-text-primary transition"
+            >
+              Ahora no
+            </button>
+            {creditCardAccounts.map((card) => (
+              <Link
+                key={card.id}
+                href={`/accounts/${card.id}/verify`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-semibold bg-income text-surface-0 hover:opacity-95 transition"
+              >
+                <ClipboardCheck size={13} />
+                <span>
+                  {creditCardAccounts.length === 1 ? 'Verificar estado de cuenta' : `Verificar ${card.name}`}
+                </span>
+              </Link>
+            ))}
           </div>
         </div>
       )}

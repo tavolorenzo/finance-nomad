@@ -6,7 +6,7 @@ Fecha: 10 oct 2026.
 
 | Cobertura ponderada | Hecho | Parcial | Falta |
 |---|---|---|---|
-| **92%** | 23 | 1 | 2 |
+| **96%** | 24 | 1 | 1 |
 
 Ponderación: hecho = 1, parcial = 0.5, falta = 0. Sobre 25 requisitos (arquitectura, resilencia + pantallas).
 
@@ -49,7 +49,7 @@ El núcleo del ledger multi-moneda opera en producción con arquitectura **Local
 | Notificación WhatsApp | `WhatsAppNotifyModal` | Hecho | Modal interactivo para verificar destinatario, editar mensaje y abrir en WhatsApp Web/App (`wa.me`). |
 | Plantilla WhatsApp | `/people/template` | Hecho | Editor con variables dinámicas (`$Nombre`, `$Total`, `$Detalle`, `$Cantidad`, `$Fecha`), live preview y persistencia en `user_settings`. |
 | Gastos fijos / Presupuesto | `/budget` | Parcial | Estimados vs. gasto real + botón 1-tap "Ejecutar pago". Falta formulario para crear y editar `budget_estimates` en UI. |
-| Préstamos | `/loans` | Falta | Tablas `loans` y `loan_installments` definidas en SQL con RLS. Navegación indica "pronto". |
+| Préstamos | `/loans` | Hecho | Sistema de amortización francés de Banco Itaú Uruguay, soporte multi-moneda, roles de institución/persona/intermediación, Opción B (capital vs interés) y tabla dinámica de marcha. |
 | Portafolio | `/portfolio` | Falta | Tabla `portfolio_transactions` definida en SQL con RLS. Navegación indica "pronto". |
 | Ajustes | `/settings` | Hecho | Moneda global, selector de tema claro/oscuro persistente, reseteo de contraseña, tour de bienvenida e información del entorno (`SystemInfoCard`). |
 | Movimientos | `/transactions` | Hecho | Feed reactivo (`TransactionsList`) con badges de cuotas, confirmación de pendientes y paginación histórica cursor-based. |

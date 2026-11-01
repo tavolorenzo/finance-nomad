@@ -6,6 +6,59 @@ import type {
   LedgerBundle
 } from './types'
 
+const MONTH_NAMES_ES = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre'
+]
+
+// Calcula un período contable (YYYY-MM) desplazado N meses respecto al período base
+export function calculateAccountingPeriod(basePeriod: string, monthOffset: number): string {
+  const [yStr, mStr] = basePeriod.slice(0, 7).split('-')
+  const y = Number(yStr)
+  const m = Number(mStr)
+  if (isNaN(y) || isNaN(m)) return basePeriod.slice(0, 7)
+  if (monthOffset === 0) return `${y}-${String(m).padStart(2, '0')}`
+
+  const totalMonths = (y * 12) + (m - 1) + monthOffset
+  const targetYear = Math.floor(totalMonths / 12)
+  const targetMonth = ((totalMonths % 12) + 12) % 12 + 1
+  return `${targetYear}-${String(targetMonth).padStart(2, '0')}`
+}
+
+// Determina el período contable sugerido según la fecha de compra y el día de cierre de la tarjeta
+export function resolveDefaultAccountingPeriod(
+  dateStr: string,
+  closingDay?: number | null
+): string {
+  const basePeriod = dateStr.slice(0, 7)
+  if (!closingDay || closingDay < 1 || closingDay > 31) {
+    return basePeriod
+  }
+  const day = Number(dateStr.slice(8, 10))
+  if (!isNaN(day) && day > closingDay) {
+    return calculateAccountingPeriod(basePeriod, 1)
+  }
+  return basePeriod
+}
+
+// Formatea '2026-10' como 'Octubre 2026'
+export function formatAccountingPeriodLabel(period: string): string {
+  const [yStr, mStr] = period.slice(0, 7).split('-')
+  const mIdx = Number(mStr) - 1
+  const monthName = MONTH_NAMES_ES[mIdx] || mStr
+  return `${monthName} ${yStr}`
+}
+
 // Calcula la fecha de una cuota de manera segura evitando corrimientos por zona horaria
 export function calculateInstallmentDate(baseDateStr: string, monthOffset: number): string {
   if (monthOffset === 0) return baseDateStr
@@ -54,6 +107,7 @@ export function buildTransactionBundle(input: BuildTransactionInput): LedgerBund
   const parentId = crypto.randomUUID()
   const parentDate = calculateInstallmentDate(input.date, 0)
   const parentStatus = parentDate <= today ? ('COMPLETED' as const) : ('PENDING' as const)
+  const baseAccountingPeriod = input.accountingPeriod?.slice(0, 7) || parentDate.slice(0, 7)
 
   const parentRow: MasterTransaction = {
     id: parentId,
@@ -75,13 +129,16 @@ export function buildTransactionBundle(input: BuildTransactionInput): LedgerBund
     installment_total: installmentTotal,
     status: parentStatus,
     notes: input.notes?.trim() || null,
-    settled_at: null
+    settled_at: null,
+    accounting_period: baseAccountingPeriod,
+    is_verified: false
   }
 
   const childRows: MasterTransaction[] = []
   const countToGenerate = installmentTotal - installmentCurrent
   for (let i = 1; i <= countToGenerate; i++) {
     const instDate = calculateInstallmentDate(input.date, i)
+    const instPeriod = calculateAccountingPeriod(baseAccountingPeriod, i)
     childRows.push({
       id: crypto.randomUUID(),
       parent_transaction_id: parentId,
@@ -102,7 +159,9 @@ export function buildTransactionBundle(input: BuildTransactionInput): LedgerBund
       installment_total: installmentTotal,
       status: 'PENDING',
       notes: input.notes?.trim() || null,
-      settled_at: null
+      settled_at: null,
+      accounting_period: instPeriod,
+      is_verified: false
     })
   }
 
@@ -187,7 +246,9 @@ export function buildTransferBundle(input: BuildTransferInput): LedgerBundle {
     installment_total: 1,
     status: 'COMPLETED',
     notes: sourceNotes,
-    settled_at: null
+    settled_at: null,
+    accounting_period: input.date.slice(0, 7),
+    is_verified: false
   }
 
   // Fila 2: Destino (crédito positivo, ligada por parent_transaction_id)
@@ -211,7 +272,9 @@ export function buildTransferBundle(input: BuildTransferInput): LedgerBundle {
     installment_total: 1,
     status: 'COMPLETED',
     notes: destNotes,
-    settled_at: null
+    settled_at: null,
+    accounting_period: input.date.slice(0, 7),
+    is_verified: false
   }
 
   return {

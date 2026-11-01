@@ -19,6 +19,7 @@ export interface Account {
   type: AccountType
   currency_native: string
   credit_limit: number | null
+  closing_day?: number | null
   is_active: boolean
 }
 
@@ -82,6 +83,55 @@ export interface MasterTransaction {
   notes: string | null
   settled_at: string | null
   settled_amount?: number
+  accounting_period?: string | null
+  is_verified?: boolean
+  verified_at?: string | null
+}
+
+export type LoanDirection = 'BORROWED' | 'LENT'
+export type LoanStatus = 'ACTIVE' | 'PAID' | 'CANCELLED'
+
+export interface Loan {
+  id: string
+  user_id?: string
+  name: string
+  principal: number
+  currency: string
+  direction: LoanDirection
+  counterparty_institution_id?: string | null
+  beneficiary_person_id?: string | null
+  tea_rate: number
+  includes_vat_22: boolean
+  total_installments: number
+  start_date: string
+  due_day?: number | null
+  disbursement_account_id?: string | null
+  notes?: string | null
+  status: LoanStatus
+  is_active?: boolean
+  created_at?: string
+  institution?: Institution | null
+  person?: Person | null
+}
+
+export interface LoanInstallment {
+  id: string
+  loan_id: string
+  period: number
+  installment_amount: number
+  interest: number
+  payment: number
+  balance: number
+  vat_amount?: number
+  due_date: string | null
+  paid: boolean
+  paid_at?: string | null
+  account_id?: string | null
+  transaction_bundle_id?: string | null
+}
+
+export interface LoanWithInstallments extends Loan {
+  installments: LoanInstallment[]
 }
 
 // Placeholder de Database para que createBrowserClient<Database> tipe bien.
