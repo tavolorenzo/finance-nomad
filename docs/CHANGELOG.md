@@ -12,6 +12,24 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.12.1] - 2026-11-02
+### Corregido
+- **Carga Rápida y Pegado Mágico de Tarjetas (`/accounts/[id]/bulk`, `CreditCardBulkWizard.tsx`, `QuotaBadgeSelector.tsx`, `BulkImpactSummary.tsx`, `BulkMovementRow.tsx`, `builder.ts`, PRD §4.12)**:
+  - **Popover de cuotas en eje Z y reflejo en vivo**: El selector `QuotaBadgeSelector` ahora flota en el eje Z con posicionamiento fijo (`fixed z-50`) anclado al botón disparador para evitar recortes por `overflow` o scroll interno en la tabla, y aplica al instante las cuotas personalizadas (`actual` y `total`) a medida que el usuario escribe sin requerir clic en "OK".
+  - **Cálculo en vivo discriminado por moneda**: `CreditCardBulkWizard` y `BulkImpactSummary` desglosan en tiempo real los consumos del resumen actual, cuotas diferidas futuras y asignaciones a personas por cada moneda operada (ej. moneda local `ARS`/`UYU` y `USD`), evitando sumar divisas distintas en un mismo monto nominal.
+  - **Creación rápida de categoría desde el dropdown**: Incorporación de la opción `+ Crear categoría...` directamente en el selector de categoría de cada fila (`BulkMovementRow.tsx` y modales de `CreditCardStatementVerifier.tsx`), abriendo `CategoryModal` y seleccionando automáticamente la nueva categoría creada en la fila activa.
+  - **Valor de cuota en pegado de estado de cuenta (`amountIsPerInstallment`)**: En `buildTransactionBundle` (`lib/ledger/builder.ts`), cuando se cargan movimientos desde estado de cuenta o Carga Rápida (`saveBulkCardMovementsAction` y `addMissingStatementTransactionAction`), el importe ingresado se toma siempre como el valor de la cuota individual (incluso cuando arranca en cuota `1/N`), evitando dividir el importe de la cuota por la cantidad de pagos.
+  - **Alineación y padding de navegación superior**: En `apps/web/app/(protected)/accounts/[id]/bulk/page.tsx`, se agregó el contenedor `<main className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">` para que el enlace `"← Volver a [Tarjeta]"` mantenga el mismo margen y alineación que el resto de las vistas.
+- **Pills Bimonetarias y Consolidado Discreto en Tarjetas de Crédito (`/accounts/[id]/page.tsx`, `CreditCardStatementVerifier.tsx`, PRD §4.2, §4.13)**:
+  - En la ficha de tarjeta de crédito y en el verificador de resumen se muestra en **pills destacadas** el total adeudado en cada moneda de la tarjeta (usualmente moneda local y `USD`), mientras que el total consolidado se convierte y exhibe discretamente en la moneda default configurada por el usuario (`user_settings.display_currency`).
+- **Soporte de Cascada al Eliminar Usuarios en Base de Datos (`supabase/migrations/0015_allow_user_cascade_delete.sql`, `supabase/setup_production.sql`, PRD §3.2)**:
+  - Actualización de la función de trigger [`prevent_hard_delete_ledger_entities()`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/supabase/migrations/0015_allow_user_cascade_delete.sql) con `SECURITY DEFINER` para mantener bloqueado el borrado físico (`DELETE`) de `institutions`, `accounts` y `people` durante el uso normal de la aplicación (`is_active = false`), pero permitiendo la purga física cuando el usuario propietario es eliminado de `auth.users` (`ON DELETE CASCADE`), cuando opera `supabase_auth_admin` desde el panel de Supabase Auth, o cuando se habilita explícitamente en la sesión SQL (`SET LOCAL app.allow_hard_delete = 'on'`).
+  - Configuración de `ON DELETE CASCADE` / `ON DELETE SET NULL` en las claves foráneas internas de `master_transactions`, `budget_estimates` y `portfolio_transactions` para evitar bloqueos por orden de tablas al eliminar un usuario con historial de movimientos.
+### Modificado
+- **Documentación y Roadmap de Baja de Usuario (`docs/PRD.md`, `docs/prd-gap-analysis.md`, `apps/web/lib/help-data.ts`)**:
+  - Registro en `docs/PRD.md` (§4.9 Ajustes y Sistema) y `docs/prd-gap-analysis.md` del requerimiento pendiente de implementar en el frontend la función de **Baja de Cuenta / Eliminar Usuario** desde `/settings` para usuarios que deseen darse de baja definitiva del sistema.
+  - Actualización de la FAQ `faq-acc-delete` en `help-data.ts` aclarando el comportamiento entre baja lógica de entidades individuales y baja completa en cascada del usuario.
+
 ## [2.12.0] - 2026-10-31
 ### Agregado
 - **Módulo de Verificación de Estado de Cuenta y Mes Contable (`/accounts/[id]/verify`, PRD §4.2, §4.13)**:

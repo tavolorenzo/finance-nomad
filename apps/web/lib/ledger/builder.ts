@@ -88,8 +88,9 @@ export function buildTransactionBundle(input: BuildTransactionInput): LedgerBund
   let accountAmounts: number[]
   let originalAmounts: number[]
 
-  if (installmentCurrent > 1) {
-    // Si arranca en una cuota intermedia (ej. 4 de 12), amountOriginal ya representa el valor de la cuota
+  if (input.amountIsPerInstallment || installmentCurrent > 1) {
+    // Si viene de un estado de cuenta / resumen o arranca en una cuota intermedia (ej. 4 de 12),
+    // amountOriginal ya representa el valor de la cuota individual.
     const remainingCount = installmentTotal - installmentCurrent + 1
     originalAmounts = Array(remainingCount).fill(input.amountOriginal)
     accountAmounts = Array(remainingCount).fill(totalAccountAmount)

@@ -49,8 +49,8 @@ export default async function AccountBulkIngestPage({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2">
+    <main className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
+      <div className="flex items-center justify-between">
         <Link
           href={`/accounts/${account.id}`}
           className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition"
@@ -67,6 +67,6 @@ export default async function AccountBulkIngestPage({
         people={people ?? []}
         isPostOnboarding={false}
       />
-    </div>
+    </main>
   )
 }

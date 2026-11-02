@@ -1,7 +1,7 @@
 -- ==============================================================================
--- Finance Nomad — Setup Inicial de Base de Datos para Producción (v2.11.0)
+-- Finance Nomad — Setup Inicial de Base de Datos para Producción (v2.12.1)
 -- ==============================================================================
--- Este script consolida las 13 migraciones del proyecto (0001 a 0013) en una sola
+-- Este script consolida las 15 migraciones del proyecto (0001 a 0015) en una sola
 -- ejecución directa para inicializar un nuevo proyecto de Supabase en producción.
 --
 -- Incluye:
@@ -79,10 +79,10 @@ create table if not exists master_transactions (
   rate_overridden boolean not null default false,
   amount_account numeric(12,2) not null,
   currency_account text not null,
-  institution_id uuid not null references institutions(id),
-  account_id uuid not null references accounts(id),
-  category_id uuid references categories(id),
-  person_id uuid references people(id),
+  institution_id uuid not null references institutions(id) on delete cascade,
+  account_id uuid not null references accounts(id) on delete cascade,
+  category_id uuid references categories(id) on delete set null,
+  person_id uuid references people(id) on delete set null,
   installment_current int not null default 1,
   installment_total int not null default 1,
   status text not null check (status in ('COMPLETED','PENDING')) default 'COMPLETED',
@@ -103,9 +103,9 @@ create table if not exists budget_estimates (
   type text not null check (type in ('INCOME_ESTIMATE','EXPENSE_ESTIMATE')),
   estimated_amount numeric(12,2) not null,
   currency text not null,
-  category_id uuid not null references categories(id),
+  category_id uuid not null references categories(id) on delete cascade,
   due_day int check (due_day between 1 and 31),
-  preferred_account_id uuid references accounts(id),
+  preferred_account_id uuid references accounts(id) on delete set null,
   is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
@@ -158,7 +158,7 @@ create table if not exists portfolio_transactions (
   price_per_unit numeric(12,2) not null,
   fee_amount numeric(12,2) not null default 0,
   currency text not null,
-  funding_account_id uuid not null references accounts(id),
+  funding_account_id uuid not null references accounts(id) on delete cascade,
   date date not null,
   created_at timestamptz not null default now()
 );
@@ -208,8 +208,17 @@ create index if not exists idx_loan_installments_paid on loan_installments (loan
 create or replace function prevent_hard_delete_ledger_entities()
 returns trigger
 language plpgsql
+security definer
+set search_path = public, auth
 as $$
 begin
+  if current_user = 'supabase_auth_admin'
+     or current_setting('app.allow_hard_delete', true) = 'on'
+     or not exists (select 1 from auth.users where id = old.user_id)
+  then
+    return old;
+  end if;
+
   raise exception
     'No se puede borrar %. Desactivá el registro (is_active = false).',
     TG_TABLE_NAME;

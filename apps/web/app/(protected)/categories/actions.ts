@@ -28,13 +28,17 @@ export async function createCategory(formData: FormData) {
     throw new Error('El nombre de la categoría es obligatorio')
   }
 
-  const { error } = await supabase.from('categories').insert({
-    user_id: user.id,
-    name,
-    icon,
-    color,
-    is_active: true
-  })
+  const { data, error } = await supabase
+    .from('categories')
+    .insert({
+      user_id: user.id,
+      name,
+      icon,
+      color,
+      is_active: true
+    })
+    .select('*')
+    .single()
 
   if (error) {
     throw new Error(`Error al crear la categoría: ${error.message}`)
@@ -45,6 +49,8 @@ export async function createCategory(formData: FormData) {
   revalidatePath('/budget')
   revalidatePath('/analytics')
   revalidatePath('/dashboard')
+
+  return data
 }
 
 export async function updateCategory(formData: FormData) {

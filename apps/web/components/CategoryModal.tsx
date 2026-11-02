@@ -26,6 +26,7 @@ interface CategoryModalProps {
   isOpen: boolean
   onClose: () => void
   categoryToEdit?: Category | null
+  onSuccess?: (category: Category) => void
 }
 
 const AVAILABLE_ICONS = [
@@ -54,7 +55,8 @@ const AVAILABLE_COLORS = [
 export function CategoryModal({
   isOpen,
   onClose,
-  categoryToEdit
+  categoryToEdit,
+  onSuccess
 }: CategoryModalProps) {
   const isOnline = useOnlineStatus()
   const isEditing = Boolean(categoryToEdit)
@@ -94,7 +96,11 @@ export function CategoryModal({
         formData.set('is_active', isActive ? 'true' : 'false')
         await updateCategory(formData)
       } else {
-        await createCategory(formData)
+        const created = await createCategory(formData)
+        if (created && onSuccess) {
+          onSuccess(created as Category)
+        }
+        setName('')
       }
 
       onClose()

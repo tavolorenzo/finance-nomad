@@ -315,6 +315,7 @@ export async function addMissingStatementTransactionAction(
     personId: input.personId || null,
     installmentCurrent: input.installmentCurrent ?? 1,
     installmentTotal: input.installmentTotal ?? 1,
+    amountIsPerInstallment: true,
     notes: input.description.trim()
   })
 

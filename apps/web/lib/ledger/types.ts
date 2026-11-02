@@ -29,6 +29,7 @@ export interface BuildTransactionInput {
   personId?: string | null
   installmentCurrent?: number
   installmentTotal?: number
+  amountIsPerInstallment?: boolean
   accountingPeriod?: string | null
   notes?: string | null
   today?: string

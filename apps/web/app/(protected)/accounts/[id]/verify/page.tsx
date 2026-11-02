@@ -29,7 +29,8 @@ export default async function AccountVerifyStatementPage({
     { data: account },
     { data: transactions },
     { data: categories },
-    { data: people }
+    { data: people },
+    { data: settings }
   ] = await Promise.all([
     supabase
       .from('accounts')
@@ -57,7 +58,12 @@ export default async function AccountVerifyStatementPage({
       .eq('user_id', user.id)
       .eq('is_active', true)
       .order('name')
-      .returns<Person[]>()
+      .returns<Person[]>(),
+    supabase
+      .from('user_settings')
+      .select('display_currency')
+      .eq('user_id', user.id)
+      .maybeSingle<{ display_currency: string }>()
   ])
 
   if (!account || account.type !== 'credit_card') {
@@ -78,6 +84,7 @@ export default async function AccountVerifyStatementPage({
         categories={categories ?? []}
         people={people ?? []}
         initialPeriod={initialPeriod}
+        displayCurrency={settings?.display_currency || account.currency_native}
       />
     </main>
   )

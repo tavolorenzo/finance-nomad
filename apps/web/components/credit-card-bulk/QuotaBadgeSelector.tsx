@@ -21,7 +21,9 @@ export function QuotaBadgeSelector({ current, total, onChange }: QuotaBadgeSelec
   const [isOpen, setIsOpen] = useState(false)
   const [customCurrent, setCustomCurrent] = useState(String(current))
   const [customTotal, setCustomTotal] = useState(String(total))
+  const [popoverCoords, setPopoverCoords] = useState<{ top: number; left: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     setCustomCurrent(String(current))
@@ -29,15 +31,33 @@ export function QuotaBadgeSelector({ current, total, onChange }: QuotaBadgeSelec
   }, [current, total])
 
   useEffect(() => {
+    function updatePosition() {
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect()
+        setPopoverCoords({
+          top: rect.bottom + 4,
+          left: Math.max(8, Math.min(rect.left, window.innerWidth - 232))
+        })
+      }
+    }
+
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false)
       }
     }
+
     if (isOpen) {
+      updatePosition()
       document.addEventListener('mousedown', handleClickOutside)
+      window.addEventListener('scroll', updatePosition, true)
+      window.addEventListener('resize', updatePosition)
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      window.removeEventListener('scroll', updatePosition, true)
+      window.removeEventListener('resize', updatePosition)
+    }
   }, [isOpen])
 
   function handleSelectPreset(c: number, t: number) {
@@ -45,12 +65,39 @@ export function QuotaBadgeSelector({ current, total, onChange }: QuotaBadgeSelec
     setIsOpen(false)
   }
 
-  function handleCustomApply(e: React.FormEvent) {
-    e.preventDefault()
-    const c = Math.max(1, parseInt(customCurrent, 10) || 1)
-    const t = Math.max(c, parseInt(customTotal, 10) || c)
-    onChange(c, t)
-    setIsOpen(false)
+  function handleCustomCurrentChange(val: string) {
+    setCustomCurrent(val)
+    const parsedCurrent = parseInt(val, 10)
+    if (!isNaN(parsedCurrent) && parsedCurrent >= 1) {
+      const c = Math.min(99, parsedCurrent)
+      const parsedTotal = parseInt(customTotal, 10)
+      const t = Math.max(c, !isNaN(parsedTotal) && parsedTotal >= 1 ? Math.min(99, parsedTotal) : c)
+      if (String(t) !== customTotal && !isNaN(parsedTotal)) {
+        setCustomTotal(String(t))
+      }
+      onChange(c, t)
+    }
+  }
+
+  function handleCustomTotalChange(val: string) {
+    setCustomTotal(val)
+    const parsedTotal = parseInt(val, 10)
+    if (!isNaN(parsedTotal) && parsedTotal >= 1) {
+      const t = Math.min(99, parsedTotal)
+      const parsedCurrent = parseInt(customCurrent, 10)
+      const c = !isNaN(parsedCurrent) && parsedCurrent >= 1 ? Math.min(t, parsedCurrent) : 1
+      if (String(c) !== customCurrent && !isNaN(parsedCurrent)) {
+        setCustomCurrent(String(c))
+      }
+      onChange(c, t)
+    }
+  }
+
+  function handleInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' || e.key === 'Escape') {
+      e.preventDefault()
+      setIsOpen(false)
+    }
   }
 
   const isMulti = total > 1
@@ -58,6 +105,7 @@ export function QuotaBadgeSelector({ current, total, onChange }: QuotaBadgeSelec
   return (
     <div className="relative inline-block" ref={containerRef}>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-1.5 px-2.5 py-1 rounded-control text-xs font-mono font-medium border transition ${
@@ -73,7 +121,14 @@ export function QuotaBadgeSelector({ current, total, onChange }: QuotaBadgeSelec
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 z-30 w-56 bg-surface-0 border border-border rounded-card p-3 shadow-xl space-y-2.5">
+        <div
+          style={
+            popoverCoords
+              ? { top: `${popoverCoords.top}px`, left: `${popoverCoords.left}px` }
+              : undefined
+          }
+          className="fixed z-50 w-56 bg-surface-0 border border-border rounded-card p-3 shadow-2xl space-y-2.5 text-left"
+        >
           <p className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
             Plan de cuotas
           </p>
@@ -103,33 +158,31 @@ export function QuotaBadgeSelector({ current, total, onChange }: QuotaBadgeSelec
             <p className="text-[11px] text-text-secondary mb-1.5">
               O definí cuota actual y total:
             </p>
-            <form onSubmit={handleCustomApply} className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5">
               <input
                 type="number"
                 min="1"
                 max="99"
+                aria-label="Cuota actual"
                 value={customCurrent}
-                onChange={(e) => setCustomCurrent(e.target.value)}
+                onChange={(e) => handleCustomCurrentChange(e.target.value)}
+                onKeyDown={handleInputKeyDown}
                 placeholder="4"
-                className="w-14 bg-surface-1 border border-border rounded-control px-2 py-1 text-xs font-mono text-center text-text-primary focus:border-accent outline-none"
+                className="flex-1 bg-surface-1 border border-border rounded-control px-2 py-1 text-xs font-mono text-center text-text-primary focus:border-accent outline-none"
               />
               <span className="text-xs text-text-muted">de</span>
               <input
                 type="number"
                 min="1"
                 max="99"
+                aria-label="Total de cuotas"
                 value={customTotal}
-                onChange={(e) => setCustomTotal(e.target.value)}
+                onChange={(e) => handleCustomTotalChange(e.target.value)}
+                onKeyDown={handleInputKeyDown}
                 placeholder="12"
-                className="w-14 bg-surface-1 border border-border rounded-control px-2 py-1 text-xs font-mono text-center text-text-primary focus:border-accent outline-none"
+                className="flex-1 bg-surface-1 border border-border rounded-control px-2 py-1 text-xs font-mono text-center text-text-primary focus:border-accent outline-none"
               />
-              <button
-                type="submit"
-                className="flex-1 bg-surface-2 hover:bg-accent hover:text-[color:var(--on-accent)] text-text-primary px-2 py-1 rounded-control text-xs font-medium border border-border transition"
-              >
-                OK
-              </button>
-            </form>
+            </div>
           </div>
         </div>
       )}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -21,6 +21,8 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { formatMoney } from '@/lib/currency'
+import { convertToDisplayCurrency } from '@/lib/networth'
+import { CategoryModal } from '@/components/CategoryModal'
 import {
   calculateAccountingPeriod,
   formatAccountingPeriodLabel
@@ -45,6 +47,7 @@ interface CreditCardStatementVerifierProps {
   categories: Category[]
   people: Person[]
   initialPeriod: string
+  displayCurrency?: string
 }
 
 const INSTALLMENT_OPTIONS = [1, 2, 3, 4, 6, 10, 12, 18, 24]
@@ -54,9 +57,16 @@ export function CreditCardStatementVerifier({
   transactions,
   categories,
   people,
-  initialPeriod
+  initialPeriod,
+  displayCurrency
 }: CreditCardStatementVerifierProps) {
   const router = useRouter()
+  const userDefaultCurrency = displayCurrency || account.currency_native
+  const [localCategories, setLocalCategories] = useState<Category[]>(categories)
+  useEffect(() => {
+    setLocalCategories(categories)
+  }, [categories])
+  const [creatingCategoryTarget, setCreatingCategoryTarget] = useState<'edit' | 'add' | null>(null)
   const [selectedPeriod, setSelectedPeriod] = useState(initialPeriod)
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'VERIFIED'>('ALL')
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -127,7 +137,10 @@ export function CreditCardStatementVerifier({
     let pendingAmountNative = 0
     let installmentsCount = 0
     let sharedTotalNative = 0
-    const byOriginalCurrency: Record<string, number> = {}
+    const byOriginalCurrency: Record<string, number> = {
+      [account.currency_native]: 0,
+      ...(account.currency_native !== 'USD' ? { USD: 0 } : {})
+    }
 
     for (const t of periodExpenses) {
       const amtNative = Math.abs(Number(t.amount_account) || 0)
@@ -135,7 +148,7 @@ export function CreditCardStatementVerifier({
       const currOrig = t.currency_original || account.currency_native
 
       totalNative += amtNative
-      byOriginalCurrency[currOrig] = (byOriginalCurrency[currOrig] || 0) + amtOrig
+      byOriginalCurrency[currOrig] = Math.round(((byOriginalCurrency[currOrig] || 0) + amtOrig) * 100) / 100
 
       if (t.is_verified) {
         verifiedCount++
@@ -168,9 +181,34 @@ export function CreditCardStatementVerifier({
   }, [periodExpenses, account.currency_native, personalPersonId])
 
   const currencyEntries = Object.entries(summary.byOriginalCurrency)
-  const hasMultipleCurrencies =
-    currencyEntries.length > 1 ||
-    (currencyEntries.length === 1 && currencyEntries[0][0] !== account.currency_native)
+  const [consolidatedUserTotal, setConsolidatedUserTotal] = useState<number>(summary.totalNative)
+
+  useEffect(() => {
+    let active = true
+    const today = new Date().toISOString().slice(0, 10)
+    if (userDefaultCurrency === account.currency_native) {
+      setConsolidatedUserTotal(summary.totalNative)
+      return
+    }
+    convertToDisplayCurrency(
+      currencyEntries.map(([curr, amt]) => ({
+        accountId: `${account.id}-${curr}`,
+        currency: curr,
+        balance: amt
+      })),
+      userDefaultCurrency,
+      today
+    )
+      .then((val) => {
+        if (active) setConsolidatedUserTotal(val)
+      })
+      .catch(() => {
+        if (active) setConsolidatedUserTotal(summary.totalNative)
+      })
+    return () => {
+      active = false
+    }
+  }, [currencyEntries, userDefaultCurrency, account.currency_native, account.id, summary.totalNative])
 
   const nextPeriod = calculateAccountingPeriod(selectedPeriod, 1)
   const prevPeriod = calculateAccountingPeriod(selectedPeriod, -1)
@@ -442,50 +480,42 @@ export function CreditCardStatementVerifier({
 
           {/* Grilla de Pills de Resumen */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Pill 1: Total consolidado en moneda de la cuenta */}
-            <div className="bg-surface-0 border border-border rounded-control p-3.5 space-y-1">
-              <span className="text-[11px] text-text-muted font-medium">
-                Total resumen ({account.currency_native})
+            {/* Pill 1: Total adeudado en las monedas de la tarjeta (moneda local y USD) + consolidado discreto */}
+            <div className="bg-surface-0 border border-border rounded-control p-3.5 space-y-2">
+              <span className="text-[11px] text-text-muted font-medium block">
+                Total adeudado por moneda (Desglose por moneda de origen)
               </span>
-              <p className="font-mono tabular-nums amount text-xl font-bold text-expense">
-                {formatMoney(summary.totalNative, account.currency_native)}
-              </p>
-              <p className="text-[11px] text-text-muted">
-                {summary.totalCount} {summary.totalCount === 1 ? 'consumo registrado' : 'consumos registrados'}
+              <div className="flex flex-wrap gap-1.5">
+                {currencyEntries.map(([curr, amt]) => (
+                  <span
+                    key={curr}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono tabular-nums font-bold amount bg-expense/10 text-expense border border-expense/30"
+                  >
+                    {formatMoney(amt, curr)}
+                  </span>
+                ))}
+              </div>
+              <p className="text-[11px] text-text-muted font-mono tabular-nums amount">
+                Consolidado ({userDefaultCurrency}):{' '}
+                <span className="text-text-secondary font-medium">
+                  {formatMoney(consolidatedUserTotal, userDefaultCurrency)}
+                </span>
               </p>
             </div>
 
-            {/* Pill 2: Desglose por moneda original (cuando hay consumos en múltiples monedas como USD + moneda local) */}
-            {hasMultipleCurrencies ? (
-              <div className="bg-surface-0 border border-border rounded-control p-3.5 space-y-1.5">
-                <span className="text-[11px] text-text-muted font-medium">
-                  Desglose por moneda de origen
-                </span>
-                <div className="flex flex-wrap gap-1.5 pt-0.5">
-                  {currencyEntries.map(([curr, amt]) => (
-                    <span
-                      key={curr}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono tabular-nums amount bg-surface-2 text-text-primary border border-border"
-                    >
-                      {formatMoney(amt, curr)}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="bg-surface-0 border border-border rounded-control p-3.5 space-y-1">
-                <span className="text-[11px] text-text-muted font-medium flex items-center gap-1">
-                  <Layers size={12} />
-                  Compras en cuotas
-                </span>
-                <p className="font-mono tabular-nums text-xl font-bold text-text-primary">
-                  {summary.installmentsCount}
-                </p>
-                <p className="text-[11px] text-text-muted">
-                  {summary.installmentsCount === 1 ? 'cuota activa este mes' : 'cuotas activas este mes'}
-                </p>
-              </div>
-            )}
+            {/* Pill 2: Compras en cuotas */}
+            <div className="bg-surface-0 border border-border rounded-control p-3.5 space-y-1">
+              <span className="text-[11px] text-text-muted font-medium flex items-center gap-1">
+                <Layers size={12} />
+                Compras en cuotas
+              </span>
+              <p className="font-mono tabular-nums text-xl font-bold text-text-primary">
+                {summary.installmentsCount}
+              </p>
+              <p className="text-[11px] text-text-muted">
+                {summary.installmentsCount === 1 ? 'cuota activa este mes' : 'cuotas activas este mes'}
+              </p>
+            </div>
 
             {/* Pill 3: Estado de Verificación */}
             <div className="bg-surface-0 border border-border rounded-control p-3.5 space-y-1">
@@ -836,15 +866,22 @@ export function CreditCardStatementVerifier({
                   </label>
                   <select
                     value={editCategoryId}
-                    onChange={(e) => setEditCategoryId(e.target.value)}
+                    onChange={(e) => {
+                      if (e.target.value === '__CREATE_CATEGORY__') {
+                        setCreatingCategoryTarget('edit')
+                        return
+                      }
+                      setEditCategoryId(e.target.value)
+                    }}
                     className="w-full text-xs"
                   >
                     <option value="">Sin categoría</option>
-                    {categories.map((c) => (
+                    {localCategories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>
                     ))}
+                    <option value="__CREATE_CATEGORY__">+ Crear categoría...</option>
                   </select>
                 </div>
               </div>
@@ -993,14 +1030,22 @@ export function CreditCardStatementVerifier({
                   </label>
                   <select
                     value={addCategoryId}
-                    onChange={(e) => setAddCategoryId(e.target.value)}
+                    onChange={(e) => {
+                      if (e.target.value === '__CREATE_CATEGORY__') {
+                        setCreatingCategoryTarget('add')
+                        return
+                      }
+                      setAddCategoryId(e.target.value)
+                    }}
                     className="w-full text-xs"
                   >
-                    {categories.map((c) => (
+                    <option value="">Sin categoría</option>
+                    {localCategories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>
                     ))}
+                    <option value="__CREATE_CATEGORY__">+ Crear categoría...</option>
                   </select>
                 </div>
               </div>
@@ -1080,6 +1125,22 @@ export function CreditCardStatementVerifier({
           </div>
         </div>
       )}
+
+      {/* Modal: Creación Rápida de Categoría */}
+      <CategoryModal
+        isOpen={creatingCategoryTarget !== null}
+        onClose={() => setCreatingCategoryTarget(null)}
+        onSuccess={(newCat) => {
+          setLocalCategories((prev) =>
+            [...prev, newCat].sort((a, b) => a.name.localeCompare(b.name))
+          )
+          if (creatingCategoryTarget === 'edit') {
+            setEditCategoryId(newCat.id)
+          } else if (creatingCategoryTarget === 'add') {
+            setAddCategoryId(newCat.id)
+          }
+        }}
+      />
     </div>
   )
 }

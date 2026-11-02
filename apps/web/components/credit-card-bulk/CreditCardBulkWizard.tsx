@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   CreditCard,
@@ -16,6 +16,7 @@ import {
 import { BulkMovementRow, type BulkRowItem } from './BulkMovementRow'
 import { SmartPasteModal } from './SmartPasteModal'
 import { BulkImpactSummary } from './BulkImpactSummary'
+import { CategoryModal } from '@/components/CategoryModal'
 import { saveBulkCardMovementsAction } from '@/app/(protected)/accounts/bulk-card-actions'
 import type { Account, Category, Person } from '@/lib/types'
 
@@ -92,19 +93,29 @@ export function CreditCardBulkWizard({
     createEmptyRow(cardCurrency, today, defaultPersonId)
   ])
 
+  const [localCategories, setLocalCategories] = useState<Category[]>(categories)
+  useEffect(() => {
+    setLocalCategories(categories)
+  }, [categories])
+  const [creatingCategoryForRowId, setCreatingCategoryForRowId] = useState<string | null>(null)
+
   const [isPasteModalOpen, setIsPasteModalOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  // Cálculos en vivo de impacto financiero y desglose de personas
+  // Cálculos en vivo de impacto financiero y desglose por moneda y personas
   const {
     currentStatementTotal,
     futureCommitmentsTotal,
     personalTotal,
     sharedTotal,
     sharedCount,
-    validRowsCount
+    validRowsCount,
+    currentByCurrency,
+    futureByCurrency,
+    personalByCurrency,
+    sharedByCurrency
   } = useMemo(() => {
     let currentTotal = 0
     let futureTotal = 0
@@ -112,24 +123,38 @@ export function CreditCardBulkWizard({
     let sTotal = 0
     let sCount = 0
     let validCount = 0
+    const currMap: Record<string, number> = {}
+    const futMap: Record<string, number> = {}
+    const pMap: Record<string, number> = {}
+    const sMap: Record<string, number> = {}
 
     for (const r of rows) {
       const amt = parseFloat(r.amount)
       if (!isNaN(amt) && amt > 0 && r.description.trim().length > 0) {
         validCount++
-        currentTotal += amt
+        const rowCurr = r.currency || cardCurrency
+        currMap[rowCurr] = Math.round(((currMap[rowCurr] || 0) + amt) * 100) / 100
+        if (rowCurr === cardCurrency) {
+          currentTotal += amt
+        }
 
         const isShared = Boolean(r.personId && r.personId !== defaultPersonId)
         if (isShared) {
           sTotal += amt
           sCount++
+          sMap[rowCurr] = Math.round(((sMap[rowCurr] || 0) + amt) * 100) / 100
         } else {
           pTotal += amt
+          pMap[rowCurr] = Math.round(((pMap[rowCurr] || 0) + amt) * 100) / 100
         }
 
         if (r.installmentTotal > r.installmentCurrent) {
           const remainingCount = r.installmentTotal - r.installmentCurrent
-          futureTotal += amt * remainingCount
+          const remAmt = amt * remainingCount
+          futMap[rowCurr] = Math.round(((futMap[rowCurr] || 0) + remAmt) * 100) / 100
+          if (rowCurr === cardCurrency) {
+            futureTotal += remAmt
+          }
         }
       }
     }
@@ -140,9 +165,13 @@ export function CreditCardBulkWizard({
       personalTotal: Math.round(pTotal * 100) / 100,
       sharedTotal: Math.round(sTotal * 100) / 100,
       sharedCount: sCount,
-      validRowsCount: validCount
+      validRowsCount: validCount,
+      currentByCurrency: currMap,
+      futureByCurrency: futMap,
+      personalByCurrency: pMap,
+      sharedByCurrency: sMap
     }
-  }, [rows, defaultPersonId])
+  }, [rows, defaultPersonId, cardCurrency])
 
   function handleAddRow() {
     setRows((prev) => [...prev, createEmptyRow(cardCurrency, today, defaultPersonId)])
@@ -387,12 +416,13 @@ export function CreditCardBulkWizard({
                   key={row.id}
                   item={row}
                   index={idx}
-                  categories={categories}
+                  categories={localCategories}
                   people={people}
                   availableCurrencies={availableCurrencies}
                   onChange={handleChangeRow}
                   onDelete={handleDeleteRow}
                   onAddRowAfter={handleAddRow}
+                  onRequestCreateCategory={(rowId) => setCreatingCategoryForRowId(rowId)}
                 />
               ))}
             </tbody>
@@ -424,6 +454,10 @@ export function CreditCardBulkWizard({
         sharedCount={sharedCount}
         creditLimit={creditLimit}
         currency={cardCurrency}
+        currentByCurrency={currentByCurrency}
+        futureByCurrency={futureByCurrency}
+        personalByCurrency={personalByCurrency}
+        sharedByCurrency={sharedByCurrency}
       />
 
       {/* Barra Inferior de Navegación */}
@@ -468,8 +502,22 @@ export function CreditCardBulkWizard({
         onClose={() => setIsPasteModalOpen(false)}
         onApply={handleApplyPasted}
         defaultCurrency={cardCurrency}
-        categories={categories}
+        categories={localCategories}
         people={people}
+      />
+
+      {/* Modal de Creación Rápida de Categoría */}
+      <CategoryModal
+        isOpen={creatingCategoryForRowId !== null}
+        onClose={() => setCreatingCategoryForRowId(null)}
+        onSuccess={(newCat) => {
+          setLocalCategories((prev) =>
+            [...prev, newCat].sort((a, b) => a.name.localeCompare(b.name))
+          )
+          if (creatingCategoryForRowId) {
+            handleChangeRow(creatingCategoryForRowId, 'categoryId', newCat.id)
+          }
+        }}
       />
     </div>
   )

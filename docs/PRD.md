@@ -39,7 +39,7 @@ Institución Financiera (Banco/Broker) -> Productos:
   - Inversiones (Portafolios/Brokers)
 
 * **Cuenta Cash (Default):** Existe por defecto en el sistema para registrar retiros de cajero (ATM) como transferencias desde cuentas bancarias hacia efectivo.
-* **Baja Lógica (Soft Deletes):** Ni instituciones ni cuentas sufren borrado físico en base de datos (`prevent_account_hard_delete`), utilizando siempre el flag `is_active = false`.
+* **Baja Lógica (Soft Deletes) y Cascada por Baja de Usuario:** Durante el uso normal de la aplicación, ni instituciones, ni cuentas, ni personas sufren borrado físico en base de datos (`prevent_hard_delete_ledger_entities()`), utilizando siempre el flag `is_active = false`. Únicamente cuando se elimina la cuenta del usuario en `auth.users` (o mediante habilitación explícita de sesión `app.allow_hard_delete = 'on'`), el trigger permite la purga física en cascada (`ON DELETE CASCADE`) de todas sus entidades y movimientos asociados.
 
 ### 3.3. Tarjetas de Crédito, Cuotas y Extensiones
 * **Compras en Cuotas Diferidas:** Un gasto de N pagos genera automáticamente N registros en la Base de Datos Maestra distribuidos mes a mes (1 de N, 2 de N, ...). La primera cuota se marca como `COMPLETED` y descuenta del saldo inmediatamente; las cuotas 2 a N se marcan como `PENDING` ligadas por `parent_transaction_id` y computan como compromisos diferidos/crédito sin restar saldo nominal por adelantado.
@@ -133,6 +133,7 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
 * Envío de correo para restablecimiento de contraseña (`SendResetLinkButton` y flujo `/auth/update-password`).
 * Acceso directo al Centro de Ayuda & Wiki y disparador del Onboarding Tour (`TourTriggerButton`).
 * Ficha de Información del Sistema (`SystemInfoCard`): versión actual de la aplicación, commit de Git, rama activa y entorno de ejecución.
+* **Baja de Cuenta / Eliminar Usuario (Pendiente de implementación Frontend):** Sección de zona de peligro (*Danger Zone*) en `/settings` con función en el frontend y confirmación explícita de seguridad para que el usuario pueda darse de baja definitiva del sistema, limpiando la base local (`IndexedDB`) y ejecutando el borrado en cascada de su usuario en `auth.users` junto con todos sus registros financieros.
 
 ### 4.10. Centro de Ayuda, FAQ y Wiki (`/help`)
 * **Wiki de Funcionalidades**: Base de conocimiento exhaustiva con artículos temáticos (`WIKI_ARTICLES`), desglose conceptual, tips orientativos y accesos directos a las pantallas operativas (Multi-moneda FX, Cuentas/Bancos, Ledger & Zero-Wait UI, Tarjetas y Cuotas, Personas y Cobros, Conciliación Express, Presupuesto, Análisis y Modo Offline).

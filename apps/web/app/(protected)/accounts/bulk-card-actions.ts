@@ -84,6 +84,7 @@ export async function saveBulkCardMovementsAction({
       personId: m.personId || null,
       installmentCurrent: m.installmentCurrent,
       installmentTotal: m.installmentTotal,
+      amountIsPerInstallment: true,
       notes: m.description.trim() || null
     })
 

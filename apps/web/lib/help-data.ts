@@ -112,12 +112,12 @@ export const WIKI_ARTICLES: WikiArticle[] = [
       },
       {
         title: 'Carga Rápida en Bloque (Bulk Ingest) y Pegado Mágico',
-        content: 'Para evitar cargar consumos y cuotas una por una, disponés del Asistente de Carga Rápida. Podés usar la grilla con atajos de teclado (Tab/Enter) o el "Pegado Mágico", donde pegás directamente el texto de tu resumen de homebanking o notificaciones de compra. El sistema detecta en milisegundos fechas, comercios, planes de cuotas (ej: C.04/12) y montos, volcándolos a la tabla para su revisión con cálculo en vivo de impacto financiero.',
+        content: 'Para evitar cargar consumos y cuotas una por una, disponés del Asistente de Carga Rápida. Podés usar la grilla con atajos de teclado (Tab/Enter) o el "Pegado Mágico", donde pegás directamente el texto de tu resumen de homebanking o notificaciones de compra. El sistema detecta en milisegundos fechas, comercios, planes de cuotas (ej: C.04/12) y montos (asumiendo que el monto del estado de cuenta corresponde al valor de cada cuota), volcándolos a la tabla para su revisión con cálculo en vivo desglosado por divisa (moneda local y USD) y creación rápida de categorías desde el propio selector.',
         tip: 'El asistente se ofrece opcionalmente tras el Welcome Wizard y está siempre disponible desde el detalle de tu tarjeta con el botón "Carga rápida".'
       },
       {
         title: 'Mes Contable, Día de Cierre y Verificación del Resumen',
-        content: 'Como la fecha de cierre de tu tarjeta no siempre coincide con el último día del mes, cada consumo guarda su "Mes contable" (el resumen en el que realmente impacta). Si configurás el "Día de cierre" en tu tarjeta, al cargar una compra posterior a ese día la app te sugerirá automáticamente imputarla al "Próximo mes" (desplazando en cascada todas las cuotas si compraste en pagos). Además, desde el botón "Verificar resumen" podés comparar línea por línea tus registros contra el estado de cuenta del banco, ver totales bimonetarios, confirmar ítems, corregir importes o pasar consumos al mes siguiente.',
+        content: 'Como la fecha de cierre de tu tarjeta no siempre coincide con el último día del mes, cada consumo guarda su "Mes contable" (el resumen en el que realmente impacta). En la ficha de tu tarjeta verás en pills destacadas el total adeudado en cada moneda operada (moneda local y USD) y, discretamente debajo, el consolidado en tu moneda global preferida. Si configurás el "Día de cierre" en tu tarjeta, al cargar una compra posterior a ese día la app te sugerirá automáticamente imputarla al "Próximo mes" (desplazando en cascada todas las cuotas si compraste en pagos). Además, desde el botón "Verificar resumen" podés comparar línea por línea tus registros contra el estado de cuenta del banco, confirmar ítems, corregir importes o pasar consumos al mes siguiente.',
         tip: 'Durante los últimos 5 y los primeros 5 días de cada mes, el Dashboard te mostrará un recordatorio directo para conciliar tus tarjetas en segundos.'
       }
     ],
@@ -492,10 +492,10 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     id: 'faq-acc-delete',
     question: '¿Por qué no puedo eliminar definitivamente una cuenta bancaria?',
-    answer: 'Por protección contable. Si una cuenta tiene transacciones registradas, eliminarla rompería el historial de tus movimientos. Por eso Finance Nomad utiliza baja lógica: podés desactivarla para que no aparezca en el día a día sin perder la trazabilidad de tu dinero.',
+    answer: 'Por protección contable. Si una cuenta tiene transacciones registradas, eliminarla de forma aislada rompería el historial de tus movimientos. Por eso Finance Nomad utiliza baja lógica (podés desactivarla para que no aparezca en el día a día sin perder la trazabilidad de tu dinero). El borrado físico definitivo solo se ejecuta en cascada cuando se da de baja por completo el usuario del sistema.',
     category: 'accounts',
     categoryLabel: 'Cuentas & Bancos',
-    tags: ['eliminar', 'desactivar', 'baja lógica', 'seguridad contable'],
+    tags: ['eliminar', 'desactivar', 'baja lógica', 'seguridad contable', 'baja de usuario'],
     relatedWikiSlug: 'cuentas-instituciones-y-efectivo'
   },
   {

@@ -187,6 +187,30 @@ describe('buildTransactionBundle', () => {
     expect(child2.date).toBe('2026-12-15')
   })
 
+  it('preserva el valor de la cuota cuando amountIsPerInstallment es true aunque arranque en cuota 1 de N', () => {
+    const bundle = buildTransactionBundle({
+      type: 'OUTCOME',
+      amountOriginal: 15000,
+      currencyOriginal: 'ARS',
+      currencyAccount: 'ARS',
+      date: '2026-10-15',
+      institutionId: 'inst-1',
+      accountId: 'acc-1',
+      installmentCurrent: 1,
+      installmentTotal: 6,
+      amountIsPerInstallment: true,
+      today: '2026-10-15'
+    })
+
+    expect(bundle.rows).toHaveLength(6)
+    for (let i = 0; i < 6; i++) {
+      expect(bundle.rows[i].installment_current).toBe(i + 1)
+      expect(bundle.rows[i].installment_total).toBe(6)
+      expect(bundle.rows[i].amount_original).toBe(15000)
+      expect(bundle.rows[i].amount_account).toBe(15000)
+    }
+  })
+
   it('adjusts installment remainder on the last installment', () => {
     const bundle = buildTransactionBundle({
       type: 'OUTCOME',

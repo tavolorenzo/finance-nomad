@@ -51,7 +51,7 @@ El núcleo del ledger multi-moneda opera en producción con arquitectura **Local
 | Gastos fijos / Presupuesto | `/budget` | Parcial | Estimados vs. gasto real + botón 1-tap "Ejecutar pago". Falta formulario para crear y editar `budget_estimates` en UI. |
 | Préstamos | `/loans` | Hecho | Sistema de amortización francés de Banco Itaú Uruguay, soporte multi-moneda, roles de institución/persona/intermediación, Opción B (capital vs interés) y tabla dinámica de marcha. |
 | Portafolio | `/portfolio` | Falta | Tabla `portfolio_transactions` definida en SQL con RLS. Navegación indica "pronto". |
-| Ajustes | `/settings` | Hecho | Moneda global, selector de tema claro/oscuro persistente, reseteo de contraseña, tour de bienvenida e información del entorno (`SystemInfoCard`). |
+| Ajustes | `/settings` | Hecho | Moneda global, selector de tema claro/oscuro persistente, reseteo de contraseña, tour de bienvenida e información del entorno (`SystemInfoCard`). Pendiente agregar botón/modal en frontend de *Eliminar usuario / Darse de baja del sistema* (cascada en SQL ya habilitada en migración `0015`). |
 | Movimientos | `/transactions` | Hecho | Feed reactivo (`TransactionsList`) con badges de cuotas, confirmación de pendientes y paginación histórica cursor-based. |
 
 ---
@@ -84,5 +84,6 @@ El núcleo del ledger multi-moneda opera en producción con arquitectura **Local
 3. **Fase 4 — Préstamos (`/loans`)**: UI de tabla de amortización dinámica y registro de cuotas desglosando capital e intereses.
 4. **Fase 4 — Portafolio (`/portfolio`)**: UI de compras/ventas de activos, cotizaciones y cálculo de ganancias/pérdidas no realizadas (P&L).
 5. **Import masivo de Finances_2026.xlsx**: Script ETL para migrar el historial del Excel a las tablas de Supabase.
-6. **Fase 5 — Empaquetado Android (Capacitor)**: Compilación y validación de build nativo APK/AAB.
+6. **Baja de cuenta / Delete User en Frontend (`/settings`)**: Implementar la acción de baja voluntaria del sistema con modal de confirmación, limpieza de almacenamiento local (`IndexedDB`) y eliminación en cascada del usuario en Supabase Auth.
+7. **Fase 5 — Empaquetado Android (Capacitor)**: Compilación y validación de build nativo APK/AAB.
 

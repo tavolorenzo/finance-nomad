@@ -25,6 +25,7 @@ interface BulkMovementRowProps {
   onChange: (id: string, field: keyof BulkRowItem, value: any) => void
   onDelete: (id: string) => void
   onAddRowAfter?: () => void
+  onRequestCreateCategory?: (rowId: string) => void
 }
 
 export function BulkMovementRow({
@@ -35,7 +36,8 @@ export function BulkMovementRow({
   availableCurrencies,
   onChange,
   onDelete,
-  onAddRowAfter
+  onAddRowAfter,
+  onRequestCreateCategory
 }: BulkMovementRowProps) {
   const personalPerson = people.find((p) => p.name.trim().toLowerCase() === 'personal')
   const otherPeople = people.filter((p) => p.name.trim().toLowerCase() !== 'personal')
@@ -99,7 +101,13 @@ export function BulkMovementRow({
       <td className="p-2 w-44">
         <select
           value={item.categoryId || ''}
-          onChange={(e) => onChange(item.id, 'categoryId', e.target.value || null)}
+          onChange={(e) => {
+            if (e.target.value === '__CREATE_CATEGORY__') {
+              onRequestCreateCategory?.(item.id)
+              return
+            }
+            onChange(item.id, 'categoryId', e.target.value || null)
+          }}
           className="w-full bg-surface-0 border border-border rounded-control px-2 py-1 text-xs text-text-secondary focus:border-accent outline-none"
         >
           <option value="">Sin categoría</option>
@@ -108,6 +116,9 @@ export function BulkMovementRow({
               {c.name}
             </option>
           ))}
+          {onRequestCreateCategory && (
+            <option value="__CREATE_CATEGORY__">+ Crear categoría...</option>
+          )}
         </select>
       </td>
 

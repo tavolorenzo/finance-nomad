@@ -15,12 +15,16 @@ import {
 import { createClient } from '@/lib/supabase/server'
 import { formatMoney } from '@/lib/currency'
 import { formatAccountingPeriodLabel } from '@/lib/ledger/builder'
-import { getSingleAccountBalance, getAccountPendingAmount } from '@/lib/networth'
+import {
+  getSingleAccountBalance,
+  getAccountPendingAmount,
+  convertToDisplayCurrency
+} from '@/lib/networth'
 import { ExpressAdjustModal } from '@/components/ExpressAdjustModal'
 import { RegisterCardPaymentModal } from '@/components/RegisterCardPaymentModal'
 import { DeleteTransactionButton } from '@/components/DeleteTransactionButton'
 import { ConfirmTransactionButton } from '@/components/ConfirmTransactionButton'
-import type { Account, Institution, MasterTransaction } from '@/lib/types'
+import type { Account, Institution, MasterTransaction, UserSettings } from '@/lib/types'
 
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
@@ -47,53 +51,137 @@ export default async function AccountDetailPage({
 
   const today = new Date().toISOString().slice(0, 10)
 
-  // Consulta en paralelo de cuenta, cuentas activas y transacciones asociadas
-  const [{ data: account }, { data: allAccounts }, { data: transactions }] = await Promise.all([
-    supabase
-      .from('accounts')
-      .select('*, institutions(*)')
-      .eq('id', id)
-      .single<Account & { institutions: Institution }>(),
-    supabase
-      .from('accounts')
-      .select('*, institutions(name)')
-      .eq('is_active', true)
-      .returns<(Account & { institutions: { name: string } })[]>(),
-    supabase
-      .from('master_transactions')
-      .select('*, categories(name), people(name)')
-      .eq('account_id', id)
-      .order('date', { ascending: false })
-      .returns<(MasterTransaction & { categories?: { name: string } | null; people?: { name: string } | null })[]>()
-  ])
+  // Consulta en paralelo de cuenta, cuentas activas, transacciones asociadas y preferencias de moneda del usuario
+  const [{ data: account }, { data: allAccounts }, { data: transactions }, { data: settings }] =
+    await Promise.all([
+      supabase
+        .from('accounts')
+        .select('*, institutions(*)')
+        .eq('id', id)
+        .single<Account & { institutions: Institution }>(),
+      supabase
+        .from('accounts')
+        .select('*, institutions(name)')
+        .eq('is_active', true)
+        .returns<(Account & { institutions: { name: string } })[]>(),
+      supabase
+        .from('master_transactions')
+        .select('*, categories(name), people(name)')
+        .eq('account_id', id)
+        .order('date', { ascending: false })
+        .returns<
+          (MasterTransaction & {
+            categories?: { name: string } | null
+            people?: { name: string } | null
+          })[]
+        >(),
+      supabase
+        .from('user_settings')
+        .select('display_currency, active_currencies')
+        .maybeSingle<{
+          display_currency: string
+          active_currencies?: UserSettings['active_currencies']
+        }>()
+    ])
 
   if (!account) notFound()
 
   const isCreditCard = account.type === 'credit_card'
   const currentPeriod = today.slice(0, 7)
+  const userDisplayCurrency = settings?.display_currency || account.currency_native
 
-  // Calcular saldo nominal (o deuda del resumen en curso en tarjetas) y compromisos futuros
+  // Calcular saldo nominal (o deuda del resumen en curso en tarjetas) y compromisos futuros,
+  // desglosando por moneda operada en la tarjeta (usualmente moneda local y USD).
   let currentBalance = 0
   let pendingAmount = 0
+  const cardBalanceByCurrency: Record<string, number> = {
+    [account.currency_native]: 0,
+    ...(account.currency_native !== 'USD' ? { USD: 0 } : {})
+  }
+  const cardPendingByCurrency: Record<string, number> = {}
+
   for (const t of transactions ?? []) {
     const effectivePeriod = t.accounting_period || t.date.slice(0, 7)
     const isFutureStatement = isCreditCard && effectivePeriod > currentPeriod
+    const origCurr = t.currency_original || account.currency_native
+    const origAbs = Math.abs(Number(t.amount_original ?? t.amount_account) || 0)
 
     if (!isFutureStatement && t.status === 'COMPLETED' && t.date <= today) {
       let delta = Number(t.amount_account)
       if (t.type === 'OUTCOME') delta = -Math.abs(delta)
       else if (t.type === 'INCOME') delta = Math.abs(delta)
       currentBalance += delta
+
+      if (isCreditCard) {
+        let origDelta = 0
+        if (t.type === 'OUTCOME') origDelta = -origAbs
+        else if (t.type === 'INCOME') origDelta = origAbs
+        else {
+          const sign = Number(t.amount_account) >= 0 ? 1 : -1
+          if (origCurr === t.currency_account) {
+            origDelta = sign * origAbs
+          } else {
+            cardBalanceByCurrency[t.currency_account] =
+              (cardBalanceByCurrency[t.currency_account] || 0) + Number(t.amount_account)
+          }
+        }
+        if (origDelta !== 0) {
+          cardBalanceByCurrency[origCurr] = (cardBalanceByCurrency[origCurr] || 0) + origDelta
+        }
+      }
     } else if (t.status === 'PENDING' || isFutureStatement) {
       let delta = Number(t.amount_account)
       if (t.type === 'OUTCOME') delta = Math.abs(delta)
       else if (t.type === 'INCOME') delta = -Math.abs(delta)
       else delta = delta < 0 ? Math.abs(delta) : 0
       pendingAmount += delta
+
+      if (isCreditCard && delta > 0) {
+        cardPendingByCurrency[origCurr] = (cardPendingByCurrency[origCurr] || 0) + origAbs
+      }
     }
   }
   currentBalance = Math.round(currentBalance * 100) / 100
   pendingAmount = Math.round(pendingAmount * 100) / 100
+
+  const cardCurrencyEntries = Object.entries(cardBalanceByCurrency).map(
+    ([curr, bal]) => [curr, Math.round(bal * 100) / 100] as const
+  )
+  const cardPendingEntries = Object.entries(cardPendingByCurrency)
+    .map(([curr, amt]) => [curr, Math.round(amt * 100) / 100] as const)
+    .filter(([, amt]) => amt > 0)
+
+  // Consolidar discretamente en la moneda default del usuario
+  let consolidatedInUserCurrency = currentBalance
+  if (isCreditCard) {
+    const customRates: Record<string, number> = {}
+    if (settings?.active_currencies && Array.isArray(settings.active_currencies)) {
+      for (const c of settings.active_currencies) {
+        if (
+          c.rate_mode === 'manual' &&
+          typeof c.custom_rate_against_global === 'number' &&
+          c.custom_rate_against_global > 0
+        ) {
+          const globalToCustom = `${userDisplayCurrency.toUpperCase()}_${c.code.toUpperCase()}`
+          const customToGlobal = `${c.code.toUpperCase()}_${userDisplayCurrency.toUpperCase()}`
+          customRates[globalToCustom] = c.custom_rate_against_global
+          customRates[customToGlobal] =
+            Math.round((1 / c.custom_rate_against_global) * 1000000) / 1000000
+        }
+      }
+    }
+
+    consolidatedInUserCurrency = await convertToDisplayCurrency(
+      cardCurrencyEntries.map(([curr, bal]) => ({
+        accountId: `${account.id}-${curr}`,
+        currency: curr,
+        balance: bal
+      })),
+      userDisplayCurrency,
+      today,
+      customRates
+    )
+  }
 
   // Estadísticas del mes en curso (en tarjetas de crédito, según el mes contable actual)
   const { start, end } = monthRange()
@@ -200,28 +288,75 @@ export default async function AccountDetailPage({
           </div>
         </div>
 
-        {/* Saldo Nominal */}
-        <div className="pt-2 border-t border-border flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2">
-          <div>
+        {/* Saldo Nominal / Deuda de Tarjeta en Pills Multi-moneda */}
+        <div className="pt-3 border-t border-border flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div className="space-y-2">
             <p className="text-xs text-text-muted uppercase tracking-wider font-medium">
               {isCreditCard
-                ? `Deuda del resumen en curso (${formatAccountingPeriodLabel(currentPeriod)})`
+                ? `Total adeudado del resumen en curso (${formatAccountingPeriodLabel(currentPeriod)})`
                 : 'Saldo actual'}
             </p>
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <p
-                className={`font-mono text-3xl md:text-4xl font-semibold mt-0.5 ${
-                  currentBalance < 0 ? 'text-expense' : 'text-text-primary'
-                }`}
-              >
-                {formatMoney(currentBalance, account.currency_native)}
-              </p>
-              {isCreditCard && pendingAmount > 0 && (
-                <span className="text-xs text-text-muted font-normal">
-                  (+ <span className="font-mono text-pending font-medium">{formatMoney(pendingAmount, account.currency_native)}</span> en cuotas futuras)
-                </span>
-              )}
-            </div>
+
+            {isCreditCard ? (
+              <div className="space-y-2">
+                {/* Pills destacadas con el total adeudado en las monedas de la tarjeta (moneda local y USD) */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {cardCurrencyEntries.map(([curr, bal]) => {
+                    const isDebt = bal < 0
+                    return (
+                      <div
+                        key={curr}
+                        className={`inline-flex items-baseline gap-2 px-3.5 py-2 rounded-control border ${
+                          isDebt
+                            ? 'bg-expense/10 border-expense/30 text-expense'
+                            : 'bg-surface-2 border-border text-text-primary'
+                        }`}
+                      >
+                        <span className="text-[11px] uppercase font-semibold tracking-wider opacity-80">
+                          {curr}
+                        </span>
+                        <span className="font-mono tabular-nums amount text-xl md:text-2xl font-bold">
+                          {formatMoney(Math.abs(bal), curr)}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Consolidado discreto en la moneda default del usuario + compromisos futuros */}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
+                  <span>
+                    Consolidado ({userDisplayCurrency}):{' '}
+                    <span className="font-mono tabular-nums amount font-medium text-text-secondary">
+                      {formatMoney(Math.abs(consolidatedInUserCurrency), userDisplayCurrency)}
+                    </span>
+                  </span>
+                  {cardPendingEntries.length > 0 && (
+                    <>
+                      <span>·</span>
+                      <span>
+                        Cuotas futuras:{' '}
+                        <span className="font-mono tabular-nums amount text-pending font-medium">
+                          {cardPendingEntries
+                            .map(([curr, amt]) => formatMoney(amt, curr))
+                            .join(' + ')}
+                        </span>
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <p
+                  className={`font-mono tabular-nums amount text-3xl md:text-4xl font-semibold mt-0.5 ${
+                    currentBalance < 0 ? 'text-expense' : 'text-text-primary'
+                  }`}
+                >
+                  {formatMoney(currentBalance, account.currency_native)}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Tarjeta de Crédito: métricas de límite */}
@@ -366,11 +501,21 @@ export default async function AccountDetailPage({
                       {isPending && t.date <= today && (
                         <ConfirmTransactionButton transactionId={t.id} />
                       )}
-                      <div className="text-right font-mono text-sm font-semibold">
+                      <div className="text-right font-mono tabular-nums amount text-sm font-semibold">
                         {isOutcome && (
-                          <span className={isPending ? 'text-expense/75' : 'text-expense'}>
-                            -{formatMoney(t.amount_account, t.currency_account)}
-                          </span>
+                          <div>
+                            <span className={isPending ? 'text-expense/75' : 'text-expense'}>
+                              -{formatMoney(
+                                isCreditCard ? t.amount_original : t.amount_account,
+                                isCreditCard ? t.currency_original : t.currency_account
+                              )}
+                            </span>
+                            {isCreditCard && t.currency_original !== t.currency_account && (
+                              <p className="text-[10px] font-normal text-text-muted">
+                                ≈ {formatMoney(t.amount_account, t.currency_account)}
+                              </p>
+                            )}
+                          </div>
                         )}
                         {isIncome && (
                           <span className={isPending ? 'text-income/75' : 'text-income'}>

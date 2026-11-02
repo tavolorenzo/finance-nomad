@@ -138,6 +138,48 @@ describe('CreditCardBulkWizard', () => {
     await waitFor(() => {
       expect(screen.getByText('1/6')).toBeInTheDocument()
     })
+
+    // Probar cambio de cuotas personalizadas en vivo sin botón OK
+    fireEvent.click(screen.getByTitle('Configurar cuotas'))
+    const currentInput = screen.getByLabelText('Cuota actual')
+    const totalInput = screen.getByLabelText('Total de cuotas')
+    fireEvent.change(totalInput, { target: { value: '12' } })
+    fireEvent.change(currentInput, { target: { value: '4' } })
+
+    await waitFor(() => {
+      expect(screen.getByText('4/12')).toBeInTheDocument()
+    })
+  })
+
+  it('discrimina en vivo entre consumos en moneda local (ARS) y dólares (USD)', () => {
+    render(
+      <CreditCardBulkWizard
+        cardAccounts={mockCardAccounts}
+        categories={mockCategories}
+        people={mockPeople}
+      />
+    )
+
+    // Fila 1 en ARS
+    fireEvent.change(screen.getByPlaceholderText('Comercio / Detalle'), {
+      target: { value: 'Supermercado Coto' }
+    })
+    fireEvent.change(screen.getByPlaceholderText('0.00'), {
+      target: { value: '20000' }
+    })
+
+    // Agregar Fila 2 en USD
+    fireEvent.click(screen.getByText('Agregar fila'))
+    const descInputs = screen.getAllByPlaceholderText('Comercio / Detalle')
+    const amountInputs = screen.getAllByPlaceholderText('0.00')
+    const currSelects = screen.getAllByDisplayValue('ARS')
+
+    fireEvent.change(descInputs[1], { target: { value: 'Netflix' } })
+    fireEvent.change(currSelects[1], { target: { value: 'USD' } })
+    fireEvent.change(amountInputs[1], { target: { value: '15.50' } })
+
+    expect(screen.getByText('2 filas (2 válidas)')).toBeInTheDocument()
+    expect(screen.getByText(/15[.,]50/)).toBeInTheDocument()
   })
 
   it('guarda los movimientos llamando a la server action y redirige', async () => {
