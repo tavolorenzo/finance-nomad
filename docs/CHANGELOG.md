@@ -12,6 +12,12 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.13.2] - 2026-11-02
+### Agregado
+- **Columna de Mes Contable en Carga Rápida y Selector de Persona por Movimiento en Pegado Mágico (`BulkMovementRow.tsx`, `CreditCardBulkWizard.tsx`, `SmartPasteModal.tsx`, PRD §4.12)**:
+  - **Mes contable en cada fila de Carga Rápida**: Incorporación de la columna **Mes contable** (`accountingPeriod`) en `BulkMovementRow` y `CreditCardBulkWizard`, mostrando el período contable asignado a la fila (ej. *Noviembre 2026 (Actual)*) y permitiendo cambiarlo fila por fila.
+  - **Dropdown de Persona en Movimientos Detectados del Pegado Mágico**: En la vista previa de `SmartPasteModal` (*Movimientos detectados*), cada ítem incluye un selector individual de **Persona** para reasignar consumos puntuales a otro contacto antes de volcarlos a la grilla.
+
 ## [2.13.1] - 2026-11-02
 ### Modificado
 - **Disposición de Selectores en Pegado Mágico y Limpieza de Grilla de Carga Rápida (`SmartPasteModal.tsx`, `CreditCardBulkWizard.tsx`, PRD §4.12)**:

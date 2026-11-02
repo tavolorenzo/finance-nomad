@@ -13,15 +13,15 @@ describe('version and environment utility', () => {
   })
 
   it('obtiene la versión por defecto o de variable de entorno', () => {
-    expect(getAppVersion()).toBe('2.13.1')
-    process.env.NEXT_PUBLIC_APP_VERSION = '2.13.1'
-    expect(getAppVersion()).toBe('2.13.1')
+    expect(getAppVersion()).toBe('2.13.2')
+    process.env.NEXT_PUBLIC_APP_VERSION = '2.13.2'
+    expect(getAppVersion()).toBe('2.13.2')
   })
 
   it('detecta entorno development por defecto', () => {
     delete process.env.NEXT_PUBLIC_APP_ENV
     delete process.env.VERCEL_ENV
-    ;(process.env as Record<string, string | undefined>).NODE_ENV = 'development'
+      ; (process.env as Record<string, string | undefined>).NODE_ENV = 'development'
     expect(getAppEnvironment()).toBe('development')
   })
 

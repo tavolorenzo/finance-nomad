@@ -42,6 +42,7 @@ export function SmartPasteModal({
   const personalPerson = people.find((p) => p.name.trim().toLowerCase() === 'personal')
   const otherPeople = people.filter((p) => p.name.trim().toLowerCase() !== 'personal')
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(personalPerson?.id || null)
+  const [rowPersonOverrides, setRowPersonOverrides] = useState<Record<number, string | null>>({})
 
   useEffect(() => {
     if (!isOpen) return
@@ -52,7 +53,7 @@ export function SmartPasteModal({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [isOpen, onClose])
 
-  const parsedItems = useMemo(() => {
+  const baseParsedItems = useMemo(() => {
     if (!rawText.trim()) return []
     return parseCreditCardStatement(rawText, {
       defaultCurrency: currencyOverride || defaultCurrency,
@@ -63,17 +64,27 @@ export function SmartPasteModal({
     })
   }, [rawText, defaultCurrency, currencyOverride, selectedPersonId, categories, people])
 
+  const parsedItems = useMemo(() => {
+    return baseParsedItems.map((item, idx) => ({
+      ...item,
+      personId:
+        rowPersonOverrides[idx] !== undefined ? rowPersonOverrides[idx] : item.personId
+    }))
+  }, [baseParsedItems, rowPersonOverrides])
+
   if (!isOpen) return null
 
   function handleApply() {
     if (parsedItems.length === 0) return
     onApply(parsedItems)
     setRawText('')
+    setRowPersonOverrides({})
     onClose()
   }
 
   function handlePasteExample() {
     setRawText(EXAMPLE_TEXT)
+    setRowPersonOverrides({})
   }
 
   return (
@@ -140,7 +151,10 @@ export function SmartPasteModal({
               <select
                 id="smart-paste-person"
                 value={selectedPersonId || personalPerson?.id || ''}
-                onChange={(e) => setSelectedPersonId(e.target.value || personalPerson?.id || null)}
+                onChange={(e) => {
+                  setSelectedPersonId(e.target.value || personalPerson?.id || null)
+                  setRowPersonOverrides({})
+                }}
                 className="h-9 sm:w-72 bg-surface-0 border border-border rounded-control px-2.5 text-xs text-text-primary focus:border-accent outline-none font-medium"
               >
                 <option value={personalPerson?.id || ''}>Personal (por defecto)</option>
@@ -219,16 +233,18 @@ export function SmartPasteModal({
             ) : (
               parsedItems.map((item, idx) => {
                 const catObj = categories.find((c) => c.id === item.categoryId)
+                const isAssignedToOther = Boolean(
+                  item.personId && item.personId !== personalPerson?.id
+                )
                 return (
                   <div
                     key={item.id || idx}
-                    className={`pt-1.5 flex items-center justify-between text-xs gap-3 ${
-                      item.isRefund
+                    className={`pt-1.5 flex items-center justify-between text-xs gap-2 ${item.isRefund
                         ? 'bg-pending/10 px-2 py-1.5 rounded-control border border-pending/30'
                         : ''
-                    }`}
+                      }`}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <span className="font-mono text-text-muted text-[11px] shrink-0">
                         {item.date}
                       </span>
@@ -246,24 +262,45 @@ export function SmartPasteModal({
                         </span>
                       )}
                       {catObj && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-2 text-text-secondary shrink-0">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-2 text-text-secondary shrink-0 hidden sm:inline-block">
                           {catObj.name}
                         </span>
                       )}
-                      {item.personId && item.personId !== personalPerson?.id && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-accent/15 text-accent font-medium shrink-0 border border-accent/20">
-                          {people.find((p) => p.id === item.personId)?.name || 'Asignado'}
-                        </span>
-                      )}
                     </div>
-                    <span
-                      className={`font-mono tabular-nums font-semibold amount shrink-0 ${
-                        item.isRefund ? 'text-income' : 'text-expense'
-                      }`}
-                    >
-                      {item.isRefund ? '-' : ''}
-                      {formatMoney(item.amount, item.currency)}
-                    </span>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {people.length > 0 && (
+                        <select
+                          aria-label={`Persona para ${item.description}`}
+                          value={item.personId || personalPerson?.id || ''}
+                          onChange={(e) => {
+                            const nextPersonId = e.target.value || personalPerson?.id || null
+                            setRowPersonOverrides((prev) => ({
+                              ...prev,
+                              [idx]: nextPersonId
+                            }))
+                          }}
+                          className={`h-7 rounded-control px-2 text-[11px] outline-none transition ${isAssignedToOther
+                              ? 'bg-accent/15 border border-accent/40 text-accent font-semibold'
+                              : 'bg-surface-0 border border-border text-text-secondary focus:border-accent'
+                            }`}
+                        >
+                          <option value={personalPerson?.id || ''}>Personal</option>
+                          {otherPeople.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      <span
+                        className={`font-mono tabular-nums font-semibold amount shrink-0 min-w-[80px] text-right ${item.isRefund ? 'text-income' : 'text-expense'
+                          }`}
+                      >
+                        {item.isRefund ? '-' : ''}
+                        {formatMoney(item.amount, item.currency)}
+                      </span>
+                    </div>
                   </div>
                 )
               })

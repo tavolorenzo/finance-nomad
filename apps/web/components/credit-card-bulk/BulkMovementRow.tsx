@@ -1,12 +1,14 @@
 'use client'
 
-import { Trash2, Sparkles } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { QuotaBadgeSelector } from './QuotaBadgeSelector'
 import { suggestCategory } from '@/lib/parsers/card-statement-parser'
+import { calculateAccountingPeriod, formatAccountingPeriodLabel } from '@/lib/ledger/builder'
 
 export interface BulkRowItem {
   id: string
   date: string
+  accountingPeriod: string
   description: string
   amount: string
   currency: string
@@ -20,6 +22,7 @@ export interface BulkRowItem {
 interface BulkMovementRowProps {
   item: BulkRowItem
   index: number
+  currentPeriod: string
   categories: { id: string; name: string }[]
   people: { id: string; name: string }[]
   availableCurrencies: string[]
@@ -31,7 +34,7 @@ interface BulkMovementRowProps {
 
 export function BulkMovementRow({
   item,
-  index,
+  currentPeriod,
   categories,
   people,
   availableCurrencies,
@@ -46,6 +49,12 @@ export function BulkMovementRow({
   const assignedPersonName = otherPeople.find((p) => p.id === item.personId)?.name
   const parsedAmount = parseFloat(item.amount)
   const isRefundRow = Boolean(item.isRefund || (!isNaN(parsedAmount) && parsedAmount < 0))
+
+  const prevMonthPeriod = calculateAccountingPeriod(currentPeriod, -1)
+  const nextMonthPeriod = calculateAccountingPeriod(currentPeriod, 1)
+  const periodOptions = Array.from(
+    new Set([prevMonthPeriod, currentPeriod, nextMonthPeriod, item.accountingPeriod].filter(Boolean))
+  )
 
   function handleDescriptionChange(val: string) {
     onChange(item.id, 'description', val)
@@ -67,11 +76,10 @@ export function BulkMovementRow({
 
   return (
     <tr
-      className={`transition group border-b ${
-        isRefundRow
+      className={`transition group border-b ${isRefundRow
           ? 'bg-pending/10 hover:bg-pending/15 border-pending/30'
           : 'hover:bg-surface-1/40 border-border/60'
-      }`}
+        }`}
     >
       {/* 1. Fecha */}
       <td className="p-2 w-32">
@@ -83,7 +91,25 @@ export function BulkMovementRow({
         />
       </td>
 
-      {/* 2. Descripción */}
+      {/* 2. Mes contable */}
+      <td className="p-2 w-36">
+        <select
+          aria-label="Mes contable"
+          value={item.accountingPeriod || currentPeriod}
+          onChange={(e) => onChange(item.id, 'accountingPeriod', e.target.value)}
+          className="w-full bg-surface-0 border border-border rounded-control px-2 py-1 text-xs font-medium text-text-primary focus:border-accent outline-none"
+          title="Mes contable del estado de cuenta al que se asigna este movimiento"
+        >
+          {periodOptions.map((p) => (
+            <option key={p} value={p}>
+              {formatAccountingPeriodLabel(p)}
+              {p === currentPeriod ? ' (Actual)' : p === nextMonthPeriod ? ' (Próx.)' : ''}
+            </option>
+          ))}
+        </select>
+      </td>
+
+      {/* 3. Descripción */}
       <td className="p-2 min-w-[180px]">
         <div className="flex items-center gap-1.5">
           <input
@@ -149,11 +175,10 @@ export function BulkMovementRow({
             const val = e.target.value
             onChange(item.id, 'personId', val || personalPerson?.id || null)
           }}
-          className={`w-full border rounded-control px-2 py-1 text-xs outline-none transition ${
-            isAssignedToOther
+          className={`w-full border rounded-control px-2 py-1 text-xs outline-none transition ${isAssignedToOther
               ? 'bg-accent/10 border-accent/40 text-accent font-semibold'
               : 'bg-surface-0 border border-border text-text-secondary focus:border-accent'
-          }`}
+            }`}
           title={isAssignedToOther ? `Gasto asignado a ${assignedPersonName} (Split Pay)` : 'Gasto personal'}
         >
           <option value={personalPerson?.id || ''}>Personal</option>
@@ -196,11 +221,10 @@ export function BulkMovementRow({
           }}
           onKeyDown={handleAmountKeyDown}
           placeholder="0.00"
-          className={`w-full bg-surface-0 border rounded-control px-2 py-1 text-xs font-mono tabular-nums text-right focus:border-accent outline-none font-semibold ${
-            isRefundRow
+          className={`w-full bg-surface-0 border rounded-control px-2 py-1 text-xs font-mono tabular-nums text-right focus:border-accent outline-none font-semibold ${isRefundRow
               ? 'border-pending/50 text-income'
               : 'border-border text-text-primary'
-          }`}
+            }`}
         />
       </td>
 

@@ -33,11 +33,13 @@ interface CreditCardBulkWizardProps {
 function createEmptyRow(
   defaultCurrency: string,
   defaultDate: string,
-  defaultPersonId: string | null = null
+  defaultPersonId: string | null = null,
+  defaultAccountingPeriod?: string
 ): BulkRowItem {
   return {
     id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     date: defaultDate,
+    accountingPeriod: defaultAccountingPeriod || defaultDate.slice(0, 7),
     description: '',
     amount: '',
     currency: defaultCurrency,
@@ -59,6 +61,7 @@ export function CreditCardBulkWizard({
 }: CreditCardBulkWizardProps) {
   const router = useRouter()
   const today = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const currentPeriod = useMemo(() => today.slice(0, 7), [today])
 
   const personalPerson = useMemo(() => {
     return people.find((p) => p.name.trim().toLowerCase() === 'personal')
@@ -93,7 +96,7 @@ export function CreditCardBulkWizard({
   }, [cardCurrency, cardAccounts])
 
   const [rows, setRows] = useState<BulkRowItem[]>(() => [
-    createEmptyRow(cardCurrency, today, defaultPersonId)
+    createEmptyRow(cardCurrency, today, defaultPersonId, currentPeriod)
   ])
 
   const [localCategories, setLocalCategories] = useState<Category[]>(categories)
@@ -180,13 +183,13 @@ export function CreditCardBulkWizard({
   }, [rows, defaultPersonId, cardCurrency])
 
   function handleAddRow() {
-    setRows((prev) => [...prev, createEmptyRow(cardCurrency, today, defaultPersonId)])
+    setRows((prev) => [...prev, createEmptyRow(cardCurrency, today, defaultPersonId, currentPeriod)])
   }
 
   function handleDeleteRow(id: string) {
     setRows((prev) => {
       const filtered = prev.filter((r) => r.id !== id)
-      return filtered.length > 0 ? filtered : [createEmptyRow(cardCurrency, today, defaultPersonId)]
+      return filtered.length > 0 ? filtered : [createEmptyRow(cardCurrency, today, defaultPersonId, currentPeriod)]
     })
   }
 
@@ -201,6 +204,7 @@ export function CreditCardBulkWizard({
     const newRows: BulkRowItem[] = parsedItems.map((item) => ({
       id: item.id || `row-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       date: item.date || today,
+      accountingPeriod: currentPeriod,
       description: item.description || '',
       amount: item.amount ? String(item.isRefund ? -Math.abs(item.amount) : item.amount) : '',
       currency: item.currency || cardCurrency,
@@ -220,7 +224,7 @@ export function CreditCardBulkWizard({
 
   function handleClearAll() {
     if (confirm('¿Querés limpiar todas las filas cargadas?')) {
-      setRows([createEmptyRow(cardCurrency, today, defaultPersonId)])
+      setRows([createEmptyRow(cardCurrency, today, defaultPersonId, currentPeriod)])
     }
   }
 
@@ -231,6 +235,7 @@ export function CreditCardBulkWizard({
         const isRefund = Boolean(r.isRefund || rawAmt < 0)
         return {
           date: r.date,
+          accountingPeriod: r.accountingPeriod || currentPeriod,
           description: r.description.trim(),
           amount: Math.abs(rawAmt),
           currency: r.currency,
@@ -409,10 +414,11 @@ export function CreditCardBulkWizard({
       {/* Grilla Spreadsheet-like */}
       <div className="bg-surface-0 border border-border rounded-card overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[760px]">
+          <table className="w-full text-left border-collapse min-w-[880px]">
             <thead>
               <tr className="bg-surface-1/70 border-b border-border text-[11px] font-semibold text-text-muted uppercase tracking-wider">
                 <th className="p-2.5 w-32">Fecha</th>
+                <th className="p-2.5 w-36">Mes contable</th>
                 <th className="p-2.5 min-w-[180px]">Comercio / Detalle</th>
                 <th className="p-2.5 w-28 text-center">Cuotas</th>
                 <th className="p-2.5 w-44">Categoría</th>
@@ -428,6 +434,7 @@ export function CreditCardBulkWizard({
                   key={row.id}
                   item={row}
                   index={idx}
+                  currentPeriod={currentPeriod}
                   categories={localCategories}
                   people={people}
                   availableCurrencies={availableCurrencies}

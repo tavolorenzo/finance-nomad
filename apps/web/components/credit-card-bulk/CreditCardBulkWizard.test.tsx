@@ -86,6 +86,36 @@ describe('CreditCardBulkWizard', () => {
     expect(screen.getByText('Santander - Visa Signature (ARS)')).toBeInTheDocument()
     expect(screen.getByText('Pegar Resumen Mágico')).toBeInTheDocument()
     expect(screen.getByText('Impacto Financiero Proyectado')).toBeInTheDocument()
+    expect(screen.getByLabelText('Mes contable')).toBeInTheDocument()
+  })
+
+  it('permite asignar una persona a un movimiento puntual en la vista previa del Pegado Mágico', async () => {
+    render(
+      <CreditCardBulkWizard
+        cardAccounts={mockCardAccounts}
+        categories={mockCategories}
+        people={mockPeople}
+      />
+    )
+
+    fireEvent.click(screen.getByText('Pegar Resumen Mágico'))
+
+    const textarea = screen.getByPlaceholderText(/Pegá acá el texto copiado de tu banco/i)
+    fireEvent.change(textarea, {
+      target: {
+        value: '12/10/2026 COTO SUC 123 $ 14.500,00\n15/10/2026 CENA RESTAURANTE $ 20.000,00'
+      }
+    })
+
+    const cenaPersonSelect = await screen.findByLabelText(/Persona para CENA RESTAURANTE/i)
+    fireEvent.change(cenaPersonSelect, { target: { value: 'p-2' } })
+
+    fireEvent.click(screen.getByText(/Volcar a la grilla \(2\)/i))
+
+    await waitFor(() => {
+      expect(screen.getByText('2 filas (2 válidas)')).toBeInTheDocument()
+      expect(screen.getByText(/A cobrar \(1 consumo\)/)).toBeInTheDocument()
+    })
   })
 
   it('permite añadir y eliminar filas dinámicamente', () => {
