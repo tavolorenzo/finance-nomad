@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { Sparkles, X, Check, FileText, AlertCircle, Trash2, Users } from 'lucide-react'
+import { Sparkles, X, Check, FileText, AlertCircle, Trash2, Users, Coins } from 'lucide-react'
 import { parseCreditCardStatement, type ParsedCardMovement } from '@/lib/parsers/card-statement-parser'
 import { formatMoney } from '@/lib/currency'
 
@@ -10,24 +10,34 @@ interface SmartPasteModalProps {
   onClose: () => void
   onApply: (items: ParsedCardMovement[]) => void
   defaultCurrency: string
+  availableCurrencies?: string[]
   categories: { id: string; name: string }[]
   people: { id: string; name: string }[]
 }
 
 const EXAMPLE_TEXT = `12/10/2026 COTO SUC 123 $ 14.500,00
-15/10/2026 FRAVEGA S.A. C.04/12 $ 42.000,00
-18/10/2026 UBER PENDING $ 3.420,00
-20/10/2026 NETFLIX USD 10.99`
+10/11/25 5029 NICO RENT A CAR 12/12 USD 137,38
+27/08/26 5045 SUPERMERCADOS EL DOR 2/ 3 UYU 1263,87
+20/10/26 5029 REINTEGRO PROMO -2.500,00`
 
 export function SmartPasteModal({
   isOpen,
   onClose,
   onApply,
   defaultCurrency,
+  availableCurrencies,
   categories,
   people
 }: SmartPasteModalProps) {
   const [rawText, setRawText] = useState('')
+  const [currencyOverride, setCurrencyOverride] = useState<string>('')
+
+  const currencyOptions = useMemo(() => {
+    const base = availableCurrencies && availableCurrencies.length > 0
+      ? availableCurrencies
+      : [defaultCurrency, 'UYU', 'USD', 'EUR', 'ARS', 'AUD', 'NZD']
+    return Array.from(new Set([defaultCurrency, ...base])).filter(Boolean)
+  }, [availableCurrencies, defaultCurrency])
 
   const personalPerson = people.find((p) => p.name.trim().toLowerCase() === 'personal')
   const otherPeople = people.filter((p) => p.name.trim().toLowerCase() !== 'personal')
@@ -45,12 +55,13 @@ export function SmartPasteModal({
   const parsedItems = useMemo(() => {
     if (!rawText.trim()) return []
     return parseCreditCardStatement(rawText, {
-      defaultCurrency,
+      defaultCurrency: currencyOverride || defaultCurrency,
+      forceCurrency: currencyOverride || null,
       defaultPersonId: selectedPersonId,
       categories,
       people
     })
-  }, [rawText, defaultCurrency, selectedPersonId, categories, people])
+  }, [rawText, defaultCurrency, currencyOverride, selectedPersonId, categories, people])
 
   if (!isOpen) return null
 
@@ -92,27 +103,60 @@ export function SmartPasteModal({
           </button>
         </div>
 
-        {/* Selector de Persona de Asignación */}
-        {people.length > 0 && (
-          <div className="flex items-center justify-between bg-surface-1/70 border border-border px-3 py-2 rounded-control text-xs">
-            <span className="text-text-secondary flex items-center gap-1.5 font-medium">
-              <Users className="w-3.5 h-3.5 text-accent" />
-              <span>Asignar consumos a:</span>
-            </span>
+        {/* Selectores de Moneda y Persona de Asignación */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div className="flex items-center justify-between bg-surface-1/70 border border-border px-3 py-2 rounded-control text-xs gap-2">
+            <label
+              htmlFor="smart-paste-currency"
+              className="text-text-secondary flex items-center gap-1.5 font-medium shrink-0"
+            >
+              <Coins className="w-3.5 h-3.5 text-accent" />
+              <span>Moneda a importar:</span>
+            </label>
             <select
-              value={selectedPersonId || personalPerson?.id || ''}
-              onChange={(e) => setSelectedPersonId(e.target.value || personalPerson?.id || null)}
+              id="smart-paste-currency"
+              value={currencyOverride}
+              onChange={(e) => setCurrencyOverride(e.target.value)}
               className="bg-surface-0 border border-border rounded-control px-2.5 py-1 text-xs text-text-primary focus:border-accent outline-none font-medium"
             >
-              <option value={personalPerson?.id || ''}>Personal (por defecto)</option>
-              {otherPeople.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
+              <option value="">Automática ({defaultCurrency} por defecto)</option>
+              {currencyOptions.map((c) => (
+                <option key={c} value={c}>
+                  Asignar {c} a todas las filas
                 </option>
               ))}
             </select>
           </div>
-        )}
+
+          {people.length > 0 && (
+            <div className="flex items-center justify-between bg-surface-1/70 border border-border px-3 py-2 rounded-control text-xs gap-2">
+              <span className="text-text-secondary flex items-center gap-1.5 font-medium shrink-0">
+                <Users className="w-3.5 h-3.5 text-accent" />
+                <span>Asignar consumos a:</span>
+              </span>
+              <select
+                value={selectedPersonId || personalPerson?.id || ''}
+                onChange={(e) => setSelectedPersonId(e.target.value || personalPerson?.id || null)}
+                className="bg-surface-0 border border-border rounded-control px-2.5 py-1 text-xs text-text-primary focus:border-accent outline-none font-medium"
+              >
+                <option value={personalPerson?.id || ''}>Personal (por defecto)</option>
+                {otherPeople.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* Leyenda de recordatorio de verificación */}
+        <div className="flex items-start gap-2 bg-pending/10 border border-pending/30 rounded-control px-3 py-2 text-xs text-pending">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <p className="leading-snug">
+            <strong>Recordá verificar las filas antes de confirmar:</strong> el detector automático puede cometer errores al interpretar fechas, números de tarjeta, cuotas, monedas o montos.
+          </p>
+        </div>
 
         {/* Text Area */}
         <div className="space-y-1.5 flex-1 flex flex-col min-h-[140px]">
@@ -174,7 +218,11 @@ export function SmartPasteModal({
                 return (
                   <div
                     key={item.id || idx}
-                    className="pt-1.5 flex items-center justify-between text-xs gap-3"
+                    className={`pt-1.5 flex items-center justify-between text-xs gap-3 ${
+                      item.isRefund
+                        ? 'bg-pending/10 px-2 py-1.5 rounded-control border border-pending/30'
+                        : ''
+                    }`}
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="font-mono text-text-muted text-[11px] shrink-0">
@@ -183,6 +231,11 @@ export function SmartPasteModal({
                       <span className="font-medium text-text-primary truncate">
                         {item.description}
                       </span>
+                      {item.isRefund && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-pending/20 text-pending shrink-0 border border-pending/30">
+                          Pago / Refund
+                        </span>
+                      )}
                       {item.installmentTotal > 1 && (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-pending/10 text-pending shrink-0 border border-pending/20">
                           {item.installmentCurrent}/{item.installmentTotal}
@@ -199,7 +252,12 @@ export function SmartPasteModal({
                         </span>
                       )}
                     </div>
-                    <span className="font-mono tabular-nums font-semibold text-expense shrink-0">
+                    <span
+                      className={`font-mono tabular-nums font-semibold amount shrink-0 ${
+                        item.isRefund ? 'text-income' : 'text-expense'
+                      }`}
+                    >
+                      {item.isRefund ? '-' : ''}
                       {formatMoney(item.amount, item.currency)}
                     </span>
                   </div>

@@ -12,6 +12,7 @@ export interface AccountInput {
   currencyNative: string
   creditLimit: number | null
   closingDay?: number | null
+  initialBalance?: number | null
 }
 
 async function requireUser() {
@@ -44,18 +45,56 @@ export async function createAccount(input: AccountInput) {
       ? input.closingDay
       : null
 
-  const { error } = await supabase.from('accounts').insert({
-    user_id: user.id,
-    institution_id: input.institutionId,
-    name: input.name.trim(),
-    type: input.type,
-    currency_native: input.currencyNative,
-    credit_limit: input.type === 'credit_card' ? input.creditLimit : null,
-    closing_day: closingDayValue
-  })
-  if (error) throw new Error('No se pudo guardar. Intentá de nuevo.')
+  const { data: createdAccount, error } = await supabase
+    .from('accounts')
+    .insert({
+      user_id: user.id,
+      institution_id: input.institutionId,
+      name: input.name.trim(),
+      type: input.type,
+      currency_native: input.currencyNative,
+      credit_limit: input.type === 'credit_card' ? input.creditLimit : null,
+      closing_day: closingDayValue
+    })
+    .select('id')
+    .single()
+  if (error || !createdAccount) throw new Error('No se pudo guardar. Intentá de nuevo.')
+
+  if (
+    input.type !== 'credit_card' &&
+    typeof input.initialBalance === 'number' &&
+    !isNaN(input.initialBalance) &&
+    input.initialBalance !== 0
+  ) {
+    const today = new Date().toISOString().slice(0, 10)
+    const roundedInitialBalance = Math.round(input.initialBalance * 100) / 100
+    const { error: adjError } = await supabase.from('master_transactions').insert({
+      user_id: user.id,
+      institution_id: input.institutionId,
+      account_id: createdAccount.id,
+      date: today,
+      type: 'ADJUSTMENT',
+      amount_original: roundedInitialBalance,
+      currency_original: input.currencyNative,
+      fee_amount: 0,
+      exchange_rate: 1,
+      rate_overridden: false,
+      amount_account: roundedInitialBalance,
+      currency_account: input.currencyNative,
+      category_id: null,
+      person_id: null,
+      installment_current: 1,
+      installment_total: 1,
+      status: 'COMPLETED',
+      notes: 'Saldo inicial de cuenta'
+    })
+    if (adjError) throw new Error('No se pudo asentar el saldo inicial. Intentá de nuevo.')
+  }
 
   revalidatePath('/accounts')
+  revalidatePath('/dashboard')
+  revalidatePath('/transactions')
+  return { id: createdAccount.id }
 }
 
 export async function updateAccount(id: string, input: Omit<AccountInput, 'institutionId'>) {

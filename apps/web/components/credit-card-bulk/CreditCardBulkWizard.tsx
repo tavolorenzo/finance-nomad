@@ -82,9 +82,12 @@ export function CreditCardBulkWizard({
       new Set([
         cardCurrency,
         ...cardAccounts.map((a) => a.currency_native),
+        'UYU',
         'USD',
         'EUR',
-        'ARS'
+        'ARS',
+        'AUD',
+        'NZD'
       ])
     ).filter(Boolean)
   }, [cardCurrency, cardAccounts])
@@ -129,26 +132,29 @@ export function CreditCardBulkWizard({
     const sMap: Record<string, number> = {}
 
     for (const r of rows) {
-      const amt = parseFloat(r.amount)
+      const rawAmt = parseFloat(r.amount)
+      const amt = Math.abs(rawAmt)
+      const isRefundRow = Boolean(r.isRefund || (!isNaN(rawAmt) && rawAmt < 0))
       if (!isNaN(amt) && amt > 0 && r.description.trim().length > 0) {
         validCount++
         const rowCurr = r.currency || cardCurrency
-        currMap[rowCurr] = Math.round(((currMap[rowCurr] || 0) + amt) * 100) / 100
+        const signedAmt = isRefundRow ? -amt : amt
+        currMap[rowCurr] = Math.round(((currMap[rowCurr] || 0) + signedAmt) * 100) / 100
         if (rowCurr === cardCurrency) {
-          currentTotal += amt
+          currentTotal += signedAmt
         }
 
         const isShared = Boolean(r.personId && r.personId !== defaultPersonId)
         if (isShared) {
-          sTotal += amt
+          sTotal += signedAmt
           sCount++
-          sMap[rowCurr] = Math.round(((sMap[rowCurr] || 0) + amt) * 100) / 100
+          sMap[rowCurr] = Math.round(((sMap[rowCurr] || 0) + signedAmt) * 100) / 100
         } else {
-          pTotal += amt
-          pMap[rowCurr] = Math.round(((pMap[rowCurr] || 0) + amt) * 100) / 100
+          pTotal += signedAmt
+          pMap[rowCurr] = Math.round(((pMap[rowCurr] || 0) + signedAmt) * 100) / 100
         }
 
-        if (r.installmentTotal > r.installmentCurrent) {
+        if (!isRefundRow && r.installmentTotal > r.installmentCurrent) {
           const remainingCount = r.installmentTotal - r.installmentCurrent
           const remAmt = amt * remainingCount
           futMap[rowCurr] = Math.round(((futMap[rowCurr] || 0) + remAmt) * 100) / 100
@@ -190,18 +196,24 @@ export function CreditCardBulkWizard({
     )
   }
 
+  function handleApplyCurrencyToAll(targetCurrency: string) {
+    if (!targetCurrency) return
+    setRows((prev) => prev.map((r) => ({ ...r, currency: targetCurrency })))
+  }
+
   function handleApplyPasted(parsedItems: any[]) {
     if (parsedItems.length === 0) return
     const newRows: BulkRowItem[] = parsedItems.map((item) => ({
       id: item.id || `row-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       date: item.date || today,
       description: item.description || '',
-      amount: item.amount ? String(item.amount) : '',
+      amount: item.amount ? String(item.isRefund ? -Math.abs(item.amount) : item.amount) : '',
       currency: item.currency || cardCurrency,
       installmentCurrent: item.installmentCurrent || 1,
       installmentTotal: item.installmentTotal || 1,
       categoryId: item.categoryId || null,
-      personId: item.personId !== undefined && item.personId !== null ? item.personId : defaultPersonId
+      personId: item.personId !== undefined && item.personId !== null ? item.personId : defaultPersonId,
+      isRefund: Boolean(item.isRefund)
     }))
 
     // Si la grilla sólo tenía una fila vacía, la reemplazamos; si no, añadimos
@@ -219,16 +231,21 @@ export function CreditCardBulkWizard({
 
   async function handleSave() {
     const validMovements = rows
-      .map((r) => ({
-        date: r.date,
-        description: r.description.trim(),
-        amount: parseFloat(r.amount) || 0,
-        currency: r.currency,
-        installmentCurrent: r.installmentCurrent,
-        installmentTotal: r.installmentTotal,
-        categoryId: r.categoryId || null,
-        personId: r.personId || null
-      }))
+      .map((r) => {
+        const rawAmt = parseFloat(r.amount) || 0
+        const isRefund = Boolean(r.isRefund || rawAmt < 0)
+        return {
+          date: r.date,
+          description: r.description.trim(),
+          amount: Math.abs(rawAmt),
+          currency: r.currency,
+          installmentCurrent: r.installmentCurrent,
+          installmentTotal: r.installmentTotal,
+          categoryId: r.categoryId || null,
+          personId: r.personId || null,
+          ...(isRefund ? { isRefund: true } : {})
+        }
+      })
       .filter((m) => m.amount > 0 && m.description.length > 0)
 
     if (validMovements.length === 0) {
@@ -347,8 +364,8 @@ export function CreditCardBulkWizard({
       </div>
 
       {/* Toolbar Superior de Acciones de la Grilla */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={handleAddRow}
@@ -366,6 +383,30 @@ export function CreditCardBulkWizard({
             <Sparkles className="w-3.5 h-3.5" />
             <span>Pegar Resumen Mágico</span>
           </button>
+
+          <div className="flex items-center gap-1.5 bg-surface-1 border border-border rounded-control px-2.5 py-1 text-xs">
+            <label htmlFor="bulk-currency-all" className="text-text-secondary font-medium">
+              Moneda para todas:
+            </label>
+            <select
+              id="bulk-currency-all"
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  handleApplyCurrencyToAll(e.target.value)
+                  e.target.value = ''
+                }
+              }}
+              className="bg-surface-0 border border-border rounded-control px-2 py-0.5 text-xs font-mono font-medium text-text-primary focus:border-accent outline-none"
+            >
+              <option value="">Elegir...</option>
+              {availableCurrencies.map((c) => (
+                <option key={c} value={c}>
+                  Asignar {c}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -384,6 +425,14 @@ export function CreditCardBulkWizard({
             {validRowsCount === 1 ? 'válida' : 'válidas'})
           </span>
         </div>
+      </div>
+
+      {/* Leyenda recordatoria de verificación */}
+      <div className="flex items-start gap-2 bg-pending/10 border border-pending/30 rounded-control px-3 py-2 text-xs text-pending">
+        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+        <p className="leading-snug">
+          <strong>Recordá verificar las filas antes de guardar:</strong> la lectura automática puede cometer errores en fechas, cuotas, monedas o montos. Las filas con importe negativo se destacan como <strong>Pago / Refund</strong>.
+        </p>
       </div>
 
       {/* Error Alert */}
@@ -502,6 +551,7 @@ export function CreditCardBulkWizard({
         onClose={() => setIsPasteModalOpen(false)}
         onApply={handleApplyPasted}
         defaultCurrency={cardCurrency}
+        availableCurrencies={availableCurrencies}
         categories={localCategories}
         people={people}
       />

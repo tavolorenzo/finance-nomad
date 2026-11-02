@@ -187,6 +187,34 @@ describe('buildTransactionBundle', () => {
     expect(child2.date).toBe('2026-12-15')
   })
 
+  it('asigna el mes contable actual a cuotas de compras anteriores y proyecta cuotas futuras desde el período actual', () => {
+    const bundle = buildTransactionBundle({
+      type: 'OUTCOME',
+      amountOriginal: 1263.87,
+      currencyOriginal: 'UYU',
+      currencyAccount: 'UYU',
+      date: '2026-08-27',
+      accountingPeriod: '2026-11',
+      institutionId: 'inst-1',
+      accountId: 'acc-1',
+      installmentCurrent: 2,
+      installmentTotal: 3,
+      amountIsPerInstallment: true,
+      today: '2026-11-02'
+    })
+
+    expect(bundle.rows).toHaveLength(2)
+    expect(bundle.rows[0].installment_current).toBe(2)
+    expect(bundle.rows[0].date).toBe('2026-08-27')
+    expect(bundle.rows[0].accounting_period).toBe('2026-11')
+    expect(bundle.rows[0].status).toBe('COMPLETED')
+
+    expect(bundle.rows[1].installment_current).toBe(3)
+    expect(bundle.rows[1].date).toBe('2026-12-27')
+    expect(bundle.rows[1].accounting_period).toBe('2026-12')
+    expect(bundle.rows[1].status).toBe('PENDING')
+  })
+
   it('preserva el valor de la cuota cuando amountIsPerInstallment es true aunque arranque en cuota 1 de N', () => {
     const bundle = buildTransactionBundle({
       type: 'OUTCOME',

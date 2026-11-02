@@ -15,6 +15,7 @@ export function InstitutionForm({ institution }: { institution?: Institution }) 
   const ledger = useOptionalLedger()
   const isOnline = useOnlineStatus()
   const [name, setName] = useState(institution?.name ?? '')
+  const [createCashAccount, setCreateCashAccount] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -31,16 +32,22 @@ export function InstitutionForm({ institution }: { institution?: Institution }) 
     try {
       if (institution) {
         await updateInstitution(institution.id, name)
+        await ledger?.refresh().catch(() => {})
+        if (isModal) {
+          close()
+        } else {
+          router.push('/accounts')
+        }
+        router.refresh()
       } else {
-        await createInstitution(name)
+        const created = await createInstitution(name, { createCashAccount })
+        await ledger?.refresh().catch(() => {})
+        const nextUrl = created?.id
+          ? `/accounts/new?institutionId=${created.id}`
+          : '/accounts/new'
+        router.replace(nextUrl)
+        router.refresh()
       }
-      await ledger?.refresh().catch(() => {})
-      if (isModal) {
-        close()
-      } else {
-        router.push('/accounts')
-      }
-      router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar. Intentá de nuevo.')
       setLoading(false)
@@ -96,6 +103,26 @@ export function InstitutionForm({ institution }: { institution?: Institution }) 
           autoFocus
         />
       </div>
+
+      {!institution && (
+        <div className="bg-surface-1 border border-border rounded-control p-3">
+          <label htmlFor="institution-create-cash" className="flex items-start gap-2.5 cursor-pointer">
+            <input
+              id="institution-create-cash"
+              type="checkbox"
+              checked={createCashAccount}
+              onChange={(e) => setCreateCashAccount(e.target.checked)}
+              className="mt-0.5 rounded border-border text-accent focus:ring-accent"
+            />
+            <span className="text-xs text-text-secondary">
+              <strong className="font-medium text-text-primary block">
+                Incluir una cuenta de Efectivo en esta institución
+              </strong>
+              Dejalo sin marcar si ya tenés tu billetera de efectivo creada en el asistente inicial.
+            </span>
+          </label>
+        </div>
+      )}
 
       {error && <p className="text-sm text-expense font-medium">{error}</p>}
 

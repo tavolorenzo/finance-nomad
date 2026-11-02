@@ -10,7 +10,10 @@ async function requireUser() {
   return { supabase, user }
 }
 
-export async function createInstitution(name: string) {
+export async function createInstitution(
+  name: string,
+  options?: { createCashAccount?: boolean }
+): Promise<{ id: string }> {
   const { supabase, user } = await requireUser()
   if (!name.trim()) throw new Error('Completá este campo para continuar.')
 
@@ -21,21 +24,24 @@ export async function createInstitution(name: string) {
     .single()
   if (error || !institution) throw new Error('No se pudo guardar. Intentá de nuevo.')
 
-  const { data: settings } = await supabase
-    .from('user_settings')
-    .select('display_currency')
-    .eq('user_id', user.id)
-    .maybeSingle()
+  if (options?.createCashAccount) {
+    const { data: settings } = await supabase
+      .from('user_settings')
+      .select('display_currency')
+      .eq('user_id', user.id)
+      .maybeSingle()
 
-  await supabase.from('accounts').insert({
-    user_id: user.id,
-    institution_id: institution.id,
-    name: 'Efectivo',
-    type: 'cash',
-    currency_native: settings?.display_currency ?? 'EUR'
-  })
+    await supabase.from('accounts').insert({
+      user_id: user.id,
+      institution_id: institution.id,
+      name: 'Efectivo',
+      type: 'cash',
+      currency_native: settings?.display_currency ?? 'EUR'
+    })
+  }
 
   revalidatePath('/accounts')
+  return { id: institution.id }
 }
 
 export async function updateInstitution(id: string, name: string) {

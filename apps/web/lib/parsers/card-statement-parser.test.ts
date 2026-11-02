@@ -42,6 +42,13 @@ describe('card-statement-parser', () => {
       expect(parseDate('2026-10-24')).toBe('2026-10-24')
     })
 
+    it('parsea fechas DD/MM/AA, DD MM AA y DD-MM-AA (año de 2 dígitos)', () => {
+      expect(parseDate('10/11/25')).toBe('2025-11-10')
+      expect(parseDate('27/08/26')).toBe('2026-08-27')
+      expect(parseDate('15 10 26')).toBe('2026-10-15')
+      expect(parseDate('05-03-26')).toBe('2026-03-05')
+    })
+
     it('parsea fechas cortas DD/MM con año de referencia', () => {
       expect(parseDate('12/10', 2026)).toBe('2026-10-12')
       expect(parseDate('04/07', 2026)).toBe('2026-07-04')
@@ -62,6 +69,12 @@ describe('card-statement-parser', () => {
     it('detecta patrones tipo CUOTA 4 DE 12 o CUOTA 02/06', () => {
       expect(parseInstallment('CUOTA 4 DE 12')).toEqual({ current: 4, total: 12 })
       expect(parseInstallment('CUOTA 02/06')).toEqual({ current: 2, total: 6 })
+    })
+
+    it('detecta patrones X/X y X/ X con espacio', () => {
+      expect(parseInstallment('12/12')).toEqual({ current: 12, total: 12 })
+      expect(parseInstallment('2/ 3')).toEqual({ current: 2, total: 3 })
+      expect(parseInstallment('01 / 06')).toEqual({ current: 1, total: 6 })
     })
 
     it('retorna null si no contiene cuotas', () => {
@@ -182,6 +195,66 @@ describe('card-statement-parser', () => {
       })
 
       expect(results[0].personId).toBe('p-facu')
+    })
+
+    it('procesa formato con fecha DD/MM/AA, tarjeta XXXX opcional, cuota X/ X, moneda UYU/USD y pagos/refunds negativos', () => {
+      const statement = `
+        10/11/25 5029 NICO RENT A CAR 12/12 USD 137,38
+        27/08/26 5045 SUPERMERCADOS EL DOR 2/ 3  UYU 1263,87
+        15 10 26 5029 SU PAGO EN PESOS -15.000,00
+      `
+
+      const results = parseCreditCardStatement(statement, {
+        defaultCurrency: 'UYU',
+        categories: mockCategories,
+        people: mockPeople
+      })
+
+      expect(results).toHaveLength(3)
+
+      // 1) 10/11/25 5029 NICO RENT A CAR 12/12 USD 137,38
+      expect(results[0].date).toBe('2025-11-10')
+      expect(results[0].cardDigits).toBe('5029')
+      expect(results[0].description).toBe('NICO RENT A CAR')
+      expect(results[0].installmentCurrent).toBe(12)
+      expect(results[0].installmentTotal).toBe(12)
+      expect(results[0].currency).toBe('USD')
+      expect(results[0].amount).toBe(137.38)
+      expect(results[0].isRefund).toBe(false)
+
+      // 2) 27/08/26 5045 SUPERMERCADOS EL DOR 2/ 3  UYU 1263,87
+      expect(results[1].date).toBe('2026-08-27')
+      expect(results[1].cardDigits).toBe('5045')
+      expect(results[1].description).toBe('SUPERMERCADOS EL DOR')
+      expect(results[1].installmentCurrent).toBe(2)
+      expect(results[1].installmentTotal).toBe(3)
+      expect(results[1].currency).toBe('UYU')
+      expect(results[1].amount).toBe(1263.87)
+      expect(results[1].categoryId).toBe('cat-super')
+      expect(results[1].isRefund).toBe(false)
+
+      // 3) 15 10 26 5029 SU PAGO EN PESOS -15.000,00
+      expect(results[2].date).toBe('2026-10-15')
+      expect(results[2].cardDigits).toBe('5029')
+      expect(results[2].description).toBe('SU PAGO EN PESOS')
+      expect(results[2].currency).toBe('UYU')
+      expect(results[2].amount).toBe(15000)
+      expect(results[2].isRefund).toBe(true)
+    })
+
+    it('permite forzar moneda a todas las filas con forceCurrency', () => {
+      const statement = `
+        10/11/25 5029 NICO RENT A CAR 12/12 USD 137,38
+        27/08/26 5045 SUPERMERCADOS EL DOR 2/ 3 1263,87
+      `
+      const results = parseCreditCardStatement(statement, {
+        defaultCurrency: 'UYU',
+        forceCurrency: 'EUR'
+      })
+
+      expect(results).toHaveLength(2)
+      expect(results[0].currency).toBe('EUR')
+      expect(results[1].currency).toBe('EUR')
     })
   })
 })

@@ -14,6 +14,7 @@ export interface BulkRowItem {
   installmentTotal: number
   categoryId: string | null
   personId: string | null
+  isRefund?: boolean
 }
 
 interface BulkMovementRowProps {
@@ -43,6 +44,8 @@ export function BulkMovementRow({
   const otherPeople = people.filter((p) => p.name.trim().toLowerCase() !== 'personal')
   const isAssignedToOther = Boolean(item.personId && item.personId !== personalPerson?.id)
   const assignedPersonName = otherPeople.find((p) => p.id === item.personId)?.name
+  const parsedAmount = parseFloat(item.amount)
+  const isRefundRow = Boolean(item.isRefund || (!isNaN(parsedAmount) && parsedAmount < 0))
 
   function handleDescriptionChange(val: string) {
     onChange(item.id, 'description', val)
@@ -63,7 +66,13 @@ export function BulkMovementRow({
   }
 
   return (
-    <tr className="hover:bg-surface-1/40 transition group border-b border-border/60">
+    <tr
+      className={`transition group border-b ${
+        isRefundRow
+          ? 'bg-pending/10 hover:bg-pending/15 border-pending/30'
+          : 'hover:bg-surface-1/40 border-border/60'
+      }`}
+    >
       {/* 1. Fecha */}
       <td className="p-2 w-32">
         <input
@@ -76,13 +85,23 @@ export function BulkMovementRow({
 
       {/* 2. Descripción */}
       <td className="p-2 min-w-[180px]">
-        <input
-          type="text"
-          value={item.description}
-          onChange={(e) => handleDescriptionChange(e.target.value)}
-          placeholder="Comercio / Detalle"
-          className="w-full bg-surface-0 border border-border rounded-control px-2.5 py-1 text-xs text-text-primary focus:border-accent outline-none placeholder:text-text-muted/60"
-        />
+        <div className="flex items-center gap-1.5">
+          <input
+            type="text"
+            value={item.description}
+            onChange={(e) => handleDescriptionChange(e.target.value)}
+            placeholder="Comercio / Detalle"
+            className="w-full bg-surface-0 border border-border rounded-control px-2.5 py-1 text-xs text-text-primary focus:border-accent outline-none placeholder:text-text-muted/60"
+          />
+          {isRefundRow && (
+            <span
+              className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-pending/20 text-pending border border-pending/30 shrink-0"
+              title="Monto negativo detectado: posible pago de tarjeta o reintegro (refund)"
+            >
+              Pago / Refund
+            </span>
+          )}
+        </div>
       </td>
 
       {/* 3. Cuotas */}
@@ -166,12 +185,22 @@ export function BulkMovementRow({
         <input
           type="number"
           step="0.01"
-          min="0"
           value={item.amount}
-          onChange={(e) => onChange(item.id, 'amount', e.target.value)}
+          onChange={(e) => {
+            const val = e.target.value
+            onChange(item.id, 'amount', val)
+            const num = parseFloat(val)
+            if (!isNaN(num)) {
+              onChange(item.id, 'isRefund', num < 0 ? true : item.isRefund && num >= 0 ? item.isRefund : false)
+            }
+          }}
           onKeyDown={handleAmountKeyDown}
           placeholder="0.00"
-          className="w-full bg-surface-0 border border-border rounded-control px-2 py-1 text-xs font-mono tabular-nums text-right text-text-primary focus:border-accent outline-none font-semibold"
+          className={`w-full bg-surface-0 border rounded-control px-2 py-1 text-xs font-mono tabular-nums text-right focus:border-accent outline-none font-semibold ${
+            isRefundRow
+              ? 'border-pending/50 text-income'
+              : 'border-border text-text-primary'
+          }`}
         />
       </td>
 

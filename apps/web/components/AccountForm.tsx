@@ -55,12 +55,14 @@ export function AccountForm({
   )
   const [creditLimit, setCreditLimit] = useState(account?.credit_limit?.toString() ?? '')
   const [closingDay, setClosingDay] = useState(account?.closing_day?.toString() ?? '')
+  const [initialBalance, setInitialBalance] = useState('')
+  const [createdNotice, setCreatedNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function saveAccount(addAnother: boolean) {
     setError(null)
+    setCreatedNotice(null)
 
     if (!isOnline) {
       setError('No tenés conexión a internet. Conectate para continuar.')
@@ -70,12 +72,19 @@ export function AccountForm({
     setLoading(true)
     try {
       const parsedClosingDay = closingDay ? parseInt(closingDay, 10) : null
+      const parsedInitialBalance =
+        !account && type !== 'credit_card' && initialBalance.trim() !== ''
+          ? parseFloat(initialBalance)
+          : null
       const input = {
         name,
         type,
         currencyNative: currency,
         creditLimit: creditLimit ? parseFloat(creditLimit) : null,
-        ...(parsedClosingDay !== null || account?.closing_day != null ? { closingDay: parsedClosingDay } : {})
+        ...(parsedClosingDay !== null || account?.closing_day != null ? { closingDay: parsedClosingDay } : {}),
+        ...(parsedInitialBalance !== null && !isNaN(parsedInitialBalance)
+          ? { initialBalance: parsedInitialBalance }
+          : {})
       }
       if (account) {
         await updateAccount(account.id, input)
@@ -83,6 +92,19 @@ export function AccountForm({
         await createAccount({ ...input, institutionId })
       }
       await ledger?.refresh().catch(() => {})
+
+      if (addAnother && !account) {
+        const createdName = name.trim()
+        setName('')
+        setInitialBalance('')
+        setCreditLimit('')
+        setClosingDay('')
+        setCreatedNotice(`Se creó "${createdName}". Podés agregar otro producto en esta institución.`)
+        setLoading(false)
+        router.refresh()
+        return
+      }
+
       if (isModal) {
         close()
       } else {
@@ -93,6 +115,11 @@ export function AccountForm({
       setError(err instanceof Error ? err.message : 'No se pudo guardar. Intentá de nuevo.')
       setLoading(false)
     }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    await saveAccount(false)
   }
 
   async function handleToggleActive() {
@@ -194,6 +221,26 @@ export function AccountForm({
         </select>
       </div>
 
+      {!account && type !== 'credit_card' && (
+        <div>
+          <label htmlFor="account-initial-balance" className="block text-sm font-medium text-text-secondary mb-1">
+            Saldo inicial (opcional)
+          </label>
+          <input
+            id="account-initial-balance"
+            type="number"
+            step="0.01"
+            placeholder="0.00"
+            value={initialBalance}
+            onChange={(e) => setInitialBalance(e.target.value)}
+            className="w-full font-mono tabular-nums amount"
+          />
+          <p className="text-[11px] text-text-muted mt-1">
+            Ingresá el saldo actual de la cuenta en {currency} para arrancar sin diferencias (se registra como ajuste inicial y no afecta tus gastos).
+          </p>
+        </div>
+      )}
+
       {type === 'credit_card' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
@@ -230,6 +277,12 @@ export function AccountForm({
         </div>
       )}
 
+      {createdNotice && (
+        <p className="text-xs text-income font-medium bg-surface-1 border border-border rounded-control p-2.5">
+          {createdNotice}
+        </p>
+      )}
+
       {error && <p className="text-sm text-expense font-medium">{error}</p>}
 
       <button
@@ -239,6 +292,23 @@ export function AccountForm({
       >
         {!isOnline ? 'Sin conexión a internet' : loading ? 'Guardando...' : account ? 'Guardar cambios' : 'Crear cuenta'}
       </button>
+
+      {!account && (
+        <button
+          type="button"
+          onClick={() => {
+            if (!name.trim()) {
+              setError('Completá el nombre de la cuenta para continuar.')
+              return
+            }
+            saveAccount(true)
+          }}
+          disabled={loading || !isOnline}
+          className="w-full border border-border text-text-primary py-2.5 rounded-control text-sm font-medium hover:bg-surface-1 transition disabled:opacity-50"
+        >
+          Crear y agregar otro producto
+        </button>
+      )}
 
       {account && (
         <button
