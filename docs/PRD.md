@@ -94,11 +94,11 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
 * Genera 2 registros enlazados por `parent_transaction_id` en el *Ledger* (débito negativo en origen y crédito positivo en destino).
 
 ### 4.5. Personas & Cuentas por Cobrar
-* Directorio de contactos (`/people`) con Saldo Pendiente Total consolidado por moneda.
+* Directorio de contactos (`/people`) con **Saldo por cobrar del mes contable actual** consolidado por moneda (`accounting_period <= YYYY-MM` actual + movimientos sin mes contable), exhibiendo de forma diferenciada los importes diferidos en próximos meses.
 * **Contacto de Sistema "Personal"**: Entidad reservada del sistema asignada por defecto a los consumos propios del usuario. No puede renombrarse, desactivarse ni duplicarse (protegida como palabra reservada `Personal` en frontend y backend).
 * **Prevención de Nombres Duplicados y Aviso en Tiempo Real**: Si el usuario tipea el nombre de una persona ya existente (activa o desactivada), el formulario muestra un aviso preventivo sugiriendo incorporar una inicial o apellido (ej. *"Diego M."*) para garantizar que los contactos se reconozcan de manera inequívoca en selectores de consumos y cobros.
 * CRUD completo de contactos (`/people/new`, `/people/[id]/edit`) con baja lógica protegida (la desactivación se bloquea si la persona tiene movimientos pendientes de cobro).
-* Ficha de Persona (`/people/[id]`): Deuda actual, cuotas comprometidas futuras e historial de movimientos.
+* Ficha de Persona (`/people/[id]`): Saldo por cobrar del período contable actual (`<= YYYY-MM` + sin mes contable), desglose de cuotas/períodos futuros e historial de movimientos cobrados.
 * Acciones en ficha de persona:
   - **"Registrar Cobro / Liquidación"** (marca los movimientos como saldados con `settled_at`).
   - **"Notificar por WhatsApp" (`WhatsAppNotifyModal`):** Modal interactivo previo para verificar el destinatario, validar el teléfono y editar el mensaje antes de disparar el link a WhatsApp (`wa.me`).
@@ -135,6 +135,7 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
 * Envío de correo para restablecimiento de contraseña (`SendResetLinkButton` y flujo `/auth/update-password`).
 * Acceso directo al Centro de Ayuda & Wiki y disparador del Onboarding Tour (`TourTriggerButton`).
 * Ficha de Información del Sistema (`SystemInfoCard`): versión actual de la aplicación, commit de Git, rama activa y entorno de ejecución.
+* **Detección de Nueva Versión y Banner de Actualización (Pendiente de implementación):** Verificación periódica (o al recuperar el foco de la ventana/pestaña) comparando la versión en ejecución en la pestaña del navegador contra la última versión publicada en producción (Vercel) mediante un endpoint liviano (`/api/version`). Si se detecta discrepancia, se despliega un banner de aviso no intrusivo con un botón de acción directa (**"Actualizar / Recargar"**) para refrescar la aplicación y asegurar que el usuario opere siempre con el código y esquema más reciente.
 * **Baja de Cuenta / Eliminar Usuario (Pendiente de implementación Frontend):** Sección de zona de peligro (*Danger Zone*) en `/settings` con función en el frontend y confirmación explícita de seguridad para que el usuario pueda darse de baja definitiva del sistema, limpiando la base local (`IndexedDB`) y ejecutando el borrado en cascada de su usuario en `auth.users` junto con todos sus registros financieros.
 
 ### 4.10. Centro de Ayuda, FAQ y Wiki (`/help`)
@@ -175,6 +176,28 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
     - **Asignar al próximo mes (Opción A en cascada):** Desplaza el `accounting_period` al mes siguiente; si es una compra en cuotas, desplaza en cascada esa cuota y todas las cuotas siguientes del plan.
     - **Agregar gasto faltante:** Permite incorporar directamente en el período un cargo presente en el resumen bancario que no había sido registrado.
 * **Banner Recordatorio en Dashboard:** Durante los últimos 5 días y los primeros 5 días de cada mes, si el usuario posee tarjetas de crédito activas, el Dashboard muestra un banner con acceso directo a la verificación de sus resúmenes.
+
+### 4.14. Centro de Control y Análisis de Tarjetas (`/cards`)
+* **Visibilidad Dinámica en Navegación Principal:** El ítem **Tarjetas** (`/cards`) se incorpora en el bloque principal del menú lateral y barra móvil únicamente cuando el usuario posee al menos un producto financiero de tipo `credit_card` (permaneciendo oculto si no opera con tarjetas de crédito).
+* **Bloque A — KPIs Globales Consolidados:**
+  - **Consumos del Resumen (`accounting_period`):** Selector de período contable (`YYYY-MM`), pills por divisa operada y consolidado en la moneda global del usuario.
+  - **Separación Propio vs. Terceros (Split Pay / Extensiones):** Desglose del monto atribuido a *"Personal"* frente a los consumos realizados por o para terceros.
+  - **Compromisos Diferidos (Cuotas Futuras):** Total acumulado en períodos posteriores al seleccionado y cantidad de planes activos.
+  - **Salud de Límite Global y Estado de Conciliación:** Porcentaje de utilización consolidada y progreso de verificación (`is_verified`) del período.
+* **Bloque B — Curva de Compromisos y Liberación de Cuotas (*Run-off* a 6 y 12 Meses):**
+  - Proyección mensual de compromisos asumidos apilando consumo propio vs. terceros.
+  - **Hitos de Alivio Financiero (*Drop-off Insights*):** Detección automática de los meses en que finalizan planes de cuotas vigentes (`installment_current === installment_total`), informando cuánto saldo mensual se libera.
+* **Bloque C — Matriz Visual de Plásticos con Detección de Sello de Red:**
+  - Tarjeta rica por cada plástico con chip EMV estilizado y **detección automática del sello de red (`VISA`, `AMEX`, `MASTERCARD`, `MAESTRO`)** a partir del nombre del producto (`account.name`).
+  - Indicador de próximo cierre (`closing_day` y días restantes), pills bimonetarias del período, barra de utilización de límite individual y botonera de acciones en 1 clic (`Verificar`, `Carga rápida`, `Detalle` y `Registrar pago`).
+* **Bloque D — Radiografía Analítica:**
+  - **Listado Maestro de Planes de Cuotas Activos:** Seguimiento de cada compra financiada (`Cuota C de T`, barra de progreso, cuota mensual, saldo remanente y mes de finalización).
+  - **Desglose por Persona y por Categoría:** Distribución de consumos del período (excluyendo `TRANSFER` y `ADJUSTMENT`) con enlaces directos al directorio de `/people`.
+* **Nota de Evolución Futura (`due_day` — Día de Vencimiento de Pago):** Actualmente el ciclo de tarjetas opera sobre `closing_day` (día de cierre). Se deja documentado como mejora futura opcional la incorporación del campo `due_day` (día de vencimiento de pago del resumen) en `accounts` para alertar sobre fechas límite de pago además del corte contable.
+
+### 4.15. Análisis y Datos (`/analytics`)
+* Tablero analítico de evolución de ingresos, gastos de consumo (`OUTCOME`), tasa de ahorro, distribución por categorías, divisas e instituciones en moneda global.
+* **Master Switch de Transacciones Personales vs. Terceros (Pendiente de implementación):** Control global (*Master Switch*) en la cabecera de **Análisis y Datos** (`/analytics`) para alternar en tiempo real entre **incluir o excluir las transacciones no personales** (consumos o movimientos asignados a otras personas del directorio distintas de `Personal` / sin asignar). Permite analizar el gasto e indicadores puramente propios sin la distorsión de compras realizadas a nombre de terceros (extensiones o gastos compartidos), o bien auditar el volumen total operado.
 
 ---
 

@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import { Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { formatMoney } from '@/lib/currency'
+import { isCurrentCollectibleDebt } from '@/lib/ledger/settlement'
+import { formatAccountingPeriodLabel } from '@/lib/ledger/builder'
 import { PersonActions } from '@/components/PersonActions'
 import type { Account, Category, MasterTransaction, Person } from '@/lib/types'
 
@@ -34,17 +36,32 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ i
   ])
   if (!person) notFound()
 
-  const all = transactions ?? []
+  const all = (transactions ?? []).filter((t) => t.type === 'OUTCOME')
   const today = new Date().toISOString().slice(0, 10)
   const pending = all.filter((t) => !t.settled_at)
-  const upcoming = pending.filter((t) => t.date > today)
-  const overdueOrToday = pending.filter((t) => t.date <= today)
+  const overdueOrToday = pending.filter((t) => isCurrentCollectibleDebt(t, today))
+  const upcoming = pending.filter((t) => !isCurrentCollectibleDebt(t, today))
   const settled = all.filter((t) => t.settled_at)
 
   const getRemaining = (t: MasterTransaction) =>
     Math.max(0, t.amount_account - (t.settled_amount ?? 0))
-  const totalPending = pending.reduce((sum, t) => sum + getRemaining(t), 0)
-  const currency = pending[0]?.currency_account ?? 'UYU'
+
+  const currentByCurrency = new Map<string, number>()
+  for (const t of overdueOrToday) {
+    const rem = getRemaining(t)
+    if (rem <= 0) continue
+    currentByCurrency.set(t.currency_account, (currentByCurrency.get(t.currency_account) ?? 0) + rem)
+  }
+
+  const futureByCurrency = new Map<string, number>()
+  for (const t of upcoming) {
+    const rem = getRemaining(t)
+    if (rem <= 0) continue
+    futureByCurrency.set(t.currency_account, (futureByCurrency.get(t.currency_account) ?? 0) + rem)
+  }
+
+  const totalCurrentPending = overdueOrToday.reduce((sum, t) => sum + getRemaining(t), 0)
+  const fallbackCurrency = pending[0]?.currency_account ?? 'UYU'
 
   return (
     <main className="max-w-3xl mx-auto p-4 md:p-6 space-y-6">
@@ -82,12 +99,24 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ i
             {person.phone && (
               <p className="text-xs text-text-secondary mt-1">{person.phone}</p>
             )}
-            <p className="text-xs text-text-muted mt-1 uppercase tracking-wider font-medium">Saldo por cobrar</p>
-          </div>
-          <div>
-            <p className={`font-mono text-3xl font-semibold ${totalPending > 0 ? 'text-pending' : 'text-text-muted'}`}>
-              {formatMoney(totalPending, currency)}
+            <p className="text-xs text-text-muted mt-1 uppercase tracking-wider font-medium">
+              Saldo por cobrar (mes contable actual)
             </p>
+          </div>
+          <div className="sm:text-right space-y-1">
+            <p className={`font-mono tabular-nums amount text-3xl font-semibold ${totalCurrentPending > 0 ? 'text-pending' : 'text-text-muted'}`}>
+              {currentByCurrency.size > 0
+                ? [...currentByCurrency.entries()].map(([c, amt]) => formatMoney(amt, c)).join(' · ')
+                : formatMoney(0, fallbackCurrency)}
+            </p>
+            {futureByCurrency.size > 0 && (
+              <p className="text-xs text-text-muted">
+                Próximos meses:{' '}
+                <span className="font-mono tabular-nums amount font-medium text-text-secondary">
+                  {[...futureByCurrency.entries()].map(([c, amt]) => formatMoney(amt, c)).join(' · ')}
+                </span>
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -149,7 +178,7 @@ function Row({ t, muted = false }: { t: MasterTransaction; muted?: boolean }) {
   return (
     <div className="flex justify-between items-center py-3">
       <div className="space-y-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <p className={`text-sm font-medium ${muted ? 'text-text-muted' : 'text-text-primary'}`}>
             {t.notes ?? 'Movimiento'}
           </p>
@@ -159,8 +188,13 @@ function Row({ t, muted = false }: { t: MasterTransaction; muted?: boolean }) {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <p className="text-xs text-text-muted">{t.date}</p>
+          {t.accounting_period && (
+            <span className="text-[10px] font-medium bg-surface-2 text-text-secondary border border-border px-2 py-0.5 rounded-full">
+              Resumen {formatAccountingPeriodLabel(t.accounting_period)}
+            </span>
+          )}
           {t.installment_total > 1 && (
             <span className="text-[10px] font-medium bg-pending/15 text-pending px-2 py-0.5 rounded-full">
               Cuota {t.installment_current} de {t.installment_total}
@@ -169,11 +203,11 @@ function Row({ t, muted = false }: { t: MasterTransaction; muted?: boolean }) {
         </div>
       </div>
       <div className="text-right">
-        <p className={`font-mono text-sm font-medium ${muted ? 'text-text-muted' : 'text-pending'}`}>
+        <p className={`font-mono tabular-nums amount text-sm font-medium ${muted ? 'text-text-muted' : 'text-pending'}`}>
           {formatMoney(muted ? t.amount_account : remaining, t.currency_account)}
         </p>
         {isPartial && (
-          <p className="font-mono text-[11px] text-text-muted">
+          <p className="font-mono tabular-nums amount text-[11px] text-text-muted">
             de {formatMoney(t.amount_account, t.currency_account)}
           </p>
         )}

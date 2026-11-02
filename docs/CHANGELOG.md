@@ -12,6 +12,31 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.14.2] - 2026-11-03
+### Modificado
+- **Texto de Botones en Banner de Verificación de Tarjeta (`apps/web/components/DashboardClient.tsx`, `apps/web/components/DashboardClient.test.tsx`, PRD §4.13)**:
+  - En el banner *"¿Te llegó el resumen de la tarjeta?"* del Dashboard, todos los botones generados por tarjeta (tanto con una sola tarjeta como con múltiples) muestran ahora el formato `Verificar {Nombre de Tarjeta} - {Institución}`, preservando además el nombre de la institución al hidratarse con el estado reactivo de `LedgerContext`.
+
+## [2.14.1] - 2026-11-02
+### Corregido
+- **Saldo por Cobrar según Mes Contable en Personas (`/people`, `/people/[id]`, `PersonActions.tsx`, `RegisterPersonPaymentModal.tsx`, `lib/ledger/settlement.ts`, PRD §4.5)**:
+  - Incorporación de `isCurrentCollectibleDebt` en `lib/ledger/settlement.ts`: evalúa como deuda exigible actual los movimientos pendientes con `accounting_period <= YYYY-MM` actual más aquellos que no tienen `accounting_period` asignado, separando las cuotas y consumos diferidos a meses contables futuros (`accounting_period > YYYY-MM`).
+  - **Directorio de Personas (`/people/page.tsx`)**: La tarjeta de cada persona muestra en **Saldo por cobrar** únicamente el total exigible del mes contable actual (y anteriores impagos) + movimientos sin mes contable, exhibiendo en una línea secundaria discreta (*"Próximos meses"*) el saldo diferido en períodos futuros y la insignia **Cuotas futuras** cuando el mes actual está al día.
+  - **Ficha de Persona (`/people/[id]/page.tsx`, `PersonActions.tsx`, `RegisterPersonPaymentModal.tsx`)**: Unificación del indicador principal de cabecera, el mensaje de notificación por WhatsApp, la separación entre *"Pendiente ahora"* vs. *"Cuotas futuras"* y la precarga de `allocateSettlement` bajo el mismo criterio de mes contable.
+- **Centro de Ayuda y Documentación (`apps/web/lib/help-data.ts`, `docs/PRD.md`)**:
+  - Actualización de `wiki-people` y §4.5 del PRD reflejando el cálculo del saldo por cobrar por período contable.
+
+## [2.14.0] - 2026-11-02
+### Agregado
+- **Centro de Control y Análisis de Tarjetas de Crédito (`/cards`, `apps/web/app/(protected)/cards/page.tsx`, `CreditCardsDashboard.tsx`, `CardBrandSeal.tsx`, `lib/credit-cards/analytics.ts`, PRD §4.14)**:
+  - **Navegación principal dinámica (`Navigation.tsx`, `AccountsClient.tsx`)**: Incorporación del ítem **Tarjetas** (`/cards`) en el bloque principal del menú lateral y barra móvil, visible únicamente si el usuario cuenta con al menos un producto de tipo `credit_card`.
+  - **Bloque A — KPIs Globales Consolidados**: Total de consumos del resumen según el período contable (`accounting_period`), desglose entre gastos propios (`Personal`) y de terceros (extensiones / *Split Pay*), compromisos diferidos en cuotas futuras, porcentaje de utilización del límite global y avance de conciliación (`is_verified`).
+  - **Bloque B — Proyección de Liberación de Cuotas (*Run-off* a 6 y 12 meses)**: Gráfico de barras apiladas mes a mes e hitos automáticos de alivio financiero (*Drop-off Insights*) que informan cuántos planes de cuotas terminan en cada mes y cuánto saldo mensual se libera.
+  - **Bloque C — Matriz Visual de Plásticos con Detección de Sello de Red**: Tarjeta estética por cada plástico con chip EMV vectorial y detección automática del sello de red (**VISA**, **AMEX**, **Mastercard** y **Maestro**) a partir del nombre del producto (`detectCardBrand`), contador de días hasta el próximo cierre (`closing_day`), pills bimonetarias, barra de límite y acciones en 1 clic (`Verificar`, `Carga rápida`, `Detalle`, `Registrar pago`).
+  - **Bloque D — Radiografía Analítica**: Tabla maestra de planes de cuotas activos (`Cuota C de T`, saldo remanente y mes de finalización) y desglose de consumos de tarjeta por persona y por categoría (excluyendo `TRANSFER` y `ADJUSTMENT`).
+- **Centro de Ayuda y Documentación (`apps/web/lib/help-data.ts`, `docs/PRD.md`)**:
+  - Enriquecimiento de la Wiki de tarjetas (`wiki-cards`), nueva FAQ (`faq-card-analytics-center`) y documentación de §4.14 en `docs/PRD.md` incluyendo nota de evolución futura para `due_day` (día de vencimiento de pago).
+
 ## [2.13.2] - 2026-11-02
 ### Agregado
 - **Columna de Mes Contable en Carga Rápida y Selector de Persona por Movimiento en Pegado Mágico (`BulkMovementRow.tsx`, `CreditCardBulkWizard.tsx`, `SmartPasteModal.tsx`, PRD §4.12)**:

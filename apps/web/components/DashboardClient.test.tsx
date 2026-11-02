@@ -103,4 +103,50 @@ describe('DashboardClient', () => {
     expect(isStatementVerificationWindow(new Date(2026, 9, 27))).toBe(true) // 27 oct (últimos 5 de 31)
     expect(isStatementVerificationWindow(new Date(2026, 9, 31))).toBe(true) // 31 oct
   })
+
+  it('muestra botones "Verificar $Nombre de Tarjeta - $Institucion" en el banner de resumen de tarjeta', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 10, 2, 12, 0, 0)) // 2 nov (dentro de la ventana de primeros 5 días)
+
+    const mockCardAccount: Account & { institutions: { name: string } } = {
+      id: 'card-1',
+      institution_id: 'inst-1',
+      name: 'Visa Infinite',
+      type: 'credit_card',
+      currency_native: 'UYU',
+      credit_limit: 100000,
+      is_active: true,
+      institutions: { name: 'Banco Itaú' }
+    }
+
+    vi.mocked(ledgerContext.useLedger).mockReturnValue({
+      balances: mockBalances,
+      accounts: [mockAccount, mockCardAccount],
+      recentTransactions: [mockTx],
+      isInitialized: true,
+      seedInitialData: vi.fn(),
+      fxRates: {}
+    } as any)
+
+    render(
+      <DashboardClient
+        initialAccounts={[mockAccount, mockCardAccount]}
+        initialBalances={mockBalances}
+        initialTransactions={[mockTx]}
+        initialEstimates={[]}
+        displayCurrency="EUR"
+        initialNetWorth={3500}
+        initialRealSpent={50}
+        monthStart="2026-11-01"
+        monthEnd="2026-11-30"
+      />
+    )
+
+    expect(screen.getByText('¿Te llegó el resumen de la tarjeta?')).toBeInTheDocument()
+    const verifyLink = screen.getByRole('link', { name: /Verificar Visa Infinite - Banco Itaú/i })
+    expect(verifyLink).toBeInTheDocument()
+    expect(verifyLink).toHaveAttribute('href', '/accounts/card-1/verify')
+
+    vi.useRealTimers()
+  })
 })

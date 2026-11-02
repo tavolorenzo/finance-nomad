@@ -93,10 +93,19 @@ export const WIKI_ARTICLES: WikiArticle[] = [
     categoryLabel: 'Tarjetas & Cuotas',
     iconName: 'CreditCard',
     badge: 'Contabilidad Precisa',
-    targetRoute: '/transactions/new',
-    targetLabel: 'Cargar gasto en cuotas',
-    summary: 'Funcionamiento del sistema de cuotas automáticas (1 de N), compromisos diferidos y liquidación de resúmenes de tarjeta.',
+    targetRoute: '/cards',
+    targetLabel: 'Ir al Centro de Tarjetas',
+    summary: 'Centro de control unificado (/cards), sistema de cuotas automáticas (1 de N), curva de liberación de cuotas y liquidación de resúmenes.',
     sections: [
+      {
+        title: 'Centro de Control y Análisis de Tarjetas (/cards)',
+        content: 'Cuando tenés al menos una tarjeta de crédito configurada, se habilita en el menú principal la vista "Tarjetas" (/cards). Allí podés analizar en un solo lugar el total de tus resúmenes del período contable elegido, cuánto corresponde a tus gastos propios ("Personal") frente a consumos de terceros (extensiones), la utilización global de tu límite de crédito y una matriz visual que simula cada plástico detectando automáticamente el sello de la red (VISA, AMEX, Mastercard o Maestro) a partir del nombre de la cuenta.',
+        tip: 'Desde cada tarjeta en /cards podés disparar en 1 clic la verificación del resumen, la carga rápida en bloque o el registro del pago mensual.'
+      },
+      {
+        title: 'Curva de Liberación de Cuotas (Run-off a 6 y 12 Meses)',
+        content: 'El panel de proyección de /cards te muestra mes a mes cuánto dinero ya tenés comprometido en futuros resúmenes por compras en cuotas pasadas, diferenciando tus gastos propios de los de terceros. Además, calcula automáticamente los "Hitos de alivio financiero", indicándote en qué mes exacto terminan tus planes actuales y cuánto saldo mensual liberás.'
+      },
       {
         title: 'Distribución Automática de Cuotas',
         content: 'Al cargar una compra en N pagos (por ejemplo 6 cuotas con tarjeta de crédito), Finance Nomad genera automáticamente las N filas en el libro contable distribuidas mes a mes. La cuota 1 se marca como COMPLETED y descuenta del saldo disponible de la tarjeta hoy; las cuotas 2 a N se agendan como PENDING vinculadas por un identificador común (parent_transaction_id).'
@@ -107,7 +116,7 @@ export const WIKI_ARTICLES: WikiArticle[] = [
       },
       {
         title: 'Pago del Resumen de Tarjeta',
-        content: 'El pago de la tarjeta no es un gasto nuevo (el gasto ya se computó al comprar), sino una transferencia interna entre tu cuenta bancaria y tu tarjeta de crédito. Usá el botón "Pagar tarjeta" desde la ficha de la cuenta para precargar el saldo adeudado y saldarlo en un solo clic.',
+        content: 'El pago de la tarjeta no es un gasto nuevo (el gasto ya se computó al comprar), sino una transferencia interna entre tu cuenta bancaria y tu tarjeta de crédito. Usá el botón "Registrar pago" desde /cards o desde la ficha de la cuenta para precargar el saldo adeudado y saldarlo en un solo clic.',
         tip: 'Pagar la tarjeta nunca reduce tu presupuesto de consumo mensual porque se registra contablemente como TRANSFER.'
       },
       {
@@ -121,7 +130,7 @@ export const WIKI_ARTICLES: WikiArticle[] = [
         tip: 'Durante los últimos 5 y los primeros 5 días de cada mes, el Dashboard te mostrará un recordatorio directo para conciliar tus tarjetas en segundos.'
       }
     ],
-    relatedFaqIds: ['faq-card-installments', 'faq-card-payment', 'faq-card-dates', 'faq-card-bulk', 'faq-card-magic-paste', 'faq-card-accounting-period', 'faq-card-verify-statement']
+    relatedFaqIds: ['faq-card-analytics-center', 'faq-card-installments', 'faq-card-payment', 'faq-card-dates', 'faq-card-bulk', 'faq-card-magic-paste', 'faq-card-accounting-period', 'faq-card-verify-statement']
   },
   {
     id: 'wiki-people',
@@ -136,8 +145,8 @@ export const WIKI_ARTICLES: WikiArticle[] = [
     summary: 'Atribución de gastos a terceros, seguimiento de deudas consolidadas, pagos parciales y avisos por WhatsApp.',
     sections: [
       {
-        title: 'Atribución de Compras a Contactos',
-        content: 'Cuando hacés una compra en nombre de un amigo o familiar (o le prestás una extensión de tu tarjeta), podés seleccionar a esa persona en el campo "Persona" del formulario. El gasto no inflará tus consumos personales y se sumará automáticamente a la cuenta por cobrar de esa persona.'
+        title: 'Atribución de Compras a Contactos y Saldo del Mes Contable',
+        content: 'Cuando hacés una compra en nombre de un amigo o familiar (o le prestás una extensión de tu tarjeta), podés seleccionar a esa persona en el campo "Persona" del formulario. Tanto en el directorio (/people) como en la cabecera de la ficha de la persona (/people/[id]), el "Saldo por cobrar" muestra lo exigible en el mes contable actual o anteriores (<= YYYY-MM actual) más los movimientos que no tienen mes contable asignado, separando las cuotas y resúmenes de próximos meses.'
       },
       {
         title: 'Cobros Totales, Parciales y Adelanto de Cuotas',
@@ -371,6 +380,15 @@ export const FAQ_ITEMS: FaqItem[] = [
     categoryLabel: 'Multi-moneda (FX)',
     tags: ['dólar blue', 'mep', 'cotización manual', 'tasa fija', 'fx', 'tipo de cambio'],
     relatedWikiSlug: 'multi-moneda-y-cotizaciones'
+  },
+  {
+    id: 'faq-card-analytics-center',
+    question: '¿Dónde puedo ver todas mis tarjetas juntas, cuándo libero cuotas y cuánto gastaron terceros?',
+    answer: 'En la sección "Tarjetas" (/cards) del menú principal (que se activa automáticamente cuando tenés al menos una tarjeta de crédito creada). Ahí vas a encontrar tus plásticos con detección automática de sello (VISA, AMEX, Mastercard o Maestro), el desglose entre tu consumo propio ("Personal") y el de terceros, la curva de liberación de cuotas a 6 o 12 meses y la tabla maestra de todos tus planes de cuotas activos.',
+    category: 'cards',
+    categoryLabel: 'Tarjetas & Cuotas',
+    tags: ['tarjetas', 'análisis', 'cuotas futuras', 'liberación', 'visa', 'mastercard', 'amex', 'maestro', 'terceros'],
+    relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
   },
   {
     id: 'faq-card-installments',

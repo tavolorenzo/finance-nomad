@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Settings } from 'lucide-react'
 import { formatMoney } from '@/lib/currency'
 import { formatWhatsAppMessage } from '@/lib/whatsapp'
+import { isCurrentCollectibleDebt } from '@/lib/ledger/settlement'
 import { WhatsAppNotifyModal } from '@/components/WhatsAppNotifyModal'
 import { RegisterPersonPaymentModal } from '@/components/RegisterPersonPaymentModal'
 import { useOptionalLedger } from '@/lib/ledger/ledger-context'
@@ -29,18 +30,22 @@ export function PersonActions({
   const [isNotifyModalOpen, setIsNotifyModalOpen] = useState(false)
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
 
-  // Saldo pendiente real considerando pagos parciales previos
-  const total = pending.reduce(
+  const today = new Date().toISOString().slice(0, 10)
+  const currentPending = pending.filter((t) => isCurrentCollectibleDebt(t, today))
+  const itemsToNotify = currentPending.length > 0 ? currentPending : pending
+
+  // Saldo pendiente del período contable actual (y sin mes contable) considerando pagos parciales previos
+  const total = itemsToNotify.reduce(
     (sum, t) => sum + Math.max(0, t.amount_account - (t.settled_amount ?? 0)),
     0
   )
-  const currency = pending[0]?.currency_account ?? 'UYU'
+  const currency = itemsToNotify[0]?.currency_account ?? pending[0]?.currency_account ?? 'UYU'
 
   const renderedMessage = formatWhatsAppMessage({
     template: whatsappTemplate,
     personName: person.name,
     totalFormatted: formatMoney(total, currency),
-    items: pending.map((t) => {
+    items: itemsToNotify.map((t) => {
       const rem = Math.max(0, t.amount_account - (t.settled_amount ?? 0))
       const isPartial = (t.settled_amount ?? 0) > 0
       return {

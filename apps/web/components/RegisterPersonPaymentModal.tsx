@@ -310,10 +310,10 @@ export function RegisterPersonPaymentModal({
                   Saldo actual a cobrar
                 </span>
                 <span className="text-[11px] text-text-muted">
-                  Consumos vencidos y devengados hasta hoy
+                  Mes contable actual / anteriores y sin mes contable
                 </span>
               </div>
-              <span className="font-mono text-base font-semibold text-pending">
+              <span className="font-mono tabular-nums amount text-base font-semibold text-pending">
                 {formatMoney(baseAllocation.currentDebt, selectedCurrency)}
               </span>
             </div>
@@ -321,9 +321,9 @@ export function RegisterPersonPaymentModal({
             {baseAllocation.futureDebt > 0 && (
               <div className="pt-2 border-t border-border/60 flex justify-between items-baseline text-xs">
                 <span className="text-text-muted">
-                  Cuotas comprometidas futuras
+                  Cuotas y períodos futuros
                 </span>
-                <span className="font-mono text-text-secondary">
+                <span className="font-mono tabular-nums amount text-text-secondary">
                   {formatMoney(baseAllocation.futureDebt, selectedCurrency)}
                 </span>
               </div>

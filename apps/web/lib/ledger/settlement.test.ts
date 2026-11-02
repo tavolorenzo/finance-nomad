@@ -1,8 +1,33 @@
 import { describe, it, expect } from 'vitest'
-import { allocateSettlement, buildPersonSettlementBundle } from './settlement'
+import { allocateSettlement, buildPersonSettlementBundle, isCurrentCollectibleDebt } from './settlement'
 import { applyBundleDelta } from './balance'
 import type { MasterTransaction } from '../types'
 import type { AccountBalance, BuildPersonSettlementInput } from './types'
+
+describe('isCurrentCollectibleDebt (Mes contable actual + sin mes contable)', () => {
+  const today = '2026-11-02'
+
+  it('incluye movimientos del mes contable actual o anterior y los que no tienen mes contable', () => {
+    expect(
+      isCurrentCollectibleDebt({ date: '2026-08-15', accounting_period: '2026-11' }, today)
+    ).toBe(true)
+    expect(
+      isCurrentCollectibleDebt({ date: '2026-10-10', accounting_period: '2026-10' }, today)
+    ).toBe(true)
+    expect(
+      isCurrentCollectibleDebt({ date: '2026-11-01', accounting_period: null }, today)
+    ).toBe(true)
+  })
+
+  it('excluye movimientos con mes contable futuro aunque la fecha de compra sea hoy o pasada', () => {
+    expect(
+      isCurrentCollectibleDebt({ date: '2026-10-29', accounting_period: '2026-12' }, today)
+    ).toBe(false)
+    expect(
+      isCurrentCollectibleDebt({ date: '2026-12-15', accounting_period: '2026-12' }, today)
+    ).toBe(false)
+  })
+})
 
 describe('allocateSettlement (FIFO Amortization)', () => {
   const pendingDebts: MasterTransaction[] = [

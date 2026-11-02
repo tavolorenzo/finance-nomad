@@ -15,10 +15,32 @@ export interface AllocationResult {
 }
 
 /**
+ * Determina si un movimiento pendiente corresponde al saldo a cobrar del período contable actual:
+ * - Si tiene `accounting_period` (YYYY-MM), pertenece al saldo actual si `accounting_period <= currentPeriod`.
+ * - Si NO tiene `accounting_period` (`null` / `undefined` / `''`), se incluye en el saldo actual salvo que
+ *   sea una cuota futura con fecha posterior a hoy (`installment_total > 1 && date > today`).
+ */
+export function isCurrentCollectibleDebt(
+  t: Pick<MasterTransaction, 'accounting_period' | 'date'> &
+    Partial<Pick<MasterTransaction, 'installment_total'>>,
+  today: string = new Date().toISOString().slice(0, 10)
+): boolean {
+  const currentPeriod = today.slice(0, 7)
+  const period = t.accounting_period?.trim()
+  if (period) {
+    return period.slice(0, 7) <= currentPeriod
+  }
+  if ((t.installment_total ?? 1) > 1 && t.date > today) {
+    return false
+  }
+  return true
+}
+
+/**
  * Calcula la amortización de deudas pendientes de una persona aplicando FIFO.
- * - Caso A: Pago exacto del saldo actual (date <= today).
+ * - Caso A: Pago exacto del saldo actual (mes contable actual/anterior o sin mes contable).
  * - Caso B: Pago parcial menor al saldo actual.
- * - Caso C: Pago mayor al saldo actual (adelanto a cuotas futuras).
+ * - Caso C: Pago mayor al saldo actual (adelanto a cuotas o períodos futuros).
  */
 export function allocateSettlement(
   pendingTransactions: MasterTransaction[],
@@ -26,11 +48,16 @@ export function allocateSettlement(
   today: string = new Date().toISOString().slice(0, 10),
   settleDate: string = new Date().toISOString().slice(0, 10)
 ): AllocationResult {
-  // Ordenar cronológicamente (FIFO)
-  const sorted = [...pendingTransactions].sort((a, b) => a.date.localeCompare(b.date))
+  // Ordenar cronológicamente por período contable (si existe) y luego por fecha (FIFO)
+  const sorted = [...pendingTransactions].sort((a, b) => {
+    const periodA = a.accounting_period?.trim().slice(0, 7) || a.date.slice(0, 7)
+    const periodB = b.accounting_period?.trim().slice(0, 7) || b.date.slice(0, 7)
+    if (periodA !== periodB) return periodA.localeCompare(periodB)
+    return a.date.localeCompare(b.date)
+  })
 
-  const currentAndPast = sorted.filter((t) => t.date <= today)
-  const future = sorted.filter((t) => t.date > today)
+  const currentAndPast = sorted.filter((t) => isCurrentCollectibleDebt(t, today))
+  const future = sorted.filter((t) => !isCurrentCollectibleDebt(t, today))
 
   function getPendingBalance(t: MasterTransaction): number {
     const settled = Number(t.settled_amount ?? 0)

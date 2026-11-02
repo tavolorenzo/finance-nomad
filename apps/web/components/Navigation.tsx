@@ -4,15 +4,16 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import {
-  Home, Wallet, Plus, List, Menu, X,
+  Home, Wallet, Plus, List, Menu, X, CreditCard,
   Users, PiggyBank, Landmark, TrendingUp, Settings,
   BarChart3, Tags, HelpCircle
 } from 'lucide-react'
 import { LogoutButton } from './LogoutButton'
 import { SyncStatusBadge } from './SyncStatusBadge'
 import { getEnvironmentInfo } from '@/lib/version'
+import { useOptionalLedger } from '@/lib/ledger/ledger-context'
 
-const MAIN_ITEMS = [
+const BASE_MAIN_ITEMS = [
   { href: '/dashboard', label: 'Inicio', icon: Home },
   { href: '/accounts', label: 'Cuentas', icon: Wallet },
   { href: '/transactions', label: 'Movimientos', icon: List }
@@ -47,6 +48,18 @@ export function Navigation() {
   const pathname = usePathname() ?? ''
   const [moreOpen, setMoreOpen] = useState(false)
   const envInfo = getEnvironmentInfo()
+  const ledger = useOptionalLedger()
+
+  const hasCreditCards = (ledger?.accounts ?? []).some((a) => a.type === 'credit_card')
+
+  const mainItems = hasCreditCards
+    ? [
+        BASE_MAIN_ITEMS[0],
+        BASE_MAIN_ITEMS[1],
+        { href: '/cards', label: 'Tarjetas', icon: CreditCard },
+        BASE_MAIN_ITEMS[2]
+      ]
+    : BASE_MAIN_ITEMS
 
   const isActive = (href: string) => {
     if (pathname === href) return true
@@ -78,7 +91,7 @@ export function Navigation() {
           Cargar movimiento
         </Link>
         <nav className="flex-1 space-y-1">
-          {MAIN_ITEMS.map((item) => (
+          {mainItems.map((item) => (
             <NavLink key={item.href} {...item} active={isActive(item.href)} />
           ))}
           <div className="h-px bg-border my-3" />
@@ -112,7 +125,7 @@ export function Navigation() {
 
       {/* ── Tab bar mobile (< md) ── */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 bg-surface-1 border-t border-border flex items-center justify-around py-2 z-40">
-        {MAIN_ITEMS.slice(0, 2).map((item) => (
+        {BASE_MAIN_ITEMS.slice(0, 2).map((item) => (
           <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1 px-2">
             <item.icon size={20} className={isActive(item.href) ? 'text-accent' : 'text-text-secondary'} />
             <span className={`text-[11px] ${isActive(item.href) ? 'text-accent' : 'text-text-secondary'}`}>
@@ -129,12 +142,21 @@ export function Navigation() {
           <Plus size={22} />
         </Link>
 
-        <Link href="/transactions" className="flex flex-col items-center gap-1 px-2">
-          <List size={20} className={isActive('/transactions') ? 'text-accent' : 'text-text-secondary'} />
-          <span className={`text-[11px] ${isActive('/transactions') ? 'text-accent' : 'text-text-secondary'}`}>
-            Movimientos
-          </span>
-        </Link>
+        {hasCreditCards ? (
+          <Link href="/cards" className="flex flex-col items-center gap-1 px-2">
+            <CreditCard size={20} className={isActive('/cards') ? 'text-accent' : 'text-text-secondary'} />
+            <span className={`text-[11px] ${isActive('/cards') ? 'text-accent' : 'text-text-secondary'}`}>
+              Tarjetas
+            </span>
+          </Link>
+        ) : (
+          <Link href="/transactions" className="flex flex-col items-center gap-1 px-2">
+            <List size={20} className={isActive('/transactions') ? 'text-accent' : 'text-text-secondary'} />
+            <span className={`text-[11px] ${isActive('/transactions') ? 'text-accent' : 'text-text-secondary'}`}>
+              Movimientos
+            </span>
+          </Link>
+        )}
 
         <button onClick={() => setMoreOpen(true)} className="flex flex-col items-center gap-1 px-2">
           <Menu size={20} className="text-text-secondary" />
@@ -153,6 +175,18 @@ export function Navigation() {
                 <X size={20} className="text-text-secondary" />
               </button>
             </div>
+            {hasCreditCards && (
+              <Link
+                href="/transactions"
+                onClick={() => setMoreOpen(false)}
+                className={`flex items-center gap-3 px-2 py-3 text-sm rounded-control ${
+                  isActive('/transactions') ? 'text-accent font-medium' : 'text-text-primary'
+                }`}
+              >
+                <List size={18} />
+                Movimientos
+              </Link>
+            )}
             {MORE_ITEMS.map((item) =>
               item.ready ? (
                 <Link

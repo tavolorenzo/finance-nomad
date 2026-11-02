@@ -90,7 +90,14 @@ export function DashboardClient({
   }, [initialAccounts, initialBalances, initialTransactions, seedInitialData])
 
   // Usar estado reactivo del ledger si está poblado, o datos iniciales del SSR
-  const accounts = ledgerAccounts.length > 0 ? (ledgerAccounts as typeof initialAccounts) : initialAccounts
+  const accounts = useMemo(() => {
+    if (ledgerAccounts.length === 0) return initialAccounts
+    const instMap = new Map(initialAccounts.map((a) => [a.id, a.institutions]))
+    return (ledgerAccounts as typeof initialAccounts).map((a) => ({
+      ...a,
+      institutions: a.institutions ?? instMap.get(a.id)
+    }))
+  }, [ledgerAccounts, initialAccounts])
   const balances = ledgerBalances.length > 0 ? ledgerBalances : initialBalances
   const transactions =
     ledgerTransactions.length > 0 ? ledgerTransactions.slice(0, 5) : initialTransactions
@@ -224,18 +231,22 @@ export function DashboardClient({
             >
               Ahora no
             </button>
-            {creditCardAccounts.map((card) => (
-              <Link
-                key={card.id}
-                href={`/accounts/${card.id}/verify`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-semibold bg-income text-surface-0 hover:opacity-95 transition"
-              >
-                <ClipboardCheck size={13} />
-                <span>
-                  {creditCardAccounts.length === 1 ? 'Verificar estado de cuenta' : `Verificar ${card.name}`}
-                </span>
-              </Link>
-            ))}
+            {creditCardAccounts.map((card) => {
+              const institutionName = card.institutions?.name?.trim()
+              const label = institutionName
+                ? `Verificar ${card.name} - ${institutionName}`
+                : `Verificar ${card.name}`
+              return (
+                <Link
+                  key={card.id}
+                  href={`/accounts/${card.id}/verify`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-semibold bg-income text-surface-0 hover:opacity-95 transition"
+                >
+                  <ClipboardCheck size={13} />
+                  <span>{label}</span>
+                </Link>
+              )
+            })}
           </div>
         </div>
       )}

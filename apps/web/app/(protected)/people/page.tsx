@@ -2,13 +2,26 @@ import Link from 'next/link'
 import { Plus, Pencil, MessageSquare } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { formatMoney } from '@/lib/currency'
+import { isCurrentCollectibleDebt } from '@/lib/ledger/settlement'
 import type { MasterTransaction, Person } from '@/lib/types'
+
+type PendingPersonRow = Pick<
+  MasterTransaction,
+  | 'person_id'
+  | 'amount_account'
+  | 'currency_account'
+  | 'settled_amount'
+  | 'accounting_period'
+  | 'date'
+  | 'installment_total'
+>
 
 export default async function PeoplePage() {
   const supabase = await createClient()
+  const today = new Date().toISOString().slice(0, 10)
 
   let people: Person[] = []
-  let pending: Pick<MasterTransaction, 'person_id' | 'amount_account' | 'currency_account' | 'settled_amount'>[] = []
+  let pending: PendingPersonRow[] = []
 
   try {
     const [{ data: peopleData }, { data: pendingData }] = await Promise.all([
@@ -19,11 +32,13 @@ export default async function PeoplePage() {
         .returns<Person[]>(),
       supabase
         .from('master_transactions')
-        .select('person_id, amount_account, currency_account, settled_amount')
+        .select(
+          'person_id, amount_account, currency_account, settled_amount, accounting_period, date, installment_total'
+        )
         .is('settled_at', null)
         .eq('type', 'OUTCOME')
         .not('person_id', 'is', null)
-        .returns<Pick<MasterTransaction, 'person_id' | 'amount_account' | 'currency_account' | 'settled_amount'>[]>()
+        .returns<PendingPersonRow[]>()
     ])
     people = peopleData ?? []
     pending = pendingData ?? []
@@ -32,13 +47,19 @@ export default async function PeoplePage() {
   }
 
   const totalsByPerson = new Map<string, Map<string, number>>()
+  const futureTotalsByPerson = new Map<string, Map<string, number>>()
+
   for (const t of pending ?? []) {
     if (!t.person_id) continue
     const rem = Math.max(0, t.amount_account - (t.settled_amount ?? 0))
     if (rem <= 0) continue
-    const byCurrency = totalsByPerson.get(t.person_id) ?? new Map<string, number>()
+
+    const targetMap = isCurrentCollectibleDebt(t, today)
+      ? totalsByPerson
+      : futureTotalsByPerson
+    const byCurrency = targetMap.get(t.person_id) ?? new Map<string, number>()
     byCurrency.set(t.currency_account, (byCurrency.get(t.currency_account) ?? 0) + rem)
-    totalsByPerson.set(t.person_id, byCurrency)
+    targetMap.set(t.person_id, byCurrency)
   }
 
   const activePeople = (people ?? []).filter((p) => p.is_active !== false)
@@ -69,7 +90,12 @@ export default async function PeoplePage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {activePeople.map((p) => (
-          <PersonCard key={p.id} person={p} totals={totalsByPerson.get(p.id)} />
+          <PersonCard
+            key={p.id}
+            person={p}
+            totals={totalsByPerson.get(p.id)}
+            futureTotals={futureTotalsByPerson.get(p.id)}
+          />
         ))}
       </div>
 
@@ -86,7 +112,12 @@ export default async function PeoplePage() {
           </summary>
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 opacity-60">
             {inactivePeople.map((p) => (
-              <PersonCard key={p.id} person={p} totals={totalsByPerson.get(p.id)} />
+              <PersonCard
+                key={p.id}
+                person={p}
+                totals={totalsByPerson.get(p.id)}
+                futureTotals={futureTotalsByPerson.get(p.id)}
+              />
             ))}
           </div>
         </details>
@@ -97,12 +128,15 @@ export default async function PeoplePage() {
 
 function PersonCard({
   person,
-  totals
+  totals,
+  futureTotals
 }: {
   person: Person
   totals?: Map<string, number>
+  futureTotals?: Map<string, number>
 }) {
-  const hasPending = totals && totals.size > 0
+  const hasPending = Boolean(totals && totals.size > 0)
+  const hasFuture = Boolean(futureTotals && futureTotals.size > 0)
   const isDeactivated = person.is_active === false
 
   return (
@@ -134,6 +168,10 @@ function PersonCard({
               <span className="text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded-full bg-pending/15 text-pending">
                 Por cobrar
               </span>
+            ) : hasFuture ? (
+              <span className="text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded-full bg-surface-2 text-text-secondary border border-border">
+                Cuotas futuras
+              </span>
             ) : (
               <span className="text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded-full bg-surface-2 text-text-muted">
                 Al día
@@ -152,14 +190,26 @@ function PersonCard({
 
       <Link
         href={`/people/${person.id}`}
-        className="pt-2 border-t border-border flex justify-between items-baseline"
+        className="pt-2 border-t border-border space-y-1"
       >
-        <span className="text-xs text-text-muted">Saldo</span>
-        <span className={`font-mono text-sm font-medium ${hasPending ? 'text-pending' : 'text-text-muted'}`}>
-          {hasPending
-            ? [...totals.entries()].map(([c, amt]) => formatMoney(amt, c)).join(' · ')
-            : 'Sin deudas'}
-        </span>
+        <div className="flex justify-between items-baseline">
+          <span className="text-xs text-text-muted">Saldo por cobrar</span>
+          <span className={`font-mono tabular-nums amount text-sm font-medium ${hasPending ? 'text-pending' : 'text-text-muted'}`}>
+            {hasPending && totals
+              ? [...totals.entries()].map(([c, amt]) => formatMoney(amt, c)).join(' · ')
+              : hasFuture
+                ? 'Al día este mes'
+                : 'Sin deudas'}
+          </span>
+        </div>
+        {hasFuture && futureTotals && (
+          <div className="flex justify-between items-baseline text-[11px] text-text-muted">
+            <span>Próximos meses</span>
+            <span className="font-mono tabular-nums amount">
+              {[...futureTotals.entries()].map(([c, amt]) => formatMoney(amt, c)).join(' · ')}
+            </span>
+          </div>
+        )}
       </Link>
     </div>
   )
