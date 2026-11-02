@@ -196,11 +196,6 @@ export function CreditCardBulkWizard({
     )
   }
 
-  function handleApplyCurrencyToAll(targetCurrency: string) {
-    if (!targetCurrency) return
-    setRows((prev) => prev.map((r) => ({ ...r, currency: targetCurrency })))
-  }
-
   function handleApplyPasted(parsedItems: any[]) {
     if (parsedItems.length === 0) return
     const newRows: BulkRowItem[] = parsedItems.map((item) => ({
@@ -383,30 +378,6 @@ export function CreditCardBulkWizard({
             <Sparkles className="w-3.5 h-3.5" />
             <span>Pegar Resumen Mágico</span>
           </button>
-
-          <div className="flex items-center gap-1.5 bg-surface-1 border border-border rounded-control px-2.5 py-1 text-xs">
-            <label htmlFor="bulk-currency-all" className="text-text-secondary font-medium">
-              Moneda para todas:
-            </label>
-            <select
-              id="bulk-currency-all"
-              defaultValue=""
-              onChange={(e) => {
-                if (e.target.value) {
-                  handleApplyCurrencyToAll(e.target.value)
-                  e.target.value = ''
-                }
-              }}
-              className="bg-surface-0 border border-border rounded-control px-2 py-0.5 text-xs font-mono font-medium text-text-primary focus:border-accent outline-none"
-            >
-              <option value="">Elegir...</option>
-              {availableCurrencies.map((c) => (
-                <option key={c} value={c}>
-                  Asignar {c}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -425,14 +396,6 @@ export function CreditCardBulkWizard({
             {validRowsCount === 1 ? 'válida' : 'válidas'})
           </span>
         </div>
-      </div>
-
-      {/* Leyenda recordatoria de verificación */}
-      <div className="flex items-start gap-2 bg-pending/10 border border-pending/30 rounded-control px-3 py-2 text-xs text-pending">
-        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-        <p className="leading-snug">
-          <strong>Recordá verificar las filas antes de guardar:</strong> la lectura automática puede cometer errores en fechas, cuotas, monedas o montos. Las filas con importe negativo se destacan como <strong>Pago / Refund</strong>.
-        </p>
       </div>
 
       {/* Error Alert */}

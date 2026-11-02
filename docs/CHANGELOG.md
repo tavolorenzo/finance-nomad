@@ -12,6 +12,12 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.13.1] - 2026-11-02
+### Modificado
+- **Disposición de Selectores en Pegado Mágico y Limpieza de Grilla de Carga Rápida (`SmartPasteModal.tsx`, `CreditCardBulkWizard.tsx`, PRD §4.12)**:
+  - En `SmartPasteModal`, los selectores **Moneda a importar** y **Persona a asignar** se disponen en dos filas dedicadas dentro de su contenedor flex para evitar recortes visuales en los dropdowns.
+  - En `CreditCardBulkWizard`, se retiraron el selector masivo redundante *"Moneda para todas"* y el banner duplicado de recordatorio de verificación (que permanece únicamente dentro del modal de Pegado Mágico).
+
 ## [2.13.0] - 2026-11-02
 ### Agregado
 - **Flujo Continuo Institución $\rightarrow$ Productos Financieros y Saldo Inicial (`apps/web/components/InstitutionForm.tsx`, `apps/web/components/AccountForm.tsx`, `apps/web/app/(protected)/institutions/actions.ts`, `apps/web/app/(protected)/accounts/actions.ts`, PRD §4.2)**:

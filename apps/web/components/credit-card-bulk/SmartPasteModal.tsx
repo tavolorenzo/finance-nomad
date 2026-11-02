@@ -103,21 +103,21 @@ export function SmartPasteModal({
           </button>
         </div>
 
-        {/* Selectores de Moneda y Persona de Asignación */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          <div className="flex items-center justify-between bg-surface-1/70 border border-border px-3 py-2 rounded-control text-xs gap-2">
+        {/* Selectores de Moneda y Persona de Asignación en dos filas */}
+        <div className="flex flex-col gap-2 bg-surface-1/70 border border-border p-3 rounded-control text-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <label
               htmlFor="smart-paste-currency"
               className="text-text-secondary flex items-center gap-1.5 font-medium shrink-0"
             >
-              <Coins className="w-3.5 h-3.5 text-accent" />
+              <Coins className="w-3.5 h-3.5 text-accent shrink-0" />
               <span>Moneda a importar:</span>
             </label>
             <select
               id="smart-paste-currency"
               value={currencyOverride}
               onChange={(e) => setCurrencyOverride(e.target.value)}
-              className="bg-surface-0 border border-border rounded-control px-2.5 py-1 text-xs text-text-primary focus:border-accent outline-none font-medium"
+              className="h-9 sm:w-72 bg-surface-0 border border-border rounded-control px-2.5 text-xs text-text-primary focus:border-accent outline-none font-medium"
             >
               <option value="">Automática ({defaultCurrency} por defecto)</option>
               {currencyOptions.map((c) => (
@@ -129,15 +129,19 @@ export function SmartPasteModal({
           </div>
 
           {people.length > 0 && (
-            <div className="flex items-center justify-between bg-surface-1/70 border border-border px-3 py-2 rounded-control text-xs gap-2">
-              <span className="text-text-secondary flex items-center gap-1.5 font-medium shrink-0">
-                <Users className="w-3.5 h-3.5 text-accent" />
-                <span>Asignar consumos a:</span>
-              </span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-border/60">
+              <label
+                htmlFor="smart-paste-person"
+                className="text-text-secondary flex items-center gap-1.5 font-medium shrink-0"
+              >
+                <Users className="w-3.5 h-3.5 text-accent shrink-0" />
+                <span>Persona a asignar:</span>
+              </label>
               <select
+                id="smart-paste-person"
                 value={selectedPersonId || personalPerson?.id || ''}
                 onChange={(e) => setSelectedPersonId(e.target.value || personalPerson?.id || null)}
-                className="bg-surface-0 border border-border rounded-control px-2.5 py-1 text-xs text-text-primary focus:border-accent outline-none font-medium"
+                className="h-9 sm:w-72 bg-surface-0 border border-border rounded-control px-2.5 text-xs text-text-primary focus:border-accent outline-none font-medium"
               >
                 <option value={personalPerson?.id || ''}>Personal (por defecto)</option>
                 {otherPeople.map((p) => (
