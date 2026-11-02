@@ -122,17 +122,73 @@ describe('AccountForm', () => {
     })
   })
 
-  it('muestra campo de límite de crédito cuando el tipo es credit_card', () => {
+  it('muestra campo de límite de crédito cuando el tipo es credit_card y oculta saldo inicial', () => {
     render(<AccountForm institutions={mockInstitutions} />)
 
+    expect(screen.getByLabelText(/saldo inicial/i)).toBeInTheDocument()
     expect(screen.queryByLabelText(/límite de crédito/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/día de cierre/i)).not.toBeInTheDocument()
 
     const typeSelect = screen.getByLabelText(/tipo de cuenta/i)
     fireEvent.change(typeSelect, { target: { value: 'credit_card' } })
 
+    expect(screen.queryByLabelText(/saldo inicial/i)).not.toBeInTheDocument()
     expect(screen.getByLabelText(/límite de crédito/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/día de cierre/i)).toBeInTheDocument()
+  })
+
+  it('permite enviar saldo inicial opcional al crear una cuenta', async () => {
+    vi.mocked(accountActions.createAccount).mockResolvedValueOnce({ id: 'acc-init' } as any)
+
+    render(<AccountForm institutions={mockInstitutions} defaultInstitutionId="inst-2" />)
+
+    fireEvent.change(screen.getByLabelText(/nombre de la cuenta/i), {
+      target: { value: 'Cuenta Wise EUR' }
+    })
+    fireEvent.change(screen.getByLabelText(/saldo inicial/i), {
+      target: { value: '1500.50' }
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /^crear cuenta$/i }))
+
+    await waitFor(() => {
+      expect(accountActions.createAccount).toHaveBeenCalledWith({
+        name: 'Cuenta Wise EUR',
+        type: 'checking',
+        currencyNative: 'EUR',
+        creditLimit: null,
+        initialBalance: 1500.5,
+        institutionId: 'inst-2'
+      })
+      expect(mockPush).toHaveBeenCalledWith('/accounts')
+    })
+  })
+
+  it('permite usar "Crear y agregar otro producto" manteniendo la institución seleccionada', async () => {
+    vi.mocked(accountActions.createAccount).mockResolvedValueOnce({ id: 'acc-multi' } as any)
+
+    render(<AccountForm institutions={mockInstitutions} defaultInstitutionId="inst-2" />)
+
+    const nameInput = screen.getByLabelText(/nombre de la cuenta/i)
+    fireEvent.change(nameInput, { target: { value: 'Caja de Ahorro' } })
+    fireEvent.change(screen.getByLabelText(/saldo inicial/i), { target: { value: '250' } })
+
+    fireEvent.click(screen.getByRole('button', { name: /crear y agregar otro producto/i }))
+
+    await waitFor(() => {
+      expect(accountActions.createAccount).toHaveBeenCalledWith({
+        name: 'Caja de Ahorro',
+        type: 'checking',
+        currencyNative: 'EUR',
+        creditLimit: null,
+        initialBalance: 250,
+        institutionId: 'inst-2'
+      })
+      expect(screen.getByText(/se creó "Caja de Ahorro"/i)).toBeInTheDocument()
+    })
+
+    expect(nameInput).toHaveValue('')
+    expect(mockPush).not.toHaveBeenCalled()
   })
 
   it('envía closingDay cuando se configura día de cierre en una tarjeta de crédito', async () => {

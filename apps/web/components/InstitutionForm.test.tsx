@@ -21,6 +21,7 @@ vi.mock('@/components/Modal', () => ({
 
 describe('InstitutionForm', () => {
   const mockPush = vi.fn()
+  const mockReplace = vi.fn()
   const mockRefresh = vi.fn()
   const mockClose = vi.fn()
 
@@ -31,7 +32,7 @@ describe('InstitutionForm', () => {
       refresh: mockRefresh,
       back: vi.fn(),
       forward: vi.fn(),
-      replace: vi.fn(),
+      replace: mockReplace,
       prefetch: vi.fn()
     } as any)
 
@@ -47,18 +48,23 @@ describe('InstitutionForm', () => {
     })
   })
 
-  it('renderiza el formulario de creación vacío por defecto con label accesible', () => {
+  it('renderiza el formulario de creación vacío por defecto con label accesible y casilla de efectivo desmarcada', () => {
     render(<InstitutionForm />)
 
     expect(screen.getByLabelText(/nombre de la institución/i)).toBeInTheDocument()
     expect(screen.getByPlaceholderText(/Commbank, Wise, Itaú/i)).toHaveValue('')
+    const cashCheckbox = screen.getByRole('checkbox', {
+      name: /incluir una cuenta de efectivo en esta institución/i
+    })
+    expect(cashCheckbox).toBeInTheDocument()
+    expect(cashCheckbox).not.toBeChecked()
     expect(screen.getByRole('button', { name: /crear institución/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /guardar cambios/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /desactivar institución/i })).not.toBeInTheDocument()
   })
 
-  it('permite escribir el nombre y enviar el formulario para crear una institución', async () => {
-    vi.mocked(institutionActions.createInstitution).mockResolvedValueOnce(undefined)
+  it('crea una institución sin cuenta efectivo por defecto y redirige al form de productos financieros', async () => {
+    vi.mocked(institutionActions.createInstitution).mockResolvedValueOnce({ id: 'inst-mp' })
 
     render(<InstitutionForm />)
 
@@ -69,18 +75,45 @@ describe('InstitutionForm', () => {
     fireEvent.click(submitBtn)
 
     await waitFor(() => {
-      expect(institutionActions.createInstitution).toHaveBeenCalledWith('Mercado Pago')
-      expect(mockPush).toHaveBeenCalledWith('/accounts')
+      expect(institutionActions.createInstitution).toHaveBeenCalledWith('Mercado Pago', {
+        createCashAccount: false
+      })
+      expect(mockReplace).toHaveBeenCalledWith('/accounts/new?institutionId=inst-mp')
       expect(mockRefresh).toHaveBeenCalled()
     })
   })
 
-  it('cierra el modal en vez de redirigir si está dentro de un modal', async () => {
+  it('permite marcar la casilla opcional para incluir cuenta de efectivo al crear la institución', async () => {
+    vi.mocked(institutionActions.createInstitution).mockResolvedValueOnce({ id: 'inst-cash' })
+
+    render(<InstitutionForm />)
+
+    const input = screen.getByPlaceholderText(/Commbank, Wise, Itaú/i)
+    fireEvent.change(input, { target: { value: 'Billetera Viaje' } })
+
+    const cashCheckbox = screen.getByRole('checkbox', {
+      name: /incluir una cuenta de efectivo en esta institución/i
+    })
+    fireEvent.click(cashCheckbox)
+    expect(cashCheckbox).toBeChecked()
+
+    fireEvent.click(screen.getByRole('button', { name: /crear institución/i }))
+
+    await waitFor(() => {
+      expect(institutionActions.createInstitution).toHaveBeenCalledWith('Billetera Viaje', {
+        createCashAccount: true
+      })
+      expect(mockReplace).toHaveBeenCalledWith('/accounts/new?institutionId=inst-cash')
+      expect(mockRefresh).toHaveBeenCalled()
+    })
+  })
+
+  it('redirige al form de crear cuenta en la institución incluso cuando se abre como modal', async () => {
     vi.mocked(modalModule.useModal).mockReturnValue({
       isModal: true,
       close: mockClose
     })
-    vi.mocked(institutionActions.createInstitution).mockResolvedValueOnce(undefined)
+    vi.mocked(institutionActions.createInstitution).mockResolvedValueOnce({ id: 'inst-san' })
 
     render(<InstitutionForm />)
 
@@ -90,9 +123,11 @@ describe('InstitutionForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /crear institución/i }))
 
     await waitFor(() => {
-      expect(institutionActions.createInstitution).toHaveBeenCalledWith('Santander')
-      expect(mockClose).toHaveBeenCalled()
-      expect(mockPush).not.toHaveBeenCalled()
+      expect(institutionActions.createInstitution).toHaveBeenCalledWith('Santander', {
+        createCashAccount: false
+      })
+      expect(mockReplace).toHaveBeenCalledWith('/accounts/new?institutionId=inst-san')
+      expect(mockClose).not.toHaveBeenCalled()
       expect(mockRefresh).toHaveBeenCalled()
     })
   })

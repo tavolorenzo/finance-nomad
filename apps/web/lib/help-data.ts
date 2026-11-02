@@ -112,8 +112,8 @@ export const WIKI_ARTICLES: WikiArticle[] = [
       },
       {
         title: 'Carga Rápida en Bloque (Bulk Ingest) y Pegado Mágico',
-        content: 'Para evitar cargar consumos y cuotas una por una, disponés del Asistente de Carga Rápida. Podés usar la grilla con atajos de teclado (Tab/Enter) o el "Pegado Mágico", donde pegás directamente el texto de tu resumen de homebanking o notificaciones de compra. El sistema detecta en milisegundos fechas, comercios, planes de cuotas (ej: C.04/12) y montos (asumiendo que el monto del estado de cuenta corresponde al valor de cada cuota), volcándolos a la tabla para su revisión con cálculo en vivo desglosado por divisa (moneda local y USD) y creación rápida de categorías desde el propio selector.',
-        tip: 'El asistente se ofrece opcionalmente tras el Welcome Wizard y está siempre disponible desde el detalle de tu tarjeta con el botón "Carga rápida".'
+        content: 'Para evitar cargar consumos y cuotas una por una, disponés del Asistente de Carga Rápida. Podés usar la grilla con atajos de teclado (Tab/Enter) o el "Pegado Mágico", donde pegás directamente el texto de tu resumen de homebanking o notificaciones de compra. El sistema detecta en milisegundos fechas en múltiples formatos (DD/MM/AA, DD MM AA, DD-MM-AA o DD/MM/AAAA), limpia el número de tarjeta opcional de 4 dígitos, identifica el comercio, reconoce planes de cuotas (ej: 12/12, 2/ 3 o C.04/12), divisas opcionales (UYU, USD, EUR, ARS) y montos (destacando automáticamente las filas con monto negativo como Pago / Refund). Además, contás con un selector para asignar una moneda a todas las filas a importar cuando no figura en el texto.',
+        tip: 'Recordá verificar siempre las filas antes de confirmar, ya que la lectura automática puede cometer errores.'
       },
       {
         title: 'Mes Contable, Día de Cierre y Verificación del Resumen',
@@ -169,12 +169,12 @@ export const WIKI_ARTICLES: WikiArticle[] = [
     summary: 'Organización de bancos, brokers, tarjetas, cuenta Cash por defecto y conciliación rápida mediante Ajuste Express.',
     sections: [
       {
-        title: 'Jerarquía Institución -> Cuentas',
-        content: 'Cada cuenta pertenece a una Institución Financiera (por ejemplo N26, Commbank, Itaú o Wise). Dentro de cada institución podés crear cuentas de tipo Corriente (checking), Ahorros (savings), Tarjeta de Crédito (credit_card), Inversión (investing) o Efectivo (cash).'
+        title: 'Jerarquía Institución -> Cuentas y Alta Continua con Saldo Inicial',
+        content: 'Cada cuenta pertenece a una Institución Financiera (por ejemplo N26, Commbank, Itaú o Wise). Al crear una nueva institución desde Cuentas, la app te lleva directamente al formulario para dar de alta sus productos financieros (Cuenta Corriente, Caja de Ahorro, Tarjeta de Crédito, Inversión o Efectivo), permitiéndote ingresar el saldo inicial de apertura en el acto (asentado como ADJUSTMENT sin alterar tus gastos) y sumar varios productos seguidos con el botón "Crear y agregar otro producto".'
       },
       {
-        title: 'Cuenta Cash y Retiros de Cajero (ATM)',
-        content: 'El sistema incluye por defecto una cuenta de Efectivo (Cash). Cuando retirás dinero de un cajero automático, no lo cargues como un gasto: registralo como una Transferencia desde tu cuenta bancaria hacia tu cuenta Cash. El gasto real ocurrirá recién cuando pagues en efectivo por un café o un servicio.'
+        title: 'Cuenta Cash Opcional y Retiros de Cajero (ATM)',
+        content: 'El Asistente de Bienvenida crea tu billetera de Efectivo principal. Si más adelante creás otra institución y también querés asociarle una cuenta de efectivo, podés marcar la casilla opcional "Incluir una cuenta de Efectivo en esta institución". Cuando retirás dinero de un cajero automático, registralo como una Transferencia desde tu cuenta bancaria hacia tu cuenta Cash; el gasto real ocurrirá recién cuando pagues en efectivo.'
       },
       {
         title: 'Ajuste Express de Saldo',
@@ -411,10 +411,10 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     id: 'faq-card-magic-paste',
     question: '¿Qué formato de texto reconoce el Pegado Mágico de resúmenes?',
-    answer: 'Reconoce líneas en texto plano con fecha (DD/MM o DD/MM/YYYY), nombre del comercio, patrón de cuotas (ej. C.04/12, Cuota 3 de 6, 04/12) e importes en formato local ($ 14.500,00) o internacional (USD 45.00). Además, auto-detecta la categoría según palabras clave de comercios comunes.',
+    answer: 'Reconoce líneas que empiezan con la fecha (en formato DD/MM/AA, DD MM AA, DD-MM-AA, DD/MM/AAAA o DD/MM), seguidas opcionalmente por los 4 dígitos de la tarjeta (XXXX), la descripción del comercio, la cuota (ej. 12/12, 2/ 3, C.04/12 o Cuota 3 de 6), la moneda opcional (UYU, USD, EUR, ARS) y el importe final. Si el importe es negativo, se asume como un pago o reintegro (refund) y la fila se destaca visualmente. También podés usar el selector de moneda para asignarle una divisa a todas las filas cuando no viene indicada en cada línea.',
     category: 'cards',
     categoryLabel: 'Tarjetas & Cuotas',
-    tags: ['pegado mágico', 'copiar y pegar', 'resumen bancario', 'parser', 'extracto'],
+    tags: ['pegado mágico', 'copiar y pegar', 'resumen bancario', 'parser', 'extracto', 'refund', 'moneda'],
     relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
   },
   {

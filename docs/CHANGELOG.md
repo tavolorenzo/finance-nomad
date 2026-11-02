@@ -12,6 +12,32 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.13.0] - 2026-11-02
+### Agregado
+- **Flujo Continuo Institución $\rightarrow$ Productos Financieros y Saldo Inicial (`apps/web/components/InstitutionForm.tsx`, `apps/web/components/AccountForm.tsx`, `apps/web/app/(protected)/institutions/actions.ts`, `apps/web/app/(protected)/accounts/actions.ts`, PRD §4.2)**:
+  - **Redirección automática post-creación de institución**: Al crear una institución desde `/accounts`, `createInstitution` devuelve el `id` creado y `InstitutionForm` redirige automáticamente a `/accounts/new?institutionId={id}` para cargar de inmediato los productos financieros de esa entidad.
+  - **Saldo inicial opcional al crear cuenta (`initialBalance`)**: Incorporación del campo numérico **Saldo inicial (opcional)** en `AccountForm.tsx` (para cuentas corrientes, cajas de ahorro, inversión y efectivo). Si se informa un monto distinto de cero, `createAccount` asienta automáticamente una transacción `ADJUSTMENT` (`COMPLETED`) en `master_transactions`, evitando el *cold start* sin distorsionar el presupuesto de gastos.
+  - **Botón "Crear y agregar otro producto"**: Permite guardar una cuenta y permanecer en `AccountForm` con la misma institución seleccionada para dar de alta múltiples productos financieros de corrido.
+### Modificado
+- **Cuenta Efectivo Opcional al Crear Institución (`InstitutionForm.tsx`, `institutions/actions.ts`)**:
+  - Se eliminó la creación forzada de una cuenta `Efectivo` al dar de alta una institución (ya que el `WelcomeWizard` crea la billetera de efectivo inicial), reemplazándola por una casilla opcional desmarcada por defecto (*"Incluir una cuenta de Efectivo en esta institución"*).
+- **Centro de Ayuda y Documentación (`apps/web/lib/help-data.ts`, `docs/PRD.md`)**:
+  - Actualización del artículo `wiki-accounts` y de la sección §4.2 del PRD detallando el alta continua de institución a productos financieros, el saldo inicial sin *cold start* y la casilla opcional de efectivo.
+
+## [2.12.2] - 2026-11-02
+### Modificado
+- **Parser Secuencial de Estado de Cuenta y Carga Rápida de Tarjetas (`apps/web/lib/parsers/card-statement-parser.ts`, `SmartPasteModal.tsx`, `CreditCardBulkWizard.tsx`, `BulkMovementRow.tsx`, `bulk-card-actions.ts`, `builder.ts`, PRD §4.12)**:
+  - **Orden de parseo estructurado**:
+    1. **Fecha inicial**: Soporte de formatos con año de 2 dígitos (`DD/MM/AA`, `DD MM AA`, `DD-MM-AA`, ej. `10/11/25` o `27/08/26`), además de `DD/MM/AAAA`, `YYYY-MM-DD` y `DD/MM`, evaluada siempre al principio de la línea para no confundirse con el patrón de cuotas.
+    2. **Número de tarjeta opcional (`XXXX`)**: Detección y limpieza automática de los 4 dígitos de tarjeta posteriores a la fecha (ej. `5029`, `5045`) para que no ensucien el nombre del comercio.
+    3. **Cuotas con o sin espacio (`X/X` o `X/ X`)**: Reconocimiento y limpieza de patrones como `12/12`, `2/ 3`, `01 / 06`, `C.04/12` y `CUOTA 4 DE 12`.
+    4. **Moneda opcional y Selector de Moneda Masivo**: Detección de divisas explícitas (`UYU`, `$U`, `$UY`, `USD`, `U$S`, `US$`, `EUR`, `ARS`, `AUD`, `NZD`) e incorporación de un selector tanto en `SmartPasteModal` (`Moneda a importar`) como en la barra de `CreditCardBulkWizard` (`Moneda para todas`) para asignar una moneda a todas las filas cuando no está presente en cada línea.
+    5. **Importes negativos (Pago / Refund)**: Si el importe final es negativo (precedido o seguido por `-`), el movimiento se marca como `isRefund: true`, destacando visualmente la fila con borde e insignia **Pago / Refund** tanto en la vista previa del Pegado Mágico como en la grilla de Carga Rápida, e imputándose como crédito (`INCOME`) en caso de guardarse.
+    6. **Asignación al período contable actual y proyección de cuotas**: En `saveBulkCardMovementsAction` y `buildTransactionBundle`, la cuota del resumen importado conserva su fecha original de compra (`date`) pero se imputa al `accounting_period` actual, proyectando las cuotas futuras restantes (`C+1..T`) a partir del mes contable siguiente.
+    7. **Leyenda de verificación manual**: Incorporación de aviso preventivo en `SmartPasteModal` y `CreditCardBulkWizard` recordando al usuario verificar los datos antes de confirmar.
+- **Centro de Ayuda y Documentación (`apps/web/lib/help-data.ts`, `docs/PRD.md`)**:
+  - Actualización de la Wiki de tarjetas y la FAQ `faq-card-magic-paste` con el detalle de los formatos soportados, selector de moneda y destacado de pagos/refunds.
+
 ## [2.12.1] - 2026-11-02
 ### Corregido
 - **Carga Rápida y Pegado Mágico de Tarjetas (`/accounts/[id]/bulk`, `CreditCardBulkWizard.tsx`, `QuotaBadgeSelector.tsx`, `BulkImpactSummary.tsx`, `BulkMovementRow.tsx`, `builder.ts`, PRD §4.12)**:

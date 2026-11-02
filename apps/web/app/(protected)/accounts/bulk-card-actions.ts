@@ -17,6 +17,7 @@ export interface BulkCardMovementInput {
   categoryId?: string | null
   personId?: string | null
   accountingPeriod?: string | null
+  isRefund?: boolean
 }
 
 export interface SaveBulkCardMovementsParams {
@@ -58,6 +59,7 @@ export async function saveBulkCardMovementsAction({
   }
 
   const allRowsToInsert: (MasterTransaction & { user_id: string })[] = []
+  const currentPeriod = new Date().toISOString().slice(0, 7)
 
   // 2. Construir los bundles de transacciones y cuotas
   for (const m of validMovements) {
@@ -71,13 +73,13 @@ export async function saveBulkCardMovementsAction({
     }
 
     const bundle = buildTransactionBundle({
-      type: 'OUTCOME',
+      type: m.isRefund ? 'INCOME' : 'OUTCOME',
       amountOriginal: m.amount,
       currencyOriginal: m.currency,
       currencyAccount: account.currency_native,
       exchangeRate: rate,
       date: m.date,
-      accountingPeriod: m.accountingPeriod || accountingPeriod || m.date.slice(0, 7),
+      accountingPeriod: m.accountingPeriod || accountingPeriod || currentPeriod,
       institutionId: account.institution_id,
       accountId: account.id,
       categoryId: m.categoryId || null,

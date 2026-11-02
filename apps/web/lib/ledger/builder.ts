@@ -137,8 +137,12 @@ export function buildTransactionBundle(input: BuildTransactionInput): LedgerBund
 
   const childRows: MasterTransaction[] = []
   const countToGenerate = installmentTotal - installmentCurrent
+  const baseDateForFuture =
+    installmentCurrent > 1 && baseAccountingPeriod !== parentDate.slice(0, 7)
+      ? `${baseAccountingPeriod}-${parentDate.slice(8, 10)}`
+      : input.date
   for (let i = 1; i <= countToGenerate; i++) {
-    const instDate = calculateInstallmentDate(input.date, i)
+    const instDate = calculateInstallmentDate(baseDateForFuture, i)
     const instPeriod = calculateAccountingPeriod(baseAccountingPeriod, i)
     childRows.push({
       id: crypto.randomUUID(),

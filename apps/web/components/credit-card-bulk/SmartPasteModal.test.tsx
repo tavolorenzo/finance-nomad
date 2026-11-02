@@ -101,4 +101,37 @@ describe('SmartPasteModal', () => {
       ])
     )
   })
+
+  it('muestra la leyenda recordatoria de verificación y permite asignar moneda a todas las filas', () => {
+    const mockOnApply = vi.fn()
+
+    render(
+      <SmartPasteModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onApply={mockOnApply}
+        defaultCurrency="UYU"
+        categories={mockCategories}
+        people={mockPeople}
+      />
+    )
+
+    expect(
+      screen.getByText(/Recordá verificar las filas antes de confirmar:/i)
+    ).toBeInTheDocument()
+
+    // Cargar ejemplo y asignar USD a todas las filas
+    fireEvent.click(screen.getByText('Cargar ejemplo'))
+    const currencySelect = screen.getByLabelText(/Moneda a importar:/i)
+    fireEvent.change(currencySelect, { target: { value: 'USD' } })
+
+    fireEvent.click(screen.getByText('Volcar a la grilla (4)'))
+
+    expect(mockOnApply).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ currency: 'USD' }),
+        expect.objectContaining({ currency: 'USD', isRefund: true })
+      ])
+    )
+  })
 })
