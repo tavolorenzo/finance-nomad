@@ -12,6 +12,11 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.14.3] - 2026-11-03
+### Corregido
+- **Tipado de Cuentas con Institución en Modal de Pago de Tarjeta (`apps/web/components/RegisterCardPaymentModal.tsx`, `apps/web/components/cards/CreditCardsDashboard.tsx`, PRD §4.14)**:
+  - Se amplió la interfaz `RegisterCardPaymentModalProps` para admitir `institutions?: { name: string } | null` en `fundingAccounts`, resolviendo el error de compilación de TypeScript en el build de producción de Vercel al pasar `CardAccountWithInstitution[]` desde `CreditCardsDashboard`.
+
 ## [2.14.2] - 2026-11-03
 ### Modificado
 - **Texto de Botones en Banner de Verificación de Tarjeta (`apps/web/components/DashboardClient.tsx`, `apps/web/components/DashboardClient.test.tsx`, PRD §4.13)**:

@@ -14,7 +14,7 @@ interface RegisterCardPaymentModalProps {
     currency_native: string
   }
   currentBalance: number
-  fundingAccounts: (Account & { institutions?: { name: string } })[]
+  fundingAccounts: (Account & { institutions?: { name: string } | null })[]
 }
 
 export function RegisterCardPaymentModal({
