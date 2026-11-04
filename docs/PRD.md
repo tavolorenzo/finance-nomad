@@ -94,14 +94,15 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
 * Genera 2 registros enlazados por `parent_transaction_id` en el *Ledger* (débito negativo en origen y crédito positivo en destino).
 
 ### 4.5. Personas & Cuentas por Cobrar
-* Directorio de contactos (`/people`) con **Saldo por cobrar del mes contable actual** consolidado por moneda (`accounting_period <= YYYY-MM` actual + movimientos sin mes contable), exhibiendo de forma diferenciada los importes diferidos en próximos meses.
+* **Selector de Período Contable (`accounting_period`):** Tanto en el directorio general (`/people`) como en el detalle de cada contacto (`/people/[id]`), se incluye la barra de filtro de **Período contable** (`YYYY-MM`, idéntica al módulo de Tarjetas). Para los movimientos que no poseen `accounting_period` registrado (anteriores o en efectivo/débito), se asume como período efectivo el mes de la fecha del gasto (`date.slice(0, 7)`).
+* **Separación Estricta por Período:** Permite consultar los primeros días del mes el período contable anterior (ej. para notificar por WhatsApp lo adeudado del resumen recién cerrado) sin mezclar en el mismo saldo los consumos o cuotas del período actual. Exhibe de forma diferenciada el saldo del período seleccionado (`=== YYYY-MM`), saldos pendientes de períodos anteriores (`< YYYY-MM`) y compromisos de próximos meses (`> YYYY-MM`).
 * **Contacto de Sistema "Personal"**: Entidad reservada del sistema asignada por defecto a los consumos propios del usuario. No puede renombrarse, desactivarse ni duplicarse (protegida como palabra reservada `Personal` en frontend y backend).
 * **Prevención de Nombres Duplicados y Aviso en Tiempo Real**: Si el usuario tipea el nombre de una persona ya existente (activa o desactivada), el formulario muestra un aviso preventivo sugiriendo incorporar una inicial o apellido (ej. *"Diego M."*) para garantizar que los contactos se reconozcan de manera inequívoca en selectores de consumos y cobros.
 * CRUD completo de contactos (`/people/new`, `/people/[id]/edit`) con baja lógica protegida (la desactivación se bloquea si la persona tiene movimientos pendientes de cobro).
-* Ficha de Persona (`/people/[id]`): Saldo por cobrar del período contable actual (`<= YYYY-MM` + sin mes contable), desglose de cuotas/períodos futuros e historial de movimientos cobrados.
+* Ficha de Persona (`/people/[id]`): Saldo por cobrar del período contable seleccionado, alerta y listado separado de períodos anteriores sin cobrar, desglose de cuotas/períodos futuros e historial de movimientos cobrados.
 * Acciones en ficha de persona:
-  - **"Registrar Cobro / Liquidación"** (marca los movimientos como saldados con `settled_at`).
-  - **"Notificar por WhatsApp" (`WhatsAppNotifyModal`):** Modal interactivo previo para verificar el destinatario, validar el teléfono y editar el mensaje antes de disparar el link a WhatsApp (`wa.me`).
+  - **"Registrar Cobro / Liquidación"** (precarga el saldo del período contable seleccionado y permite amortizar por período, acumulado o total global con `settled_at`).
+  - **"Notificar por WhatsApp" (`WhatsAppNotifyModal`):** Filtra automáticamente los movimientos pendientes correspondientes al período contable seleccionado para generar el detalle y total del mensaje antes de disparar el link a WhatsApp (`wa.me`).
 * **Configuración de Plantilla WhatsApp (`/people/template`):** Pantalla y modal para personalizar el mensaje predeterminado con variables dinámicas (`$Nombre`, `$Total`, `$Detalle`, `$Cantidad`, `$Fecha`), previsualización en vivo (*Live Preview*) y persistencia por usuario en `user_settings`.
 
 ### 4.6. Gastos Fijos & Presupuestos (Monthly Estimates)

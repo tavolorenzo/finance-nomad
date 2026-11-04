@@ -12,6 +12,22 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-11-04
+### Agregado
+- **Filtro de Período Contable en Módulo de Personas (`/people`, `/people/[id]`, `PeopleDirectoryClient.tsx`, `PersonDetailClient.tsx`, `PersonActions.tsx`, `RegisterPersonPaymentModal.tsx`, `lib/ledger/settlement.ts`, PRD §4.5)**:
+  - **Resolución de período efectivo (`resolveEffectiveAccountingPeriod`)**: Todo movimiento sin `accounting_period` explícito toma automáticamente el mes de la fecha del gasto (`date.slice(0, 7)`).
+  - **Selector de Período Contable unificado con Tarjetas**: Incorporación de la barra interactiva `< Período contable: Mes Año >` en la vista general (`/people`) y dentro de la ficha de cada persona (`/people/[id]`), manteniendo el período sincronizado al navegar entre ambas pantallas (`?period=YYYY-MM`).
+  - **Separación estricta entre período seleccionado, anteriores y futuros**: Evita que al revisar durante los primeros días del mes se mezclen los saldos del período contable anterior con los del período actual, discriminando el saldo del período elegido (`=== YYYY-MM`), los saldos impagos de períodos anteriores (`< YYYY-MM`) y las cuotas de próximos meses (`> YYYY-MM`).
+  - **WhatsApp y Registro de Cobro contextualizados al período**: `PersonActions` genera el mensaje de WhatsApp exclusivamente con los movimientos del período contable seleccionado, y `RegisterPersonPaymentModal` precarga el saldo del período con accesos rápidos para cobrar el período, el acumulado o el total global.
+- **Centro de Ayuda y Documentación (`apps/web/lib/help-data.ts`, `docs/PRD.md`)**:
+  - Actualización de `wiki-people` y §4.5 del PRD documentando el filtro por período contable y la inferencia por mes del gasto.
+
+## [2.14.4] - 2026-11-03
+### Modificado
+- **Diseño Compacto del Banner de Verificación de Resumen de Tarjeta (`apps/web/components/DashboardClient.tsx`, `apps/web/components/DashboardClient.test.tsx`, PRD §4.13)**:
+  - Se reorganizó el contenedor del banner en dos bloques verticales: un bloque superior a ancho completo con el título y subtítulo uno debajo del otro, seguido de un contenedor inferior con la grilla horizontal de botones de verificación por tarjeta, evitando el desplazamiento lateral del texto.
+  - Se reemplazó el botón textual *"Ahora no"* por un botón circular con ícono de cierre (`X`) ubicado en la esquina superior derecha del banner.
+
 ## [2.14.3] - 2026-11-03
 ### Corregido
 - **Tipado de Cuentas con Institución en Modal de Pago de Tarjeta (`apps/web/components/RegisterCardPaymentModal.tsx`, `apps/web/components/cards/CreditCardsDashboard.tsx`, PRD §4.14)**:

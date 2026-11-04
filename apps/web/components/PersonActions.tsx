@@ -6,7 +6,10 @@ import Link from 'next/link'
 import { Settings } from 'lucide-react'
 import { formatMoney } from '@/lib/currency'
 import { formatWhatsAppMessage } from '@/lib/whatsapp'
-import { isCurrentCollectibleDebt } from '@/lib/ledger/settlement'
+import {
+  isCurrentCollectibleDebt,
+  isDebtOfAccountingPeriod
+} from '@/lib/ledger/settlement'
 import { WhatsAppNotifyModal } from '@/components/WhatsAppNotifyModal'
 import { RegisterPersonPaymentModal } from '@/components/RegisterPersonPaymentModal'
 import { useOptionalLedger } from '@/lib/ledger/ledger-context'
@@ -15,12 +18,14 @@ import type { Account, Category, MasterTransaction, Person } from '@/lib/types'
 export function PersonActions({
   person,
   pending,
+  selectedPeriod,
   whatsappTemplate,
   accounts = [],
   categories = []
 }: {
   person: Person
   pending: MasterTransaction[]
+  selectedPeriod?: string
   whatsappTemplate?: string | null
   accounts?: (Account & { institutions?: { name: string } })[]
   categories?: Category[]
@@ -31,10 +36,21 @@ export function PersonActions({
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
 
   const today = new Date().toISOString().slice(0, 10)
-  const currentPending = pending.filter((t) => isCurrentCollectibleDebt(t, today))
-  const itemsToNotify = currentPending.length > 0 ? currentPending : pending
+  const activePeriod =
+    selectedPeriod && /^\d{4}-\d{2}$/.test(selectedPeriod)
+      ? selectedPeriod
+      : today.slice(0, 7)
 
-  // Saldo pendiente del período contable actual (y sin mes contable) considerando pagos parciales previos
+  const periodPending = pending.filter((t) => isDebtOfAccountingPeriod(t, activePeriod))
+  const cumulativePending = pending.filter((t) => isCurrentCollectibleDebt(t, activePeriod))
+  const itemsToNotify =
+    periodPending.length > 0
+      ? periodPending
+      : cumulativePending.length > 0
+        ? cumulativePending
+        : pending
+
+  // Saldo pendiente del período contable seleccionado considerando pagos parciales previos
   const total = itemsToNotify.reduce(
     (sum, t) => sum + Math.max(0, t.amount_account - (t.settled_amount ?? 0)),
     0
@@ -106,6 +122,7 @@ export function PersonActions({
         onClose={() => setIsPaymentModalOpen(false)}
         person={person}
         pendingTransactions={pending}
+        selectedPeriod={activePeriod}
         accounts={accounts}
         categories={categories}
         onSuccess={handlePaymentSuccess}

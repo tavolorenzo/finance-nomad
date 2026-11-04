@@ -209,28 +209,29 @@ export function DashboardClient({
       )}
 
       {showCardVerifyBanner && (
-        <div className="mb-6 p-4 rounded-card bg-surface-1 border border-income/40 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <span className="p-2 rounded-full bg-income/15 text-income mt-0.5">
+        <div className="relative mb-6 p-4 rounded-card bg-surface-1 border border-income/40 shadow-sm flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={() => setDismissedCardBanner(true)}
+            aria-label="Cerrar aviso de verificación"
+            className="absolute top-3 right-3 p-1.5 rounded-full bg-surface-2/80 text-text-muted hover:text-text-primary hover:bg-surface-2 border border-border-subtle transition"
+          >
+            <X size={14} />
+          </button>
+          <div className="flex items-start gap-3 pr-8">
+            <span className="p-2 rounded-full bg-income/15 text-income mt-0.5 shrink-0">
               <ClipboardCheck size={18} />
             </span>
-            <div>
+            <div className="flex flex-col gap-0.5">
               <p className="text-sm font-semibold text-text-primary">
                 ¿Te llegó el resumen de la tarjeta?
               </p>
-              <p className="text-xs text-text-muted mt-0.5">
+              <p className="text-xs text-text-muted">
                 Revisá tu estado de cuenta mensual en un toque: confirmá los consumos registrados, corregí diferencias o asigná gastos al próximo mes.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 self-end sm:self-center flex-wrap shrink-0">
-            <button
-              type="button"
-              onClick={() => setDismissedCardBanner(true)}
-              className="px-2.5 py-1.5 text-xs text-text-muted hover:text-text-primary transition"
-            >
-              Ahora no
-            </button>
+          <div className="flex flex-wrap items-center gap-2 sm:pl-11">
             {creditCardAccounts.map((card) => {
               const institutionName = card.institutions?.name?.trim()
               const label = institutionName

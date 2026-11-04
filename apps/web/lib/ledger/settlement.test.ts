@@ -1,8 +1,38 @@
 import { describe, it, expect } from 'vitest'
-import { allocateSettlement, buildPersonSettlementBundle, isCurrentCollectibleDebt } from './settlement'
+import {
+  allocateSettlement,
+  buildPersonSettlementBundle,
+  isCurrentCollectibleDebt,
+  isDebtOfAccountingPeriod,
+  resolveEffectiveAccountingPeriod
+} from './settlement'
 import { applyBundleDelta } from './balance'
 import type { MasterTransaction } from '../types'
 import type { AccountBalance, BuildPersonSettlementInput } from './types'
+
+describe('resolveEffectiveAccountingPeriod & isDebtOfAccountingPeriod', () => {
+  it('usa accounting_period cuando está registrado y el mes del gasto cuando no lo tiene', () => {
+    expect(
+      resolveEffectiveAccountingPeriod({ date: '2026-10-28', accounting_period: '2026-11' })
+    ).toBe('2026-11')
+    expect(
+      resolveEffectiveAccountingPeriod({ date: '2026-10-15', accounting_period: null })
+    ).toBe('2026-10')
+    expect(
+      resolveEffectiveAccountingPeriod({ date: '2026-09-05', accounting_period: '' })
+    ).toBe('2026-09')
+  })
+
+  it('separa estrictamente los movimientos por período contable seleccionado', () => {
+    const octWithoutPeriod = { date: '2026-10-18', accounting_period: null }
+    const novPostClosing = { date: '2026-10-29', accounting_period: '2026-11' }
+
+    expect(isDebtOfAccountingPeriod(octWithoutPeriod, '2026-10')).toBe(true)
+    expect(isDebtOfAccountingPeriod(octWithoutPeriod, '2026-11')).toBe(false)
+    expect(isDebtOfAccountingPeriod(novPostClosing, '2026-10')).toBe(false)
+    expect(isDebtOfAccountingPeriod(novPostClosing, '2026-11')).toBe(true)
+  })
+})
 
 describe('isCurrentCollectibleDebt (Mes contable actual + sin mes contable)', () => {
   const today = '2026-11-02'
@@ -25,6 +55,9 @@ describe('isCurrentCollectibleDebt (Mes contable actual + sin mes contable)', ()
     ).toBe(false)
     expect(
       isCurrentCollectibleDebt({ date: '2026-12-15', accounting_period: '2026-12' }, today)
+    ).toBe(false)
+    expect(
+      isCurrentCollectibleDebt({ date: '2026-11-02', accounting_period: '2026-11' }, '2026-10')
     ).toBe(false)
   })
 })

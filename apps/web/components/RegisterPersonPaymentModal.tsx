@@ -14,6 +14,7 @@ import {
 import { fetchExchangeRate } from '@/app/(protected)/transactions/new/actions'
 import { registerPersonPaymentAction } from '@/app/(protected)/people/actions'
 import { formatMoney } from '@/lib/currency'
+import { formatAccountingPeriodLabel } from '@/lib/ledger/builder'
 import { allocateSettlement } from '@/lib/ledger/settlement'
 import { useOptionalLedger } from '@/lib/ledger/ledger-context'
 import type { Account, Category, MasterTransaction, Person } from '@/lib/types'
@@ -21,6 +22,7 @@ import type { Account, Category, MasterTransaction, Person } from '@/lib/types'
 interface RegisterPersonPaymentModalProps {
   person: Person
   pendingTransactions: MasterTransaction[]
+  selectedPeriod?: string
   accounts: (Account & { institutions?: { name: string } })[]
   categories?: Category[]
   isOpen: boolean
@@ -31,6 +33,7 @@ interface RegisterPersonPaymentModalProps {
 export function RegisterPersonPaymentModal({
   person,
   pendingTransactions,
+  selectedPeriod,
   accounts,
   categories = [],
   isOpen,
@@ -58,6 +61,13 @@ export function RegisterPersonPaymentModal({
   }, [pendingTransactions, selectedCurrency])
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const activePeriod = useMemo(
+    () =>
+      selectedPeriod && /^\d{4}-\d{2}$/.test(selectedPeriod)
+        ? selectedPeriod
+        : today.slice(0, 7),
+    [selectedPeriod, today]
+  )
   const [date, setDate] = useState(today)
 
   // Cuentas válidas para recibir dinero (no tarjetas de crédito)
@@ -83,18 +93,25 @@ export function RegisterPersonPaymentModal({
 
   const accountCurrency = selectedDestinationAccount?.currency_native ?? selectedCurrency
 
-  // Deuda actual (<= hoy) y futura (> hoy)
+  // Deuda del período contable seleccionado vs anteriores y futuras
   const baseAllocation = useMemo(() => {
     try {
-      return allocateSettlement(debtsInCurrency, 0, today, date)
+      return allocateSettlement(debtsInCurrency, 0, activePeriod, date)
     } catch {
       return null
     }
-  }, [debtsInCurrency, today, date])
+  }, [debtsInCurrency, activePeriod, date])
 
-  const initialAmount = baseAllocation?.currentDebt && baseAllocation.currentDebt > 0
-    ? baseAllocation.currentDebt
-    : baseAllocation?.totalDebt ?? 0
+  const initialAmount = useMemo(() => {
+    if (!baseAllocation) return 0
+    if (selectedPeriod && baseAllocation.periodDebt > 0) {
+      return baseAllocation.periodDebt
+    }
+    if (baseAllocation.currentDebt > 0) {
+      return baseAllocation.currentDebt
+    }
+    return baseAllocation.totalDebt
+  }, [baseAllocation, selectedPeriod])
 
   const [amount, setAmount] = useState('')
   const [notes, setNotes] = useState('')
@@ -149,11 +166,11 @@ export function RegisterPersonPaymentModal({
   const allocation = useMemo(() => {
     if (amountNum <= 0) return null
     try {
-      return allocateSettlement(debtsInCurrency, amountNum, today, date)
+      return allocateSettlement(debtsInCurrency, amountNum, activePeriod, date)
     } catch (err: any) {
       return { error: err.message || 'Importe inválido' }
     }
-  }, [debtsInCurrency, amountNum, today, date])
+  }, [debtsInCurrency, amountNum, activePeriod, date])
 
   const isExceeded = Boolean(
     baseAllocation && amountNum > baseAllocation.totalDebt + 0.009
@@ -211,7 +228,7 @@ export function RegisterPersonPaymentModal({
           date,
           categoryId: defaultCategory?.id ?? null,
           notes: notes.trim() || `Cobro a ${person.name}`,
-          today,
+          today: activePeriod,
           pendingTransactions: debtsInCurrency
         })
       } else {
@@ -301,22 +318,33 @@ export function RegisterPersonPaymentModal({
           </div>
         )}
 
-        {/* Resumen de deuda actual vs futura */}
+        {/* Resumen de deuda del período vs anteriores y futura */}
         {baseAllocation && (
           <div className="bg-surface-0 border border-border rounded-control p-3.5 space-y-2">
             <div className="flex justify-between items-baseline">
               <div>
                 <span className="text-xs text-text-secondary font-medium block">
-                  Saldo actual a cobrar
+                  Saldo por cobrar ({formatAccountingPeriodLabel(activePeriod)})
                 </span>
                 <span className="text-[11px] text-text-muted">
-                  Mes contable actual / anteriores y sin mes contable
+                  Consumos de {formatAccountingPeriodLabel(activePeriod)}
                 </span>
               </div>
               <span className="font-mono tabular-nums amount text-base font-semibold text-pending">
-                {formatMoney(baseAllocation.currentDebt, selectedCurrency)}
+                {formatMoney(baseAllocation.periodDebt, selectedCurrency)}
               </span>
             </div>
+
+            {baseAllocation.previousDebt > 0 && (
+              <div className="pt-2 border-t border-border/60 flex justify-between items-baseline text-xs">
+                <span className="text-text-muted">
+                  Períodos anteriores sin cobrar
+                </span>
+                <span className="font-mono tabular-nums amount text-pending font-medium">
+                  {formatMoney(baseAllocation.previousDebt, selectedCurrency)}
+                </span>
+              </div>
+            )}
 
             {baseAllocation.futureDebt > 0 && (
               <div className="pt-2 border-t border-border/60 flex justify-between items-baseline text-xs">
@@ -388,14 +416,23 @@ export function RegisterPersonPaymentModal({
               <label className="block text-xs font-medium text-text-secondary">
                 Importe a cobrar
               </label>
-              <div className="flex gap-2">
-                {baseAllocation && baseAllocation.currentDebt > 0 && (
+              <div className="flex gap-2 flex-wrap justify-end">
+                {baseAllocation && baseAllocation.periodDebt > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setAmount(baseAllocation.periodDebt.toFixed(2))}
+                    className="text-[11px] text-accent hover:underline font-medium"
+                  >
+                    Período ({formatMoney(baseAllocation.periodDebt, selectedCurrency)})
+                  </button>
+                )}
+                {baseAllocation && baseAllocation.previousDebt > 0 && (
                   <button
                     type="button"
                     onClick={() => setAmount(baseAllocation.currentDebt.toFixed(2))}
                     className="text-[11px] text-accent hover:underline font-medium"
                   >
-                    Saldo actual ({formatMoney(baseAllocation.currentDebt, selectedCurrency)})
+                    Acumulado ({formatMoney(baseAllocation.currentDebt, selectedCurrency)})
                   </button>
                 )}
                 {baseAllocation && baseAllocation.futureDebt > 0 && (

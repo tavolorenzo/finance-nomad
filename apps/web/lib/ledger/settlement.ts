@@ -4,7 +4,13 @@ import { calculateAccountAmount } from '../fx'
 
 export interface AllocationResult {
   caseType: 'A' | 'B' | 'C'
+  /** Deuda perteneciente estrictamente al período contable seleccionado (=== targetPeriod) */
+  periodDebt: number
+  /** Deuda arrastrada de períodos anteriores al seleccionado (< targetPeriod) */
+  previousDebt: number
+  /** Deuda exigible acumulada hasta el período seleccionado inclusive (<= targetPeriod) */
   currentDebt: number
+  /** Deuda diferida en períodos posteriores al seleccionado (> targetPeriod) */
   futureDebt: number
   totalDebt: number
   remainingDebtAfter: number
@@ -15,56 +21,88 @@ export interface AllocationResult {
 }
 
 /**
- * Determina si un movimiento pendiente corresponde al saldo a cobrar del período contable actual:
- * - Si tiene `accounting_period` (YYYY-MM), pertenece al saldo actual si `accounting_period <= currentPeriod`.
- * - Si NO tiene `accounting_period` (`null` / `undefined` / `''`), se incluye en el saldo actual salvo que
- *   sea una cuota futura con fecha posterior a hoy (`installment_total > 1 && date > today`).
+ * Resuelve el período contable efectivo (YYYY-MM) de un movimiento:
+ * - Si tiene `accounting_period` válido (`YYYY-MM`), usa ese valor.
+ * - Si no tiene `accounting_period` (anterior o no registrado), asume el mes de la fecha del gasto (`date.slice(0, 7)`).
+ */
+export function resolveEffectiveAccountingPeriod(
+  t: Pick<MasterTransaction, 'accounting_period' | 'date'>
+): string {
+  const raw = t.accounting_period?.trim()
+  if (raw && /^\d{4}-\d{2}/.test(raw)) {
+    return raw.slice(0, 7)
+  }
+  return t.date.slice(0, 7)
+}
+
+/**
+ * Determina si un movimiento pertenece exactamente al período contable indicado (`YYYY-MM`).
+ */
+export function isDebtOfAccountingPeriod(
+  t: Pick<MasterTransaction, 'accounting_period' | 'date'>,
+  period: string
+): boolean {
+  return resolveEffectiveAccountingPeriod(t) === period.slice(0, 7)
+}
+
+/**
+ * Determina si un movimiento pendiente es exigible hasta el período contable objetivo (`YYYY-MM` o fecha `YYYY-MM-DD`):
+ * - Usa `resolveEffectiveAccountingPeriod(t)` (el `accounting_period` o el mes del gasto `date.slice(0, 7)`).
+ * - Es exigible si su período efectivo es `<= targetPeriod`.
  */
 export function isCurrentCollectibleDebt(
   t: Pick<MasterTransaction, 'accounting_period' | 'date'> &
     Partial<Pick<MasterTransaction, 'installment_total'>>,
-  today: string = new Date().toISOString().slice(0, 10)
+  todayOrPeriod: string = new Date().toISOString().slice(0, 10)
 ): boolean {
-  const currentPeriod = today.slice(0, 7)
-  const period = t.accounting_period?.trim()
-  if (period) {
-    return period.slice(0, 7) <= currentPeriod
-  }
-  if ((t.installment_total ?? 1) > 1 && t.date > today) {
-    return false
-  }
-  return true
+  const targetPeriod = todayOrPeriod.slice(0, 7)
+  const effectivePeriod = resolveEffectiveAccountingPeriod(t)
+  return effectivePeriod <= targetPeriod
 }
 
 /**
  * Calcula la amortización de deudas pendientes de una persona aplicando FIFO.
- * - Caso A: Pago exacto del saldo actual (mes contable actual/anterior o sin mes contable).
- * - Caso B: Pago parcial menor al saldo actual.
- * - Caso C: Pago mayor al saldo actual (adelanto a cuotas o períodos futuros).
+ * - Caso A: Pago exacto del saldo exigible hasta el período seleccionado (`currentDebt` o `periodDebt`).
+ * - Caso B: Pago parcial menor al saldo exigible.
+ * - Caso C: Pago mayor al saldo exigible (adelanto a cuotas o períodos futuros).
  */
 export function allocateSettlement(
   pendingTransactions: MasterTransaction[],
   amountToSettle: number,
-  today: string = new Date().toISOString().slice(0, 10),
+  todayOrPeriod: string = new Date().toISOString().slice(0, 10),
   settleDate: string = new Date().toISOString().slice(0, 10)
 ): AllocationResult {
-  // Ordenar cronológicamente por período contable (si existe) y luego por fecha (FIFO)
+  const targetPeriod = todayOrPeriod.slice(0, 7)
+
+  // Ordenar cronológicamente por período contable efectivo y luego por fecha (FIFO)
   const sorted = [...pendingTransactions].sort((a, b) => {
-    const periodA = a.accounting_period?.trim().slice(0, 7) || a.date.slice(0, 7)
-    const periodB = b.accounting_period?.trim().slice(0, 7) || b.date.slice(0, 7)
+    const periodA = resolveEffectiveAccountingPeriod(a)
+    const periodB = resolveEffectiveAccountingPeriod(b)
     if (periodA !== periodB) return periodA.localeCompare(periodB)
     return a.date.localeCompare(b.date)
   })
 
-  const currentAndPast = sorted.filter((t) => isCurrentCollectibleDebt(t, today))
-  const future = sorted.filter((t) => !isCurrentCollectibleDebt(t, today))
+  const currentAndPast = sorted.filter((t) => isCurrentCollectibleDebt(t, targetPeriod))
+  const future = sorted.filter((t) => !isCurrentCollectibleDebt(t, targetPeriod))
 
   function getPendingBalance(t: MasterTransaction): number {
     const settled = Number(t.settled_amount ?? 0)
     return Math.max(0, Math.round((Number(t.amount_account) - settled) * 100) / 100)
   }
 
-  const currentDebt = Math.round(currentAndPast.reduce((sum, t) => sum + getPendingBalance(t), 0) * 100) / 100
+  const periodDebt =
+    Math.round(
+      currentAndPast
+        .filter((t) => resolveEffectiveAccountingPeriod(t) === targetPeriod)
+        .reduce((sum, t) => sum + getPendingBalance(t), 0) * 100
+    ) / 100
+  const previousDebt =
+    Math.round(
+      currentAndPast
+        .filter((t) => resolveEffectiveAccountingPeriod(t) < targetPeriod)
+        .reduce((sum, t) => sum + getPendingBalance(t), 0) * 100
+    ) / 100
+  const currentDebt = Math.round((periodDebt + previousDebt) * 100) / 100
   const futureDebt = Math.round(future.reduce((sum, t) => sum + getPendingBalance(t), 0) * 100) / 100
   const totalDebt = Math.round((currentDebt + futureDebt) * 100) / 100
 
@@ -153,6 +191,8 @@ export function allocateSettlement(
 
   return {
     caseType,
+    periodDebt,
+    previousDebt,
     currentDebt,
     futureDebt,
     totalDebt,

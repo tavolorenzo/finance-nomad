@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { DashboardClient, isStatementVerificationWindow } from './DashboardClient'
 import * as ledgerContext from '@/lib/ledger/ledger-context'
 import type { Account, MasterTransaction } from '@/lib/types'
@@ -146,6 +146,12 @@ describe('DashboardClient', () => {
     const verifyLink = screen.getByRole('link', { name: /Verificar Visa Infinite - Banco Itaú/i })
     expect(verifyLink).toBeInTheDocument()
     expect(verifyLink).toHaveAttribute('href', '/accounts/card-1/verify')
+    expect(screen.queryByRole('button', { name: /Ahora no/i })).not.toBeInTheDocument()
+
+    const closeBtn = screen.getByRole('button', { name: /Cerrar aviso de verificación/i })
+    expect(closeBtn).toBeInTheDocument()
+    fireEvent.click(closeBtn)
+    expect(screen.queryByText('¿Te llegó el resumen de la tarjeta?')).not.toBeInTheDocument()
 
     vi.useRealTimers()
   })

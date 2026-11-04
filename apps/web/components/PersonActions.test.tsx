@@ -9,9 +9,14 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('./WhatsAppNotifyModal', () => ({
-  WhatsAppNotifyModal: ({ isOpen }: { isOpen: boolean }) => (
-    isOpen ? <div data-testid="whatsapp-modal">WhatsApp Modal</div> : null
-  )
+  WhatsAppNotifyModal: ({
+    isOpen,
+    initialMessage
+  }: {
+    isOpen: boolean
+    initialMessage: string
+  }) =>
+    isOpen ? <div data-testid="whatsapp-modal">{initialMessage}</div> : null
 }))
 
 vi.mock('./RegisterPersonPaymentModal', () => ({
@@ -80,5 +85,32 @@ describe('PersonActions', () => {
     const payBtn = screen.getByRole('button', { name: /registrar cobro/i })
     fireEvent.click(payBtn)
     expect(screen.getByTestId('payment-modal')).toBeInTheDocument()
+  })
+
+  it('filtra los movimientos a notificar por WhatsApp según el período contable seleccionado', () => {
+    const mixedPending: MasterTransaction[] = [
+      ...mockPending, // date: '2026-10-24', accounting_period: undefined -> efectivo '2026-10'
+      {
+        ...mockPending[0],
+        id: 'tx-2',
+        date: '2026-11-02',
+        accounting_period: '2026-11',
+        amount_account: 900,
+        notes: 'Farmacia Noviembre'
+      }
+    ]
+
+    render(
+      <PersonActions
+        person={mockPerson}
+        pending={mixedPending}
+        selectedPeriod="2026-10"
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /notificar por whatsapp/i }))
+    const modal = screen.getByTestId('whatsapp-modal')
+    expect(modal.textContent).toContain('Almuerzo compartido')
+    expect(modal.textContent).not.toContain('Farmacia Noviembre')
   })
 })

@@ -145,8 +145,9 @@ export const WIKI_ARTICLES: WikiArticle[] = [
     summary: 'Atribución de gastos a terceros, seguimiento de deudas consolidadas, pagos parciales y avisos por WhatsApp.',
     sections: [
       {
-        title: 'Atribución de Compras a Contactos y Saldo del Mes Contable',
-        content: 'Cuando hacés una compra en nombre de un amigo o familiar (o le prestás una extensión de tu tarjeta), podés seleccionar a esa persona en el campo "Persona" del formulario. Tanto en el directorio (/people) como en la cabecera de la ficha de la persona (/people/[id]), el "Saldo por cobrar" muestra lo exigible en el mes contable actual o anteriores (<= YYYY-MM actual) más los movimientos que no tienen mes contable asignado, separando las cuotas y resúmenes de próximos meses.'
+        title: 'Atribución de Compras a Contactos y Filtro de Período Contable',
+        content: 'Cuando hacés una compra en nombre de un amigo o familiar (o le prestás una extensión de tu tarjeta), podés seleccionar a esa persona en el campo "Persona" del formulario. Tanto en el directorio (/people) como en la ficha de la persona (/people/[id]), disponés del mismo selector de "Período contable" del módulo de tarjetas. Esto te permite navegar entre meses (por ejemplo, revisar el período anterior durante los primeros días del mes para enviar el aviso por WhatsApp sin mezclar consumos del nuevo mes). Si un movimiento histórico o en efectivo no tiene mes contable asignado, el sistema asume automáticamente el mes de la fecha del gasto.',
+        tip: 'El enlace entre el directorio de Personas y el detalle de cada contacto mantiene sincronizado el período contable que estés consultando.'
       },
       {
         title: 'Cobros Totales, Parciales y Adelanto de Cuotas',
