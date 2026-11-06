@@ -58,6 +58,12 @@ export interface BuildTransferInput {
   date: string
   notes?: string | null
   today?: string
+  /**
+   * Período contable (YYYY-MM) imputado al destino (especialmente útil para tarjetas de crédito).
+   * Si no se especifica, toma por defecto el mes de la fecha del movimiento (date.slice(0, 7)).
+   */
+  accountingPeriod?: string | null
+  targetAccountingPeriod?: string | null
 }
 
 export interface BuildPersonSettlementInput {

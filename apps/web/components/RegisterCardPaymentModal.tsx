@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { CreditCard, X, Check, ArrowDownLeft, AlertCircle } from 'lucide-react'
+import { CreditCard, X, Check, AlertCircle, CalendarClock } from 'lucide-react'
 import { fetchExchangeRate } from '@/app/(protected)/transactions/new/actions'
 import { formatMoney } from '@/lib/currency'
+import { calculateAccountingPeriod, formatAccountingPeriodLabel } from '@/lib/ledger/builder'
 import type { Account } from '@/lib/types'
 import { useOptionalLedger } from '@/lib/ledger/ledger-context'
 
@@ -12,15 +13,38 @@ interface RegisterCardPaymentModalProps {
     id: string
     name: string
     currency_native: string
+    closing_day?: number | null
+    institution_id?: string
   }
   currentBalance: number
   fundingAccounts: (Account & { institutions?: { name: string } | null })[]
+  initialPeriod?: string
+}
+
+function resolveDefaultPaymentPeriod(
+  todayStr: string,
+  closingDay?: number | null,
+  initialPeriod?: string
+): string {
+  if (initialPeriod && /^\d{4}-\d{2}$/.test(initialPeriod)) {
+    return initialPeriod
+  }
+  const currentMonth = todayStr.slice(0, 7)
+  const day = Number(todayStr.slice(8, 10))
+  // Si estamos en los primeros 10 días del mes o antes de la fecha de cierre,
+  // el resumen que se suele pagar es el del mes anterior recién cerrado
+  const threshold = closingDay && closingDay > 1 ? Math.min(closingDay, 15) : 10
+  if (!isNaN(day) && day <= threshold) {
+    return calculateAccountingPeriod(currentMonth, -1)
+  }
+  return currentMonth
 }
 
 export function RegisterCardPaymentModal({
   cardAccount,
   currentBalance,
-  fundingAccounts
+  fundingAccounts,
+  initialPeriod
 }: RegisterCardPaymentModalProps) {
   const ledger = useOptionalLedger()
   const [isOpen, setIsOpen] = useState(false)
@@ -32,12 +56,25 @@ export function RegisterCardPaymentModal({
   const currentDebt = effectiveBalance < 0 ? Math.abs(effectiveBalance) : 0
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
-  const [notes, setNotes] = useState(`Pago de tarjeta ${cardAccount.name}`)
+  const [accountingPeriod, setAccountingPeriod] = useState(() =>
+    resolveDefaultPaymentPeriod(new Date().toISOString().slice(0, 10), cardAccount.closing_day, initialPeriod)
+  )
+  const [notes, setNotes] = useState(() => {
+    const period = resolveDefaultPaymentPeriod(
+      new Date().toISOString().slice(0, 10),
+      cardAccount.closing_day,
+      initialPeriod
+    )
+    return `Pago de tarjeta ${cardAccount.name} · Resumen ${formatAccountingPeriodLabel(period)}`
+  })
   const [rate, setRate] = useState(1)
   const [rateError, setRateError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+
+  const currentMonthPeriod = date.slice(0, 7)
+  const prevMonthPeriod = calculateAccountingPeriod(currentMonthPeriod, -1)
 
   const selectedSource = availableFunding.find((a) => a.id === sourceAccountId)
   const sourceCurrency = selectedSource?.currency_native ?? cardAccount.currency_native
@@ -69,10 +106,18 @@ export function RegisterCardPaymentModal({
       .catch(() => setRateError('No pudimos obtener la cotización. Podés ingresar el monto manualmente.'))
   }, [isOpen, sourceCurrency, cardCurrency, date])
 
+  function handlePeriodChange(newPeriod: string) {
+    setAccountingPeriod(newPeriod)
+    setNotes(`Pago de tarjeta ${cardAccount.name} · Resumen ${formatAccountingPeriodLabel(newPeriod)}`)
+  }
+
   function handleOpen() {
+    const today = new Date().toISOString().slice(0, 10)
+    const suggestedPeriod = resolveDefaultPaymentPeriod(today, cardAccount.closing_day, initialPeriod)
+    setAccountingPeriod(suggestedPeriod)
     setAmount(currentDebt > 0 ? currentDebt.toFixed(2) : '')
-    setDate(new Date().toISOString().slice(0, 10))
-    setNotes(`Pago de tarjeta ${cardAccount.name}`)
+    setDate(today)
+    setNotes(`Pago de tarjeta ${cardAccount.name} · Resumen ${formatAccountingPeriodLabel(suggestedPeriod)}`)
     setError(null)
     setSuccess(false)
     setIsOpen(true)
@@ -127,7 +172,9 @@ export function RegisterCardPaymentModal({
         exchangeRate: rate,
         rateOverridden: false,
         date,
-        notes: notes.trim() || `Pago de tarjeta ${cardAccount.name}`
+        accountingPeriod,
+        targetAccountingPeriod: accountingPeriod,
+        notes: notes.trim() || `Pago de tarjeta ${cardAccount.name} · Resumen ${formatAccountingPeriodLabel(accountingPeriod)}`
       })
 
       setSuccess(true)
@@ -303,6 +350,63 @@ export function RegisterCardPaymentModal({
                   className="w-full text-xs"
                   required
                 />
+              </div>
+
+              {/* Mes contable a cancelar (imputación en el estado de cuenta de la tarjeta) */}
+              <div className="bg-surface-0 border border-border/80 rounded-control p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
+                    <CalendarClock size={14} className="text-accent" />
+                    <span>Resumen a cancelar (mes contable)</span>
+                  </label>
+                  {cardAccount.closing_day && (
+                    <span className="text-[10px] text-text-muted font-mono">
+                      Cierre: día {cardAccount.closing_day}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handlePeriodChange(prevMonthPeriod)}
+                    className={`py-2 px-2.5 rounded-control text-xs font-medium border transition ${
+                      accountingPeriod === prevMonthPeriod
+                        ? 'bg-accent/15 border-accent text-accent font-semibold'
+                        : 'bg-surface-1 border-border text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    Mes anterior ({formatAccountingPeriodLabel(prevMonthPeriod)})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePeriodChange(currentMonthPeriod)}
+                    className={`py-2 px-2.5 rounded-control text-xs font-medium border transition ${
+                      accountingPeriod === currentMonthPeriod
+                        ? 'bg-accent/15 border-accent text-accent font-semibold'
+                        : 'bg-surface-1 border-border text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    Mes actual ({formatAccountingPeriodLabel(currentMonthPeriod)})
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-text-muted pt-1 border-t border-border/50">
+                  <span>¿Otro mes?</span>
+                  <input
+                    type="month"
+                    value={accountingPeriod}
+                    onChange={(e) => e.target.value && handlePeriodChange(e.target.value)}
+                    className="text-xs py-0.5 px-2 bg-surface-1 border border-border rounded-control font-mono"
+                  />
+                </div>
+
+                <p className="text-[11px] text-text-muted">
+                  El dinero sale de tu cuenta en la fecha de pago, amortizando contablemente el resumen de{' '}
+                  <span className="font-semibold text-text-secondary">
+                    {formatAccountingPeriodLabel(accountingPeriod)}
+                  </span>.
+                </p>
               </div>
 
               {/* Notas */}

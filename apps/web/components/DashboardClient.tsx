@@ -282,20 +282,40 @@ export function DashboardClient({
             <span className="text-xs font-medium text-accent">Ver →</span>
           </Link>
 
-          {estimatedTotal > 0 && (
-            <div className="bg-surface-1 border border-border rounded-card p-4">
+          {estimatedTotal > 0 ? (
+            <Link
+              href="/budget"
+              className="group block bg-surface-1 border border-border rounded-card p-4 hover:border-accent transition"
+            >
               <div className="flex justify-between mb-2">
-                <span className="text-sm font-medium text-text-secondary">Presupuesto del mes</span>
+                <span className="text-sm font-medium text-text-secondary group-hover:text-accent transition">
+                  Presupuesto del mes
+                </span>
                 <span className="text-sm font-mono font-medium">{budgetPct}%</span>
               </div>
               <div className="h-1.5 bg-surface-0 rounded-full overflow-hidden">
                 <div className="h-full bg-accent transition-all duration-300" style={{ width: `${budgetPct}%` }} />
               </div>
-              <p className="text-xs text-text-muted mt-2">
+              <p className="text-xs text-text-muted mt-2 font-mono tabular-nums amount">
                 {formatMoney(realSpent, initialEstimates?.[0]?.currency ?? displayCurrency)} gastados de{' '}
                 {formatMoney(estimatedTotal, initialEstimates?.[0]?.currency ?? displayCurrency)} proyectados
               </p>
-            </div>
+            </Link>
+          ) : (
+            <Link
+              href="/budget"
+              className="group flex items-center justify-between p-3.5 bg-surface-1 border border-border rounded-card hover:border-accent hover:bg-surface-2/60 transition block"
+            >
+              <div>
+                <p className="text-xs font-semibold text-text-primary group-hover:text-accent transition">
+                  Presupuesto & Gastos Fijos
+                </p>
+                <p className="text-[11px] text-text-muted">
+                  Configurá tus gastos recurrentes e ingresos proyectados
+                </p>
+              </div>
+              <span className="text-xs font-medium text-accent">Configurar →</span>
+            </Link>
           )}
         </div>
 

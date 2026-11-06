@@ -76,6 +76,7 @@ export function TransactionForm({
 
   const currentMonthPeriod = date.slice(0, 7)
   const nextMonthPeriod = calculateAccountingPeriod(currentMonthPeriod, 1)
+  const prevMonthPeriod = calculateAccountingPeriod(currentMonthPeriod, -1)
 
   // Actualizar período contable sugerido cuando cambia la fecha o la tarjeta (si no se forzó manualmente)
   useEffect(() => {
@@ -200,6 +201,8 @@ export function TransactionForm({
           rateOverridden,
           rateFetchedAt,
           date,
+          accountingPeriod: toAccount.type === 'credit_card' ? accountingPeriod : undefined,
+          targetAccountingPeriod: toAccount.type === 'credit_card' ? accountingPeriod : undefined,
           notes: notes.trim() || null
         })
       } else {
@@ -446,17 +449,17 @@ export function TransactionForm({
         </div>
       )}
 
-      {/* Mes contable para Tarjetas de Crédito */}
-      {!isTransfer && account?.type === 'credit_card' && (
+      {/* Mes contable para Tarjetas de Crédito (consumos o cancelación de resumen en transferencias) */}
+      {((!isTransfer && account?.type === 'credit_card') || (isTransfer && toAccount?.type === 'credit_card')) && (
         <div className="bg-surface-0 border border-border/80 rounded-control p-3 space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
               <CalendarClock size={14} className="text-accent" />
-              <span>Mes contable (estado de cuenta)</span>
+              <span>{isTransfer ? 'Resumen a cancelar en tarjeta' : 'Mes contable (estado de cuenta)'}</span>
             </label>
-            {account.closing_day && (
+            {(isTransfer ? toAccount?.closing_day : account?.closing_day) && (
               <span className="text-[10px] text-text-muted font-mono">
-                Cierre: día {account.closing_day}
+                Cierre: día {isTransfer ? toAccount?.closing_day : account?.closing_day}
               </span>
             )}
           </div>
@@ -464,38 +467,51 @@ export function TransactionForm({
             <button
               type="button"
               onClick={() => {
-                setAccountingPeriod(currentMonthPeriod)
+                setAccountingPeriod(isTransfer ? prevMonthPeriod : currentMonthPeriod)
                 setPeriodManuallySelected(true)
               }}
               className={`py-2 px-2.5 rounded-control text-xs font-medium border transition ${
-                accountingPeriod === currentMonthPeriod
+                accountingPeriod === (isTransfer ? prevMonthPeriod : currentMonthPeriod)
                   ? 'bg-accent/15 border-accent text-accent font-semibold'
                   : 'bg-surface-1 border-border text-text-secondary hover:text-text-primary'
               }`}
             >
-              Mes actual ({formatAccountingPeriodLabel(currentMonthPeriod)})
+              {isTransfer
+                ? `Mes anterior (${formatAccountingPeriodLabel(prevMonthPeriod)})`
+                : `Mes actual (${formatAccountingPeriodLabel(currentMonthPeriod)})`}
             </button>
             <button
               type="button"
               onClick={() => {
-                setAccountingPeriod(nextMonthPeriod)
+                setAccountingPeriod(isTransfer ? currentMonthPeriod : nextMonthPeriod)
                 setPeriodManuallySelected(true)
               }}
               className={`py-2 px-2.5 rounded-control text-xs font-medium border transition ${
-                accountingPeriod === nextMonthPeriod
+                accountingPeriod === (isTransfer ? currentMonthPeriod : nextMonthPeriod)
                   ? 'bg-accent/15 border-accent text-accent font-semibold'
                   : 'bg-surface-1 border-border text-text-secondary hover:text-text-primary'
               }`}
             >
-              Próximo mes ({formatAccountingPeriodLabel(nextMonthPeriod)})
+              {isTransfer
+                ? `Mes actual (${formatAccountingPeriodLabel(currentMonthPeriod)})`
+                : `Próximo mes (${formatAccountingPeriodLabel(nextMonthPeriod)})`}
             </button>
           </div>
-          {account.closing_day && Number(date.slice(8, 10)) > account.closing_day && (
+          {!isTransfer && account?.closing_day && Number(date.slice(8, 10)) > account.closing_day && (
             <p className="text-[11px] text-text-muted">
               Como la fecha supera el día de cierre ({account.closing_day}), sugerimos imputarlo en{' '}
               <span className="font-medium text-text-secondary">
                 {formatAccountingPeriodLabel(nextMonthPeriod)}
               </span>.
+            </p>
+          )}
+          {isTransfer && (
+            <p className="text-[11px] text-text-muted">
+              El pago amortiza el resumen de{' '}
+              <span className="font-medium text-text-secondary">
+                {formatAccountingPeriodLabel(accountingPeriod)}
+              </span>{' '}
+              en tu tarjeta de crédito.
             </p>
           )}
         </div>

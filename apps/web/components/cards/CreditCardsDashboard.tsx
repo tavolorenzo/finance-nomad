@@ -642,6 +642,16 @@ export function CreditCardsDashboard({
                     <CardChipSvg />
 
                     <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      {summary.isStatementPaid ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium border bg-income/15 border-income/30 text-income">
+                          <CheckCircle2 size={11} />
+                          <span>Resumen pagado</span>
+                        </span>
+                      ) : summary.periodPaymentsInDisplay > 0 ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium border bg-accent/15 border-accent/30 text-accent font-mono tabular-nums amount">
+                          Pago parcial: {formatMoney(summary.periodPaymentsInDisplay, displayCurrency)}
+                        </span>
+                      ) : null}
                       {closingInfo && (
                         <span
                           className={`text-[11px] px-2 py-0.5 rounded-full font-medium border ${
@@ -799,6 +809,7 @@ export function CreditCardsDashboard({
                       cardAccount={account}
                       currentBalance={summary.currentBalance}
                       fundingAccounts={allAccounts}
+                      initialPeriod={selectedPeriod}
                     />
                   </div>
                 </div>

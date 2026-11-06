@@ -1,123 +1,127 @@
 import { createClient } from '@/lib/supabase/server'
-import { formatMoney } from '@/lib/currency'
-import { ExecutePaymentButton } from '@/components/ExecutePaymentButton'
-
-function monthRange(date = new Date()) {
-  const start = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().slice(0, 10)
-  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().slice(0, 10)
-  return { start, end }
-}
+import { getRatesMatrix } from '@/lib/fx'
+import { buildCustomRatesMap } from '@/lib/budget/calculations'
+import { BudgetClient } from '@/components/budget/BudgetClient'
+import type {
+  Account,
+  BudgetEstimate,
+  Category,
+  LoanWithInstallments,
+  MasterTransaction,
+  Person,
+  UserSettings
+} from '@/lib/types'
 
 export default async function BudgetPage() {
   const supabase = await createClient()
-  const { start, end } = monthRange()
+  const now = new Date()
+  const initialPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-  let estimates: any[] = []
-  let monthTx: any[] = []
+  let estimates: BudgetEstimate[] = []
+  let transactions: MasterTransaction[] = []
+  let loans: LoanWithInstallments[] = []
+  let categories: Category[] = []
+  let accounts: (Account & { institutions?: { name: string } | null })[] = []
+  let people: Person[] = []
+  let settings: Pick<UserSettings, 'display_currency' | 'active_currencies'> | null = null
 
   try {
-    const [{ data: estData }, { data: txData }] = await Promise.all([
+    const [
+      estRes,
+      txRes,
+      loansRes,
+      catRes,
+      accRes,
+      peopleRes,
+      settingsRes
+    ] = await Promise.all([
       supabase
         .from('budget_estimates')
-        .select('*, categories(name)')
-        .eq('is_active', true)
+        .select('*, categories(id, name, icon, color)')
         .order('due_day', { ascending: true }),
       supabase
         .from('master_transactions')
-        .select('amount_account, category_id, type')
-        .not('category_id', 'is', null)
-        .gte('date', start)
-        .lte('date', end)
+        .select('*')
+        .in('type', ['OUTCOME', 'INCOME'])
+        .order('date', { ascending: false })
+        .limit(500),
+      supabase
+        .from('loans')
+        .select('*, installments:loan_installments(*)')
+        .eq('is_active', true)
+        .eq('direction', 'BORROWED'),
+      supabase
+        .from('categories')
+        .select('*')
+        .order('name', { ascending: true }),
+      supabase
+        .from('accounts')
+        .select('id, name, type, currency_native, credit_limit, closing_day, institution_id, is_active, institutions(name)')
+        .eq('is_active', true),
+      supabase
+        .from('people')
+        .select('id, name, phone, is_active'),
+      supabase
+        .from('user_settings')
+        .select('display_currency, active_currencies')
+        .maybeSingle()
     ])
-    estimates = estData ?? []
-    monthTx = txData ?? []
+
+    estimates = (estRes.data as BudgetEstimate[]) ?? []
+    transactions = (txRes.data as MasterTransaction[]) ?? []
+    loans = (loansRes.data as unknown as LoanWithInstallments[]) ?? []
+    categories = (catRes.data as Category[]) ?? []
+    accounts =
+      (accRes.data as unknown as (Account & {
+        institutions?: { name: string } | null
+      })[]) ?? []
+    people = (peopleRes.data as Person[]) ?? []
+    settings = settingsRes.data
   } catch {
-    // Si la conexión falla (offline), mostramos estado seguro
+    // Si la conexión falla (offline), mostramos estado seguro hidratado con cliente
   }
 
-  const categoryIds = new Set((estimates ?? []).map((e) => e.category_id))
-  const realByCategory = new Map<string, number>()
+  const displayCurrency = settings?.display_currency ?? 'EUR'
+  const activeCurrencyCodes = Array.isArray(settings?.active_currencies)
+    ? settings!.active_currencies.map((c) => c.code)
+    : ['EUR', 'USD', 'UYU', 'ARS', 'AUD', 'NZD']
 
-  for (const t of monthTx ?? []) {
-    if (!t.category_id || !categoryIds.has(t.category_id)) continue
-    const sign = t.type === 'OUTCOME' ? 1 : -1 // gasto ejecutado cuenta como "cubierto"
-    realByCategory.set(t.category_id, (realByCategory.get(t.category_id) ?? 0) + sign * t.amount_account)
+  const allCurrencies = Array.from(
+    new Set([
+      displayCurrency,
+      ...activeCurrencyCodes,
+      ...estimates.map((e) => e.currency),
+      ...accounts.map((a) => a.currency_native)
+    ])
+  )
+
+  let marketRates: Record<string, number> = {}
+  try {
+    marketRates = await getRatesMatrix(allCurrencies)
+  } catch {
+    // Fallback silencioso a tasas manuales
   }
 
-  const incomeEstimates = (estimates ?? []).filter((e) => e.type === 'INCOME_ESTIMATE')
-  const expenseEstimates = (estimates ?? []).filter((e) => e.type === 'EXPENSE_ESTIMATE')
+  const ratesMap = buildCustomRatesMap(
+    displayCurrency,
+    settings?.active_currencies,
+    marketRates
+  )
 
   return (
-    <main className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight">Presupuesto</h1>
-        <p className="text-xs text-text-muted mt-0.5">Control de gastos fijos e ingresos proyectados del mes</p>
-      </div>
-
-      {(!estimates || estimates.length === 0) && (
-        <div className="bg-surface-1 border border-border rounded-card p-8 text-center text-sm text-text-muted">
-          Definí tus gastos fijos para ver el avance y control del mes.
-        </div>
-      )}
-
-      {expenseEstimates.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="font-display text-base font-semibold tracking-tight text-text-primary">Gastos fijos</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {expenseEstimates.map((e) => {
-              const real = realByCategory.get(e.category_id) ?? 0
-              const pct = Math.min(100, Math.round((real / e.estimated_amount) * 100))
-              const done = real >= e.estimated_amount
-              return (
-                <div key={e.id} className="bg-surface-1 border border-border rounded-card p-4 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-sm font-semibold text-text-primary">{e.name}</p>
-                      <p className="text-xs text-text-muted">
-                        {(e as any).categories?.name} · vence el {e.due_day}
-                      </p>
-                    </div>
-                    <ExecutePaymentButton estimateId={e.id} estimate={e} disabled={done} />
-                  </div>
-                  <div>
-                    <div className="h-2 bg-surface-2 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full transition-all duration-300 ${done ? 'bg-income' : 'bg-accent'}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between items-center text-xs text-text-muted mt-1.5 font-mono">
-                      <span>{pct}% cubierto</span>
-                      <span>
-                        {formatMoney(real, e.currency)} / {formatMoney(e.estimated_amount, e.currency)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
-
-      {incomeEstimates.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="font-display text-base font-semibold tracking-tight text-text-primary">Ingresos proyectados</h2>
-          <div className="bg-surface-1 border border-border rounded-card divide-y divide-border px-4 py-1">
-            {incomeEstimates.map((e) => (
-              <div key={e.id} className="flex justify-between items-center py-3">
-                <div>
-                  <p className="text-sm font-medium text-text-primary">{e.name}</p>
-                  <p className="text-xs text-text-muted">Día de acreditación: {e.due_day}</p>
-                </div>
-                <span className="font-mono text-sm font-semibold text-income">
-                  {formatMoney(e.estimated_amount, e.currency)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+    <main className="max-w-5xl mx-auto p-4 md:p-6">
+      <BudgetClient
+        initialPeriod={initialPeriod}
+        initialEstimates={estimates}
+        initialTransactions={transactions}
+        initialLoans={loans}
+        categories={categories}
+        accounts={accounts}
+        people={people}
+        displayCurrency={displayCurrency}
+        currencies={allCurrencies}
+        ratesMap={ratesMap}
+      />
     </main>
   )
 }

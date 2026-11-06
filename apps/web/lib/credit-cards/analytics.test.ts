@@ -155,6 +155,48 @@ describe('computeCardPeriodSummary', () => {
     expect(summary.verifiedPeriodItems).toBe(1)
     expect(summary.verificationPct).toBe(50)
   })
+
+  it('computa transferencias de pago de tarjeta y determina si el resumen está saldado', () => {
+    const txs: MasterTransaction[] = [
+      makeTx({
+        id: 'tx-oct-1',
+        amount_original: 10000,
+        amount_account: 10000,
+        currency_account: 'UYU',
+        currency_original: 'UYU',
+        type: 'OUTCOME',
+        date: '2026-10-15',
+        accounting_period: '2026-10'
+      }),
+      makeTx({
+        id: 'tx-pay-1',
+        type: 'TRANSFER',
+        amount_original: 10000,
+        amount_account: 10000,
+        currency_account: 'UYU',
+        currency_original: 'UYU',
+        date: '2026-11-04',
+        accounting_period: '2026-10',
+        notes: 'Pago de resumen Octubre 2026'
+      })
+    ]
+
+    const summary = computeCardPeriodSummary({
+      account: mockCard,
+      transactions: txs,
+      period: '2026-10',
+      todayStr: '2026-11-05',
+      displayCurrency: 'UYU',
+      peopleById: mockPeople,
+      convert: mockConvert
+    })
+
+    expect(summary.periodSpendByCurrency).toEqual({ UYU: 10000 })
+    expect(summary.periodPaymentsByCurrency).toEqual({ UYU: 10000 })
+    expect(summary.periodPaymentsInDisplay).toBe(10000)
+    expect(summary.periodBalanceByCurrency.UYU).toBe(0)
+    expect(summary.isStatementPaid).toBe(true)
+  })
 })
 
 describe('computeInstallmentsRunoff & extractActiveInstallmentPlans', () => {

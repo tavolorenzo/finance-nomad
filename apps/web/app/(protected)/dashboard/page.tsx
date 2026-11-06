@@ -100,7 +100,7 @@ export default async function DashboardPage() {
       categoryIds.length > 0
         ? supabase
             .from('master_transactions')
-            .select('amount_account, category_id, date, type')
+            .select('amount_account, currency_account, category_id, date, type')
             .in('category_id', categoryIds)
             .eq('type', 'OUTCOME')
             .eq('status', 'COMPLETED')
@@ -109,9 +109,38 @@ export default async function DashboardPage() {
         : Promise.resolve({ data: [] })
     ])
     netWorth = netWorthVal
-    realSpent = (monthTxResult.data ?? []).reduce(
-      (sum: number, t: { amount_account: number }) => sum + t.amount_account,
-      0
+
+    const txBalances: AccountBalance[] = (monthTxResult.data ?? []).map(
+      (t: { amount_account: number; currency_account?: string }, idx: number) => ({
+        accountId: `tx-${idx}`,
+        currency: t.currency_account || displayCurrency,
+        balance: Math.abs(Number(t.amount_account))
+      })
+    )
+    realSpent =
+      txBalances.length > 0
+        ? await convertToDisplayCurrency(txBalances, displayCurrency, today, customRates)
+        : 0
+
+    // Normalizar estimated_amount de cada estimado a displayCurrency para que el Dashboard sume divisas homogéneas
+    estimates = await Promise.all(
+      estimates.map(async (est: any) => {
+        const estCurrency = est.currency || displayCurrency
+        if (estCurrency.toUpperCase() === displayCurrency.toUpperCase()) {
+          return est
+        }
+        const convertedEst = await convertToDisplayCurrency(
+          [{ accountId: est.id, currency: estCurrency, balance: Number(est.estimated_amount) }],
+          displayCurrency,
+          today,
+          customRates
+        )
+        return {
+          ...est,
+          estimated_amount: convertedEst > 0 ? convertedEst : Number(est.estimated_amount),
+          currency: displayCurrency
+        }
+      })
     )
   } catch (error) {
     rethrowIfRedirect(error)

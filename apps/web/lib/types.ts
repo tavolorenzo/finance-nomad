@@ -134,6 +134,24 @@ export interface LoanWithInstallments extends Loan {
   installments: LoanInstallment[]
 }
 
+export type BudgetEstimateType = 'INCOME_ESTIMATE' | 'EXPENSE_ESTIMATE'
+
+export interface BudgetEstimate {
+  id: string
+  user_id?: string
+  name: string
+  type: BudgetEstimateType
+  estimated_amount: number
+  currency: string
+  category_id: string
+  due_day: number | null
+  preferred_account_id: string | null
+  is_active: boolean
+  created_at?: string
+  categories?: { id?: string; name: string; icon?: string | null; color?: string | null } | null
+  accounts?: { id?: string; name: string; currency_native: string; institution_id?: string } | null
+}
+
 // Placeholder de Database para que createBrowserClient<Database> tipe bien.
 // Se reemplaza por el tipo generado (`supabase gen types typescript`) cuando
 // el proyecto ya esté linkeado — ver SETUP.md.

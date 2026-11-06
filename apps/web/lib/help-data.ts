@@ -115,8 +115,8 @@ export const WIKI_ARTICLES: WikiArticle[] = [
         content: 'Las cuotas futuras PENDING no reducen por adelantado tu saldo de dinero actual, pero sí computan en el límite de crédito consumido y en los compromisos proyectados de los próximos meses. De esta forma, siempre sabés cuánto margen tenés sin distorsionar tu patrimonio de hoy.'
       },
       {
-        title: 'Pago del Resumen de Tarjeta',
-        content: 'El pago de la tarjeta no es un gasto nuevo (el gasto ya se computó al comprar), sino una transferencia interna entre tu cuenta bancaria y tu tarjeta de crédito. Usá el botón "Registrar pago" desde /cards o desde la ficha de la cuenta para precargar el saldo adeudado y saldarlo en un solo clic.',
+        title: 'Pago del Resumen de Tarjeta y Mes Contable Imputado',
+        content: 'El pago de la tarjeta no es un gasto nuevo (el gasto ya se computó al comprar), sino una transferencia interna entre tu cuenta bancaria y tu tarjeta de crédito. Como los resúmenes cierran a fin de mes pero suelen vencer en los primeros días del mes siguiente, el modal "Registrar pago" te permite seleccionar qué resumen estás cancelando (por ejemplo, registrar el pago el 4 de noviembre pero imputarlo al resumen de octubre). De esta manera, el dinero sale del banco en la fecha real del pago y el resumen de octubre queda marcado como saldado sin distorsionar el mes en curso.',
         tip: 'Pagar la tarjeta nunca reduce tu presupuesto de consumo mensual porque se registra contablemente como TRANSFER.'
       },
       {
@@ -130,7 +130,7 @@ export const WIKI_ARTICLES: WikiArticle[] = [
         tip: 'Durante los últimos 5 y los primeros 5 días de cada mes, el Dashboard te mostrará un recordatorio directo para conciliar tus tarjetas en segundos.'
       }
     ],
-    relatedFaqIds: ['faq-card-analytics-center', 'faq-card-installments', 'faq-card-payment', 'faq-card-dates', 'faq-card-bulk', 'faq-card-magic-paste', 'faq-card-accounting-period', 'faq-card-verify-statement']
+    relatedFaqIds: ['faq-card-analytics-center', 'faq-card-installments', 'faq-card-payment', 'faq-card-payment-period', 'faq-card-dates', 'faq-card-bulk', 'faq-card-magic-paste', 'faq-card-accounting-period', 'faq-card-verify-statement']
   },
   {
     id: 'wiki-people',
@@ -277,6 +277,34 @@ export const WIKI_ARTICLES: WikiArticle[] = [
     relatedFaqIds: ['faq-cat-create', 'faq-cat-deactivate']
   },
   {
+    id: 'wiki-budget',
+    slug: 'presupuesto-mensual-y-gastos-fijos',
+    title: 'Presupuesto Mensual, Gastos Fijos y Ejecución 1-Tap',
+    category: 'budget',
+    categoryLabel: 'Presupuesto & Categorías',
+    iconName: 'PiggyBank',
+    badge: 'Planificación Mensual',
+    targetRoute: '/budget',
+    targetLabel: 'Ir a Presupuesto',
+    summary: 'Planificá tus gastos fijos recurrentes, ingresos proyectados y cuotas vigentes del mes con barras de progreso multi-moneda y ejecución en un solo toque.',
+    sections: [
+      {
+        title: 'Gastos Fijos e Ingresos Proyectados',
+        content: 'En /budget podés dar de alta, editar o desactivar tus estimaciones mensuales tanto de gastos fijos (Alquiler, Internet, Gimnasio, Seguros) como de ingresos proyectados (Sueldo, Honorarios). Cada estimación se vincula a una categoría, una divisa, un día estimado del mes (1 al 31) y una cuenta preferida opcional.',
+        tip: 'Si el pago de un gasto fijo o el cobro de un ingreso ya no corre más, desactivalo con un clic sin perder tu historial.'
+      },
+      {
+        title: 'Cruce Automático y Conversión Multi-Moneda',
+        content: 'Finance Nomad cruza automáticamente tus estimaciones activas con los movimientos reales propios registrados en esa categoría durante el período seleccionado (excluyendo transferencias internas, ajustes de saldo y gastos de terceros). Si pagaste con una cuenta en otra moneda, el motor convierte el importe para reflejar el porcentaje exacto de cobertura.'
+      },
+      {
+        title: 'Ejecución 1-Tap y Compromisos en Cuotas',
+        content: 'Desde cada tarjeta podés tocar "Ejecutar pago" (o "Registrar ingreso") para asentar el movimiento real en el acto con arquitectura Zero-Wait UI. Si la cuenta elegida opera en una divisa diferente a la del estimado, se abre un cuadro rápido con el tipo de cambio sugerido para confirmar el contravalor exacto. Además, el panel lista automáticamente las cuotas vigentes de tus tarjetas de crédito y préstamos de ese mes.'
+      }
+    ],
+    relatedFaqIds: ['faq-budget-create', 'faq-budget-execute-fx', 'faq-cat-create']
+  },
+  {
     id: 'wiki-offline',
     slug: 'modo-offline-y-sincronizacion',
     title: 'Modo Offline y Sincronización en Background',
@@ -407,6 +435,15 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'cards',
     categoryLabel: 'Tarjetas & Cuotas',
     tags: ['pago tarjeta', 'transferencia', 'presupuesto', 'consumo', 'duplicado'],
+    relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
+  },
+  {
+    id: 'faq-card-payment-period',
+    question: 'Si pago el resumen de octubre en los primeros días de noviembre, ¿a qué mes se imputa el pago?',
+    answer: 'Al registrar el pago de tu tarjeta, podés seleccionar el "Resumen a cancelar (mes contable)" —por ejemplo Octubre—. La app registra la salida del dinero de tu cuenta bancaria en la fecha del pago (noviembre), pero imputa el crédito de cancelación al resumen seleccionado (octubre). Así, el estado de cuenta de octubre queda saldado y no absorbe pagos que distorsionen el resumen de noviembre.',
+    category: 'cards',
+    categoryLabel: 'Tarjetas & Cuotas',
+    tags: ['pago tarjeta', 'mes contable', 'resumen', 'vencimiento', 'impago', 'deuda'],
     relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
   },
   {
@@ -554,6 +591,24 @@ export const FAQ_ITEMS: FaqItem[] = [
     relatedWikiSlug: 'categorias-y-personalizacion'
   },
   {
+    id: 'faq-budget-create',
+    question: '¿Cómo agrego o edito mis gastos fijos e ingresos proyectados del mes?',
+    answer: 'Entrá a "Presupuesto" (/budget) y tocá "Nuevo estimado". Elegí si es un gasto fijo recurrente o un ingreso proyectado, asignale un monto, moneda, categoría vinculada, día de vencimiento (1 al 31) y tu cuenta preferida. Podés editar o desactivar cualquier estimado cuando cambien tus costos fijos.',
+    category: 'budget',
+    categoryLabel: 'Presupuesto & Categorías',
+    tags: ['presupuesto', 'gastos fijos', 'ingresos', 'alquiler', 'estimado', 'crear', 'editar'],
+    relatedWikiSlug: 'presupuesto-mensual-y-gastos-fijos'
+  },
+  {
+    id: 'faq-budget-execute-fx',
+    question: '¿Qué pasa al tocar "Ejecutar pago" en un gasto fijo si mi cuenta está en otra moneda?',
+    answer: 'Si el estimado y su cuenta preferida comparten la misma divisa, el pago se asienta de inmediato en 1 toque. Si la cuenta está en otra moneda (o si no configuraste cuenta preferida), se abre una confirmación rápida con la tasa de cambio sugerida para que verifiques el importe exacto a debitar antes de confirmar.',
+    category: 'budget',
+    categoryLabel: 'Presupuesto & Categorías',
+    tags: ['presupuesto', 'ejecutar pago', '1-tap', 'multi-moneda', 'conversión', 'cuenta preferida'],
+    relatedWikiSlug: 'presupuesto-mensual-y-gastos-fijos'
+  },
+  {
     id: 'faq-analytics-filters',
     question: '¿Cómo cambio el período de análisis en los reportes?',
     answer: 'En la parte superior de la pantalla de Análisis contás con botones para filtrar por "Este mes", "3 meses", "6 meses", "Este año" o "Histórico completo". Todos los KPIs y gráficos se actualizan en el acto.',
@@ -643,6 +698,35 @@ export const FAQ_ITEMS: FaqItem[] = [
 ]
 
 export const QUICK_GUIDES: QuickGuide[] = [
+  {
+    id: 'guide-budget',
+    title: 'Armar tu presupuesto fijo y ejecutar pagos en 1 toque',
+    description: 'Configurá tus compromisos recurrentes e ingresos del mes para medir tu margen de ahorro y asentar pagos sin recargar datos.',
+    iconName: 'PiggyBank',
+    route: '/budget',
+    routeLabel: 'Ir a Presupuesto',
+    steps: [
+      'Entrá a "Presupuesto" desde el menú lateral (o desde la tarjeta de Presupuesto en el Dashboard) y tocá "Nuevo estimado".',
+      'Elegí "Gasto fijo recurrente", ingresá el concepto (ej. Alquiler), el monto estimado, la moneda, su categoría y el día de vencimiento.',
+      'Seleccioná tu cuenta preferida para habilitar el pago rápido y guardá.',
+      'Cuando llegue el día de pago, simplemente tocá "Ejecutar pago" en la tarjeta del estimado para asentarlo al instante en tu libro contable.'
+    ]
+  },
+  {
+    id: 'guide-pay-card-statement',
+    title: 'Pagar el resumen mensual de tu tarjeta',
+    description: 'Registrá la cancelación del resumen mensual de tu tarjeta eligiendo el mes contable a cancelar.',
+    iconName: 'CreditCard',
+    route: '/cards',
+    routeLabel: 'Ir a Tarjetas',
+    steps: [
+      'Entrá a "Tarjetas" (/cards) o al detalle de tu tarjeta de crédito desde Cuentas.',
+      'Tocá el botón "Registrar pago" para abrir el modal transaccional.',
+      'En "Resumen a cancelar (mes contable)", confirmá si pagás el resumen del mes anterior o el mes en curso (la app sugiere automáticamente el mes cerrado).',
+      'Seleccioná la cuenta bancaria de origen de los fondos e ingresá o cargá el monto total de la deuda con el atajo "Pagar total".',
+      'Confirmá el pago: el débito se asienta en tu banco en la fecha real de la transferencia y el resumen de la tarjeta queda saldado sin duplicar gastos.'
+    ]
+  },
   {
     id: 'guide-verify-statement',
     title: 'Verificar y conciliar el resumen de tu tarjeta',

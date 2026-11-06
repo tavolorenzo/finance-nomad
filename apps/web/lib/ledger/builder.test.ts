@@ -340,4 +340,38 @@ describe('buildTransferBundle', () => {
       })
     ).toThrow('La cuenta de origen y destino deben ser distintas.')
   })
+
+  it('asigna el mes contable especificado a la cuenta destino preservando la fecha de caja en origen', () => {
+    const cardAccount = {
+      id: 'acc-card',
+      name: 'Visa Gold',
+      currency_native: 'EUR',
+      institution_id: 'inst-card',
+      type: 'credit_card' as const
+    }
+
+    const bundle = buildTransferBundle({
+      fromAccount,
+      toAccount: cardAccount,
+      amountOriginal: 500,
+      currencyOriginal: 'EUR',
+      date: '2026-11-04',
+      accountingPeriod: '2026-10',
+      notes: 'Pago de resumen Octubre 2026'
+    })
+
+    expect(bundle.rows).toHaveLength(2)
+    const [source, dest] = bundle.rows
+
+    // Origen: débito en noviembre (fecha de pago)
+    expect(source.date).toBe('2026-11-04')
+    expect(source.accounting_period).toBe('2026-11')
+    expect(source.amount_account).toBe(-500)
+
+    // Destino: crédito en la tarjeta imputado a octubre (resumen a cancelar)
+    expect(dest.date).toBe('2026-11-04')
+    expect(dest.accounting_period).toBe('2026-10')
+    expect(dest.amount_account).toBe(500)
+    expect(dest.notes).toBe('Pago de resumen Octubre 2026')
+  })
 })

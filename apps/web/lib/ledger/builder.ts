@@ -229,6 +229,10 @@ export function buildTransferBundle(input: BuildTransferInput): LedgerBundle {
 
   const sourceId = crypto.randomUUID()
   const destId = crypto.randomUUID()
+  const destAccountingPeriod =
+    input.targetAccountingPeriod ||
+    input.accountingPeriod ||
+    input.date.slice(0, 7)
 
   // Fila 1: Origen (débito negativo)
   const sourceRow: MasterTransaction = {
@@ -278,7 +282,7 @@ export function buildTransferBundle(input: BuildTransferInput): LedgerBundle {
     status: 'COMPLETED',
     notes: destNotes,
     settled_at: null,
-    accounting_period: input.date.slice(0, 7),
+    accounting_period: destAccountingPeriod,
     is_verified: false
   }
 

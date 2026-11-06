@@ -64,4 +64,50 @@ describe('RegisterCardPaymentModal', () => {
     const amountInput = screen.getByPlaceholderText('0.00')
     expect(amountInput).toHaveValue(250)
   })
+
+  it('permite seleccionar el mes contable del resumen a cancelar y lo envía en la transferencia', async () => {
+    const mockAddTransfer = vi.fn().mockResolvedValue({})
+    vi.mocked(ledgerContext.useOptionalLedger).mockReturnValue({
+      getBalance: () => -250,
+      accounts: [
+        { id: 'card-1', institution_id: 'inst-card' }
+      ],
+      addTransfer: mockAddTransfer
+    } as any)
+
+    render(
+      <RegisterCardPaymentModal
+        cardAccount={{ ...mockCardAccount, closing_day: 24 }}
+        currentBalance={-250}
+        fundingAccounts={mockFundingAccounts}
+        initialPeriod="2026-10"
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /registrar pago/i }))
+
+    expect(screen.getByText(/Resumen a cancelar \(mes contable\)/i)).toBeInTheDocument()
+
+    const amountInput = screen.getByPlaceholderText('0.00')
+    fireEvent.change(amountInput, { target: { value: '250' } })
+
+    const submitBtns = screen.getAllByRole('button', { name: /^registrar pago$/i })
+    const submitBtn = submitBtns[submitBtns.length - 1]
+    fireEvent.click(submitBtn)
+
+    await waitFor(() => {
+      expect(mockAddTransfer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amountOriginal: 250,
+          currencyOriginal: 'EUR',
+          accountingPeriod: '2026-10',
+          targetAccountingPeriod: '2026-10',
+          toAccount: expect.objectContaining({
+            id: 'card-1',
+            type: 'credit_card'
+          })
+        })
+      )
+    })
+  })
 })

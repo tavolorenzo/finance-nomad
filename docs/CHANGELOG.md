@@ -12,6 +12,32 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.17.0] - 2026-11-05
+### Agregado
+- **Módulo Integral de Presupuesto y Gastos Fijos (`/budget`, `BudgetClient.tsx`, `BudgetEstimateModal.tsx`, `lib/budget/calculations.ts`, `budget/actions.ts`, PRD §4.6)**:
+  - **ABM / CRUD Completo de Estimaciones (`BudgetEstimateModal.tsx`, `budget/actions.ts`)**: Creación, edición y baja/reactivación lógica (`is_active`) para **Gastos fijos recurrentes** (`EXPENSE_ESTIMATE`) e **Ingresos proyectados** (`INCOME_ESTIMATE`), con selector de día de vencimiento/cobro (`1..31`), cuenta preferida opcional, creación de categoría en el momento (`CategoryModal`) y protección preventiva offline (`useOnlineStatus()`).
+  - **Motor de Cálculo Multi-Moneda (`lib/budget/calculations.ts`)**: Cruza cada estimación con los movimientos reales propios del período contable (`YYYY-MM`) asociados a su categoría (excluyendo `TRANSFER`, `ADJUSTMENT` y consumos de terceros), convirtiendo divisas con tasas manuales (`active_currencies`) o de mercado (`open.er-api.com`) y calculando insignias de estado de vencimiento (*Cubierto*, *Vence hoy*, *Vencido*, *En X días*).
+  - **KPIs Consolidados y Compromisos Automáticos en Cuotas (`BudgetClient.tsx`)**: Cuatro tarjetas de métricas en moneda global (*Gastos fijos del mes*, *Compromisos en cuotas*, *Ingresos proyectados* y *Margen proyectado*) más sección automática que unifica las cuotas vigentes de tarjetas de crédito y los vencimientos de préstamos (`loan_installments`) del mes.
+  - **Ejecución 1-Tap Bimonetaria (`ExecutePaymentButton.tsx`, `executeBudgetPayment`)**: Ejecución directa en 1 clic con **Zero-Wait UI** (`ledger.addTransaction`) cuando el estimado tiene cuenta preferida en la misma moneda, o modal rápido de confirmación con selector de cuenta y tipo de cambio sugerido cuando la moneda de la cuenta difiere.
+- **Sincronización Multi-Moneda en Dashboard (`app/(protected)/dashboard/page.tsx`, `DashboardClient.tsx`)**:
+  - Conversión de estimaciones y gastos reales del mes a `displayCurrency` antes de consolidar el indicador de *"Presupuesto del mes"*, y enlace directo desde la tarjeta del Dashboard hacia `/budget`.
+- **Centro de Ayuda, Documentación y Pruebas (`apps/web/lib/help-data.ts`, `docs/PRD.md`, `docs/prd-gap-analysis.md`)**:
+  - Nuevo artículo en la Wiki (`wiki-budget`), 2 nuevas FAQs (`faq-budget-create`, `faq-budget-execute-fx`), nueva guía paso a paso (`guide-budget`) y suites de pruebas unitarias (`calculations.test.ts`, `budget/actions.test.ts`, `BudgetEstimateModal.test.tsx`).
+
+## [2.16.0] - 2026-11-05
+### Agregado
+- **Soporte de Mes Contable en el Registro de Pago de Tarjeta (`RegisterCardPaymentModal.tsx`, `TransactionForm.tsx`, `lib/ledger/builder.ts`, `lib/ledger/types.ts`, PRD §4.14)**:
+  - **Selector de Resumen a Cancelar en `RegisterCardPaymentModal`**: Incorporación de selector visual de mes contable con accesos directos de 1 clic para *Mes anterior* (ej. `Octubre 2026 · Resumen cerrado`) y *Mes actual* (ej. `Noviembre 2026 · En curso`), más selector libre de mes (`YYYY-MM`).
+  - **Detección inteligente de vencimiento**: Si la fecha actual se encuentra dentro de los primeros días del mes (o antes de la fecha de cierre de la tarjeta), la app sugiere automáticamente el mes anterior como el resumen a pagar, evitando que figure como impago.
+  - **Separación de fecha de caja vs. período imputado en `buildTransferBundle`**: En transferencias donde la cuenta destino es una tarjeta de crédito (`type === 'credit_card'`), la cuenta origen (banco) mantiene la fecha y mes real de la salida de fondos (`date.slice(0, 7)`), mientras que la tarjeta acredita la cancelación con el `accounting_period` del resumen seleccionado.
+  - **Formulario general de transferencias (`TransactionForm.tsx`)**: Se habilitó el selector de mes contable imputado cuando el destino de una transferencia sea una tarjeta de crédito (`toAccount.type === 'credit_card'`).
+  - **Cálculo de Pagos y Estado del Resumen en `computeCardPeriodSummary` (`lib/credit-cards/analytics.ts`)**: Se incorporó el cómputo de transferencias entrantes del período (`periodPaymentsByCurrency`, `periodPaymentsInDisplay` y bandera `isStatementPaid`), reflejando con exactitud si el resumen mensual está saldado o con pago parcial.
+  - **Insignia de Resumen Pagado en `CreditCardsDashboard.tsx`**: Visualización de badge `Resumen pagado` o `Pago parcial: $X` directamente en la tarjeta de cada plástico dentro de `/cards`.
+  - **Centro de Ayuda, Wiki y Recetas Rápidas (`apps/web/lib/help-data.ts`)**: Actualización de la sección de pago en `wiki-cards`, nueva FAQ (`faq-card-payment-period`) y nueva guía paso a paso (`guide-pay-card-statement`).
+
+### Corregido
+- **Resúmenes anteriores mostrados como impagos al pagar a principio de mes**: Se solucionó la discordancia contable por la cual pagar el resumen de un mes cerrado durante los primeros días del mes subsiguiente hacía que el mes anterior figurase como impago y el mes en curso absorbiese un crédito indebido.
+
 ## [2.15.0] - 2026-11-04
 ### Agregado
 - **Filtro de Período Contable en Módulo de Personas (`/people`, `/people/[id]`, `PeopleDirectoryClient.tsx`, `PersonDetailClient.tsx`, `PersonActions.tsx`, `RegisterPersonPaymentModal.tsx`, `lib/ledger/settlement.ts`, PRD §4.5)**:

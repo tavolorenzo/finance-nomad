@@ -23,10 +23,16 @@ export interface CardPeriodSummary {
   currentBalance: number
   /** Gastos (OUTCOME) del período seleccionado agrupados por moneda original */
   periodSpendByCurrency: Record<string, number>
+  /** Pagos registrados (TRANSFER entrantes) del período seleccionado agrupados por moneda */
+  periodPaymentsByCurrency: Record<string, number>
   /** Saldo neto adeudado en el resumen del período por moneda */
   periodBalanceByCurrency: Record<string, number>
   /** Gasto del período consolidado en displayCurrency */
   periodSpendInDisplay: number
+  /** Pagos del período consolidados en displayCurrency */
+  periodPaymentsInDisplay: number
+  /** Si el resumen del período cuenta con pagos registrados que cubren sus consumos */
+  isStatementPaid: boolean
   /** Porción de gasto propio (Personal) en el período en displayCurrency */
   periodPersonalInDisplay: number
   /** Porción de gasto de terceros (extensiones / compartidos) en el período en displayCurrency */
@@ -226,12 +232,14 @@ export function computeCardPeriodSummary({
   let pendingAmountInNative = 0
 
   const periodSpendByCurrency: Record<string, number> = {}
+  const periodPaymentsByCurrency: Record<string, number> = {}
   const periodBalanceByCurrency: Record<string, number> = {
     [account.currency_native]: 0
   }
   const futureCommittedByCurrency: Record<string, number> = {}
 
   let periodSpendInDisplay = 0
+  let periodPaymentsInDisplay = 0
   let periodPersonalInDisplay = 0
   let periodThirdPartyInDisplay = 0
   let futureCommittedInDisplay = 0
@@ -286,6 +294,22 @@ export function computeCardPeriodSummary({
         }
       } else if (t.type === 'INCOME') {
         periodBalanceByCurrency[origCurr] = round2((periodBalanceByCurrency[origCurr] || 0) + origAbs)
+      } else if (t.type === 'TRANSFER') {
+        const amt = Number(t.amount_account)
+        if (amt > 0) {
+          // Pago acreditado a la tarjeta para amortizar el resumen
+          periodPaymentsByCurrency[origCurr] = round2(
+            (periodPaymentsByCurrency[origCurr] || 0) + origAbs
+          )
+          periodPaymentsInDisplay += convert(origAbs, origCurr, displayCurrency)
+          periodBalanceByCurrency[origCurr] = round2(
+            (periodBalanceByCurrency[origCurr] || 0) + origAbs
+          )
+        } else {
+          periodBalanceByCurrency[origCurr] = round2(
+            (periodBalanceByCurrency[origCurr] || 0) - origAbs
+          )
+        }
       } else if (t.type === 'ADJUSTMENT') {
         const sign = Number(t.amount_account) >= 0 ? 1 : -1
         periodBalanceByCurrency[t.currency_account] = round2(
@@ -309,9 +333,13 @@ export function computeCardPeriodSummary({
   currentBalance = round2(currentBalance)
   pendingAmountInNative = round2(Math.max(0, pendingAmountInNative))
   periodSpendInDisplay = round2(periodSpendInDisplay)
+  periodPaymentsInDisplay = round2(periodPaymentsInDisplay)
   periodPersonalInDisplay = round2(periodPersonalInDisplay)
   periodThirdPartyInDisplay = round2(periodThirdPartyInDisplay)
   futureCommittedInDisplay = round2(futureCommittedInDisplay)
+
+  const isStatementPaid =
+    periodSpendInDisplay > 0 && periodPaymentsInDisplay >= periodSpendInDisplay - 0.01
 
   const creditLimit = Number(account.credit_limit) || 0
   const usedCredit = currentBalance < 0 ? Math.abs(currentBalance) : 0
@@ -334,8 +362,11 @@ export function computeCardPeriodSummary({
     closingInfo,
     currentBalance,
     periodSpendByCurrency,
+    periodPaymentsByCurrency,
     periodBalanceByCurrency,
     periodSpendInDisplay,
+    periodPaymentsInDisplay,
+    isStatementPaid,
     periodPersonalInDisplay,
     periodThirdPartyInDisplay,
     futureCommittedByCurrency,

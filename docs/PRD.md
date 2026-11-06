@@ -105,10 +105,12 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
   - **"Notificar por WhatsApp" (`WhatsAppNotifyModal`):** Filtra automáticamente los movimientos pendientes correspondientes al período contable seleccionado para generar el detalle y total del mensaje antes de disparar el link a WhatsApp (`wa.me`).
 * **Configuración de Plantilla WhatsApp (`/people/template`):** Pantalla y modal para personalizar el mensaje predeterminado con variables dinámicas (`$Nombre`, `$Total`, `$Detalle`, `$Cantidad`, `$Fecha`), previsualización en vivo (*Live Preview*) y persistencia por usuario en `user_settings`.
 
-### 4.6. Gastos Fijos & Presupuestos (Monthly Estimates)
-* Plantilla de Ingresos Proyectados y Gastos Recurrentes (Alquiler, Servicios, Suscripciones).
-* Carga automática de las cuotas vigentes del mes desde la BD Maestra.
-* Acción 1-Tap **"Ejecutar Pago"** para convertir la estimación en transacción real.
+### 4.6. Gastos Fijos & Presupuestos (`/budget`)
+* **ABM / CRUD Completo de Estimaciones (`BudgetEstimateModal`):** Creación, edición y desactivación lógica (`is_active`) tanto de **Gastos Fijos Recurrentes** (`EXPENSE_ESTIMATE`) como de **Ingresos Proyectados** (`INCOME_ESTIMATE`), con soporte de alta de categoría en vivo y validación de estado online (`useOnlineStatus()`).
+* **Selector de Período Contable (`YYYY-MM`) y KPIs Consolidados:** Tarjetas de resumen en la divisa global del usuario para *Gastos fijos del mes*, *Compromisos en cuotas*, *Ingresos proyectados* y *Margen proyectado* (`Ingresos - (Gastos Fijos + Cuotas)`).
+* **Cruce Multi-Moneda Exacto:** Compara cada estimado con los movimientos reales propios de su categoría en el período seleccionado (excluyendo `TRANSFER`, `ADJUSTMENT` y gastos a nombre de terceros), convirtiendo entre monedas cuando difieren.
+* **Compromisos y Cuotas Vigentes del Mes:** Lista automáticamente las cuotas activas de tarjetas de crédito del período contable y los vencimientos de préstamos tomados (`loan_installments`).
+* **Acción 1-Tap "Ejecutar Pago" / "Registrar Ingreso" (`ExecutePaymentButton`):** Ejecución instantánea con **Zero-Wait UI** si la cuenta preferida comparte la moneda del estimado, o modal rápido con tipo de cambio sugerido y monto convertido si las divisas difieren o no hay cuenta predefinida.
 
 ### 4.7. Préstamos Formales y Amortizaciones (Loans)
 * **Doble Sentido y Roles**: Control de Préstamos Tomados (Deudas bancarias / pasivos) y Otorgados (Acreencias por cobrar a terceros).
@@ -191,6 +193,7 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
 * **Bloque C — Matriz Visual de Plásticos con Detección de Sello de Red:**
   - Tarjeta rica por cada plástico con chip EMV estilizado y **detección automática del sello de red (`VISA`, `AMEX`, `MASTERCARD`, `MAESTRO`)** a partir del nombre del producto (`account.name`).
   - Indicador de próximo cierre (`closing_day` y días restantes), pills bimonetarias del período, barra de utilización de límite individual y botonera de acciones en 1 clic (`Verificar`, `Carga rápida`, `Detalle` y `Registrar pago`).
+  - **Soporte de Mes Contable en Pago de Tarjeta y Estado del Resumen:** El modal `RegisterCardPaymentModal` y las transferencias hacia tarjetas permiten imputar el pago al resumen correspondiente (ej. pagar el resumen de octubre en los primeros días de noviembre sin distorsionar el mes en curso). `CreditCardsDashboard` computa los pagos aplicados (`periodPaymentsByCurrency`) y exhibe la insignia de `Resumen pagado` o `Pago parcial` al saldar el período.
 * **Bloque D — Radiografía Analítica:**
   - **Listado Maestro de Planes de Cuotas Activos:** Seguimiento de cada compra financiada (`Cuota C de T`, barra de progreso, cuota mensual, saldo remanente y mes de finalización).
   - **Desglose por Persona y por Categoría:** Distribución de consumos del período (excluyendo `TRANSFER` y `ADJUSTMENT`) con enlaces directos al directorio de `/people`.

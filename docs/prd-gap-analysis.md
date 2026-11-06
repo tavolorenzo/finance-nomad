@@ -48,7 +48,7 @@ El núcleo del ledger multi-moneda opera en producción con arquitectura **Local
 | Ficha de persona | `/people/[id]` | Hecho | Saldo por cobrar, cuotas comprometidas futuras, historial filtrado, registrar cobro (`settled_at`) y botón "Notificar por WhatsApp". |
 | Notificación WhatsApp | `WhatsAppNotifyModal` | Hecho | Modal interactivo para verificar destinatario, editar mensaje y abrir en WhatsApp Web/App (`wa.me`). |
 | Plantilla WhatsApp | `/people/template` | Hecho | Editor con variables dinámicas (`$Nombre`, `$Total`, `$Detalle`, `$Cantidad`, `$Fecha`), live preview y persistencia en `user_settings`. |
-| Gastos fijos / Presupuesto | `/budget` | Parcial | Estimados vs. gasto real + botón 1-tap "Ejecutar pago". Falta formulario para crear y editar `budget_estimates` en UI. |
+| Gastos fijos / Presupuesto | `/budget` | Hecho | ABM completo (`BudgetEstimateModal` con soft delete), KPIs multi-moneda, cruce estimado vs. gasto real propio, cuotas vigentes de tarjetas y préstamos del mes, y botón 1-tap "Ejecutar pago" / "Registrar ingreso" con soporte FX. |
 | Préstamos | `/loans` | Hecho | Sistema de amortización francés de Banco Itaú Uruguay, soporte multi-moneda, roles de institución/persona/intermediación, Opción B (capital vs interés) y tabla dinámica de marcha. |
 | Portafolio | `/portfolio` | Falta | Tabla `portfolio_transactions` definida en SQL con RLS. Navegación indica "pronto". |
 | Ajustes | `/settings` | Hecho | Moneda global, selector de tema claro/oscuro persistente, reseteo de contraseña, tour de bienvenida e información del entorno (`SystemInfoCard`). Pendiente agregar botón/modal en frontend de *Eliminar usuario / Darse de baja del sistema* (cascada en SQL ya habilitada en migración `0015`). |
