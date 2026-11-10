@@ -147,7 +147,7 @@ export function TransactionForm({
               setCachedRate(currency, targetCurrency, freshRate)
             }
           })
-          .catch(() => {})
+          .catch(() => { })
       }
       return
     }
@@ -250,18 +250,16 @@ export function TransactionForm({
         <button
           type="button"
           onClick={() => setType('OUTCOME')}
-          className={`py-2 rounded-md text-xs sm:text-sm font-medium transition ${
-            type === 'OUTCOME' ? 'bg-expense text-white shadow-xs' : 'text-text-secondary hover:text-text-primary'
-          }`}
+          className={`py-2 rounded-md text-xs sm:text-sm font-medium transition ${type === 'OUTCOME' ? 'bg-expense text-white shadow-xs' : 'text-text-secondary hover:text-text-primary'
+            }`}
         >
           Gasto
         </button>
         <button
           type="button"
           onClick={() => setType('INCOME')}
-          className={`py-2 rounded-md text-xs sm:text-sm font-medium transition ${
-            type === 'INCOME' ? 'bg-income text-white shadow-xs' : 'text-text-secondary hover:text-text-primary'
-          }`}
+          className={`py-2 rounded-md text-xs sm:text-sm font-medium transition ${type === 'INCOME' ? 'bg-income text-white shadow-xs' : 'text-text-secondary hover:text-text-primary'
+            }`}
         >
           Ingreso
         </button>
@@ -274,9 +272,8 @@ export function TransactionForm({
               if (other) setToAccountId(other.id)
             }
           }}
-          className={`py-2 rounded-md text-xs sm:text-sm font-medium transition flex items-center justify-center gap-1.5 ${
-            type === 'TRANSFER' ? 'bg-accent text-white shadow-xs' : 'text-text-secondary hover:text-text-primary'
-          }`}
+          className={`py-2 rounded-md text-xs sm:text-sm font-medium transition flex items-center justify-center gap-1.5 ${type === 'TRANSFER' ? 'bg-accent text-white shadow-xs' : 'text-text-secondary hover:text-text-primary'
+            }`}
         >
           <ArrowRightLeft size={14} />
           <span>Transferencia</span>
@@ -394,10 +391,10 @@ export function TransactionForm({
                 {rateOverridden
                   ? 'Cotización manual (personalizada para este movimiento)'
                   : isManualProfileRate
-                  ? 'Cotización fija de tu perfil'
-                  : rateFetchedAt
-                  ? `Cotización de referencia (${new Date(rateFetchedAt).toLocaleDateString()})`
-                  : 'Cotización automática'}
+                    ? 'Cotización fija de tu perfil'
+                    : rateFetchedAt
+                      ? `Cotización de referencia (${new Date(rateFetchedAt).toLocaleDateString()})`
+                      : 'Cotización automática'}
               </p>
             )}
           </div>
@@ -455,7 +452,7 @@ export function TransactionForm({
           <div className="flex items-center justify-between">
             <label className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
               <CalendarClock size={14} className="text-accent" />
-              <span>{isTransfer ? 'Resumen a cancelar en tarjeta' : 'Mes contable (estado de cuenta)'}</span>
+              <span>{isTransfer ? 'Resumen a cancelar en tarjeta de crédito' : 'Mes contable (estado de cuenta)'}</span>
             </label>
             {(isTransfer ? toAccount?.closing_day : account?.closing_day) && (
               <span className="text-[10px] text-text-muted font-mono">
@@ -470,11 +467,10 @@ export function TransactionForm({
                 setAccountingPeriod(isTransfer ? prevMonthPeriod : currentMonthPeriod)
                 setPeriodManuallySelected(true)
               }}
-              className={`py-2 px-2.5 rounded-control text-xs font-medium border transition ${
-                accountingPeriod === (isTransfer ? prevMonthPeriod : currentMonthPeriod)
+              className={`py-2 px-2.5 rounded-control text-xs font-medium border transition ${accountingPeriod === (isTransfer ? prevMonthPeriod : currentMonthPeriod)
                   ? 'bg-accent/15 border-accent text-accent font-semibold'
                   : 'bg-surface-1 border-border text-text-secondary hover:text-text-primary'
-              }`}
+                }`}
             >
               {isTransfer
                 ? `Mes anterior (${formatAccountingPeriodLabel(prevMonthPeriod)})`
@@ -486,11 +482,10 @@ export function TransactionForm({
                 setAccountingPeriod(isTransfer ? currentMonthPeriod : nextMonthPeriod)
                 setPeriodManuallySelected(true)
               }}
-              className={`py-2 px-2.5 rounded-control text-xs font-medium border transition ${
-                accountingPeriod === (isTransfer ? currentMonthPeriod : nextMonthPeriod)
+              className={`py-2 px-2.5 rounded-control text-xs font-medium border transition ${accountingPeriod === (isTransfer ? currentMonthPeriod : nextMonthPeriod)
                   ? 'bg-accent/15 border-accent text-accent font-semibold'
                   : 'bg-surface-1 border-border text-text-secondary hover:text-text-primary'
-              }`}
+                }`}
             >
               {isTransfer
                 ? `Mes actual (${formatAccountingPeriodLabel(currentMonthPeriod)})`
@@ -535,7 +530,7 @@ export function TransactionForm({
           placeholder={
             isTransfer
               ? toAccount?.type === 'credit_card'
-                ? 'Ej. Pago mensual de tarjeta Visa'
+                ? 'Ej. Pago mensual de tarjeta de crédito Visa'
                 : 'Ej. Fondeo de cuenta Wise, retiro de efectivo...'
               : 'Ej. Supermercado, cena con Gladys...'
           }
@@ -554,11 +549,10 @@ export function TransactionForm({
                   key={p.id}
                   type="button"
                   onClick={() => setPersonId(p.id)}
-                  className={`text-xs px-3 py-1.5 rounded-full transition ${
-                    personId === p.id
+                  className={`text-xs px-3 py-1.5 rounded-full transition ${personId === p.id
                       ? 'bg-accent text-surface-0 font-medium'
                       : 'border border-border text-text-secondary hover:border-text-secondary'
-                  }`}
+                    }`}
                 >
                   {p.name}
                 </button>
@@ -608,7 +602,7 @@ export function TransactionForm({
       >
         {isTransfer
           ? toAccount?.type === 'credit_card'
-            ? 'Registrar pago de tarjeta'
+            ? 'Registrar pago de tarjeta de crédito'
             : 'Transferir entre cuentas'
           : 'Guardar transacción'}
       </button>

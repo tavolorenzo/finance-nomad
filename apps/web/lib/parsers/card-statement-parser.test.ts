@@ -256,5 +256,59 @@ describe('card-statement-parser', () => {
       expect(results[0].currency).toBe('EUR')
       expect(results[1].currency).toBe('EUR')
     })
+
+    it('parsea extractos de home banking para cuentas corrientes y cajas de ahorro', () => {
+      const statement = `
+        12.10.2026 TRANSFERENCIA ENVIADA A JUAN PEREZ -15.000,00
+        13/10/2026 SUELDO HABERES EMPRESA SA 850.000,00
+        14-10-2026 DEBITO AUTOMATICO METROGAS -3.420,50
+        15.10.26 COTO SUC 123 -14.500,00
+        16/10/2026 TRANSFERENCIA RECIBIDA 25.000,00
+      `
+      const results = parseCreditCardStatement(statement, {
+        accountType: 'checking',
+        defaultCurrency: 'ARS',
+        categories: [
+          { id: 'cat-super', name: 'Supermercado' },
+          { id: 'cat-serv', name: 'Servicios & Suscripciones' }
+        ]
+      })
+
+      expect(results).toHaveLength(5)
+
+      // 1) Transferencia enviada (gasto / débito)
+      expect(results[0].date).toBe('2026-10-12')
+      expect(results[0].description).toBe('TRANSFERENCIA ENVIADA A JUAN PEREZ')
+      expect(results[0].amount).toBe(15000)
+      expect(results[0].isRefund).toBe(false)
+      expect(results[0].type).toBe('OUTCOME')
+
+      // 2) Sueldo haberes (ingreso / crédito)
+      expect(results[1].date).toBe('2026-10-13')
+      expect(results[1].description).toBe('SUELDO HABERES EMPRESA SA')
+      expect(results[1].amount).toBe(850000)
+      expect(results[1].isRefund).toBe(true)
+      expect(results[1].type).toBe('INCOME')
+
+      // 3) Débito automático Metrogas
+      expect(results[2].date).toBe('2026-10-14')
+      expect(results[2].amount).toBe(3420.5)
+      expect(results[2].isRefund).toBe(false)
+      expect(results[2].type).toBe('OUTCOME')
+      expect(results[2].categoryId).toBe('cat-serv')
+
+      // 4) Coto supermercado con punto en fecha
+      expect(results[3].date).toBe('2026-10-15')
+      expect(results[3].amount).toBe(14500)
+      expect(results[3].isRefund).toBe(false)
+      expect(results[3].type).toBe('OUTCOME')
+      expect(results[3].categoryId).toBe('cat-super')
+
+      // 5) Transferencia recibida (ingreso)
+      expect(results[4].date).toBe('2026-10-16')
+      expect(results[4].amount).toBe(25000)
+      expect(results[4].isRefund).toBe(true)
+      expect(results[4].type).toBe('INCOME')
+    })
   })
 })

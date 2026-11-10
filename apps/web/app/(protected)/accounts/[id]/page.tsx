@@ -1,613 +1,130 @@
-import Link from 'next/link'
-import { notFound } from 'next/navigation'
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  ArrowRightLeft,
-  Edit2,
-  SlidersHorizontal,
-  CreditCard,
-  Building2,
-  Sparkles,
-  ClipboardCheck,
-  CheckCircle2
-} from 'lucide-react'
+import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { formatMoney } from '@/lib/currency'
-import { formatAccountingPeriodLabel } from '@/lib/ledger/builder'
+import { getAuthenticatedUser } from '@/lib/supabase/auth-helper'
+import { getRate } from '@/lib/fx'
 import {
-  getSingleAccountBalance,
-  getAccountPendingAmount,
-  convertToDisplayCurrency
-} from '@/lib/networth'
-import { ExpressAdjustModal } from '@/components/ExpressAdjustModal'
-import { RegisterCardPaymentModal } from '@/components/RegisterCardPaymentModal'
-import { DeleteTransactionButton } from '@/components/DeleteTransactionButton'
-import { ConfirmTransactionButton } from '@/components/ConfirmTransactionButton'
-import type { Account, Institution, MasterTransaction, UserSettings } from '@/lib/types'
+  AccountDetailClient,
+  type TransactionWithRelations
+} from '@/components/AccountDetailClient'
+import type { Account, Institution, UserSettings } from '@/lib/types'
 
-
-const ACCOUNT_TYPE_LABELS: Record<string, string> = {
-  checking: 'Cuenta corriente',
-  savings: 'Caja de ahorro',
-  credit_card: 'Tarjeta de crédito',
-  cash: 'Efectivo',
-  investing: 'Inversión'
-}
-
-function monthRange(date = new Date()) {
-  const start = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().slice(0, 10)
-  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().slice(0, 10)
-  return { start, end }
-}
+export const dynamic = 'force-dynamic'
 
 export default async function AccountDetailPage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ id: string }>
+  searchParams?: Promise<{ period?: string }>
 }) {
   const { id } = await params
+  const resolvedSearchParams = searchParams ? await searchParams : {}
   const supabase = await createClient()
+  const user = await getAuthenticatedUser(supabase)
+  if (!user) redirect('/login')
 
-  const today = new Date().toISOString().slice(0, 10)
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const defaultPeriod = todayStr.slice(0, 7)
+  const initialPeriod =
+    resolvedSearchParams.period && /^\d{4}-\d{2}$/.test(resolvedSearchParams.period)
+      ? resolvedSearchParams.period
+      : defaultPeriod
 
-  // Consulta en paralelo de cuenta, cuentas activas, transacciones asociadas y preferencias de moneda del usuario
+  // Consulta en paralelo de cuenta, cuentas activas, transacciones asociadas y preferencias de moneda
   const [{ data: account }, { data: allAccounts }, { data: transactions }, { data: settings }] =
     await Promise.all([
       supabase
         .from('accounts')
         .select('*, institutions(*)')
         .eq('id', id)
+        .eq('user_id', user.id)
         .single<Account & { institutions: Institution }>(),
       supabase
         .from('accounts')
         .select('*, institutions(name)')
+        .eq('user_id', user.id)
         .eq('is_active', true)
-        .returns<(Account & { institutions: { name: string } })[]>(),
+        .returns<(Account & { institutions: { name: string } | null })[]>(),
       supabase
         .from('master_transactions')
         .select('*, categories(name), people(name)')
         .eq('account_id', id)
+        .eq('user_id', user.id)
         .order('date', { ascending: false })
-        .returns<
-          (MasterTransaction & {
-            categories?: { name: string } | null
-            people?: { name: string } | null
-          })[]
-        >(),
+        .returns<TransactionWithRelations[]>(),
       supabase
         .from('user_settings')
-        .select('display_currency, active_currencies')
-        .maybeSingle<{
-          display_currency: string
-          active_currencies?: UserSettings['active_currencies']
-        }>()
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle<UserSettings>()
     ])
 
   if (!account) notFound()
 
-  const isCreditCard = account.type === 'credit_card'
-  const currentPeriod = today.slice(0, 7)
   const userDisplayCurrency = settings?.display_currency || account.currency_native
+  const customRates: Record<string, number> = {}
 
-  // Calcular saldo nominal (o deuda del resumen en curso en tarjetas) y compromisos futuros,
-  // desglosando por moneda operada en la tarjeta (usualmente moneda local y USD).
-  let currentBalance = 0
-  let pendingAmount = 0
-  const cardBalanceByCurrency: Record<string, number> = {
-    [account.currency_native]: 0,
-    ...(account.currency_native !== 'USD' ? { USD: 0 } : {})
-  }
-  const cardPendingByCurrency: Record<string, number> = {}
-
-  for (const t of transactions ?? []) {
-    const effectivePeriod = t.accounting_period || t.date.slice(0, 7)
-    const isFutureStatement = isCreditCard && effectivePeriod > currentPeriod
-    const origCurr = t.currency_original || account.currency_native
-    const origAbs = Math.abs(Number(t.amount_original ?? t.amount_account) || 0)
-
-    if (!isFutureStatement && t.status === 'COMPLETED' && t.date <= today) {
-      let delta = Number(t.amount_account)
-      if (t.type === 'OUTCOME') delta = -Math.abs(delta)
-      else if (t.type === 'INCOME') delta = Math.abs(delta)
-      currentBalance += delta
-
-      if (isCreditCard) {
-        let origDelta = 0
-        if (t.type === 'OUTCOME') origDelta = -origAbs
-        else if (t.type === 'INCOME') origDelta = origAbs
-        else {
-          const sign = Number(t.amount_account) >= 0 ? 1 : -1
-          if (origCurr === t.currency_account) {
-            origDelta = sign * origAbs
-          } else {
-            cardBalanceByCurrency[t.currency_account] =
-              (cardBalanceByCurrency[t.currency_account] || 0) + Number(t.amount_account)
-          }
-        }
-        if (origDelta !== 0) {
-          cardBalanceByCurrency[origCurr] = (cardBalanceByCurrency[origCurr] || 0) + origDelta
-        }
-      }
-    } else if (t.status === 'PENDING' || isFutureStatement) {
-      let delta = Number(t.amount_account)
-      if (t.type === 'OUTCOME') delta = Math.abs(delta)
-      else if (t.type === 'INCOME') delta = -Math.abs(delta)
-      else delta = delta < 0 ? Math.abs(delta) : 0
-      pendingAmount += delta
-
-      if (isCreditCard && delta > 0) {
-        cardPendingByCurrency[origCurr] = (cardPendingByCurrency[origCurr] || 0) + origAbs
+  // 1. Tasas manuales configuradas por el usuario
+  if (settings?.active_currencies && Array.isArray(settings.active_currencies)) {
+    for (const c of settings.active_currencies) {
+      if (
+        c.rate_mode === 'manual' &&
+        typeof c.custom_rate_against_global === 'number' &&
+        c.custom_rate_against_global > 0
+      ) {
+        const globalToCustom = `${userDisplayCurrency.toUpperCase()}_${c.code.toUpperCase()}`
+        const customToGlobal = `${c.code.toUpperCase()}_${userDisplayCurrency.toUpperCase()}`
+        customRates[globalToCustom] = c.custom_rate_against_global
+        customRates[customToGlobal] =
+          Math.round((1 / c.custom_rate_against_global) * 1000000) / 1000000
       }
     }
   }
-  currentBalance = Math.round(currentBalance * 100) / 100
-  pendingAmount = Math.round(pendingAmount * 100) / 100
 
-  const cardCurrencyEntries = Object.entries(cardBalanceByCurrency).map(
-    ([curr, bal]) => [curr, Math.round(bal * 100) / 100] as const
+  // 2. Pre-resolver tasas de mercado para divisas involucradas
+  const distinctCurrencies = new Set<string>([
+    userDisplayCurrency.toUpperCase(),
+    account.currency_native.toUpperCase()
+  ])
+  for (const tx of transactions ?? []) {
+    if (tx.currency_original) distinctCurrencies.add(tx.currency_original.toUpperCase())
+    if (tx.currency_account) distinctCurrencies.add(tx.currency_account.toUpperCase())
+  }
+
+  const pairsToFetch: [string, string][] = []
+  const currs = Array.from(distinctCurrencies)
+  for (const from of currs) {
+    for (const to of currs) {
+      if (from !== to && !customRates[`${from}_${to}`]) {
+        pairsToFetch.push([from, to])
+      }
+    }
+  }
+
+  await Promise.all(
+    pairsToFetch.map(async ([from, to]) => {
+      try {
+        const r = await getRate(todayStr, from, to)
+        if (r > 0) {
+          customRates[`${from}_${to}`] = r
+        }
+      } catch {
+        // Fallback silencioso
+      }
+    })
   )
-  const cardPendingEntries = Object.entries(cardPendingByCurrency)
-    .map(([curr, amt]) => [curr, Math.round(amt * 100) / 100] as const)
-    .filter(([, amt]) => amt > 0)
-
-  // Consolidar discretamente en la moneda default del usuario
-  let consolidatedInUserCurrency = currentBalance
-  if (isCreditCard) {
-    const customRates: Record<string, number> = {}
-    if (settings?.active_currencies && Array.isArray(settings.active_currencies)) {
-      for (const c of settings.active_currencies) {
-        if (
-          c.rate_mode === 'manual' &&
-          typeof c.custom_rate_against_global === 'number' &&
-          c.custom_rate_against_global > 0
-        ) {
-          const globalToCustom = `${userDisplayCurrency.toUpperCase()}_${c.code.toUpperCase()}`
-          const customToGlobal = `${c.code.toUpperCase()}_${userDisplayCurrency.toUpperCase()}`
-          customRates[globalToCustom] = c.custom_rate_against_global
-          customRates[customToGlobal] =
-            Math.round((1 / c.custom_rate_against_global) * 1000000) / 1000000
-        }
-      }
-    }
-
-    consolidatedInUserCurrency = await convertToDisplayCurrency(
-      cardCurrencyEntries.map(([curr, bal]) => ({
-        accountId: `${account.id}-${curr}`,
-        currency: curr,
-        balance: bal
-      })),
-      userDisplayCurrency,
-      today,
-      customRates
-    )
-  }
-
-  // Estadísticas del mes en curso (en tarjetas de crédito, según el mes contable actual)
-  const { start, end } = monthRange()
-  const thisMonthTx = (transactions ?? []).filter((t) => {
-    if (isCreditCard) {
-      const effectivePeriod = t.accounting_period || t.date.slice(0, 7)
-      return effectivePeriod === currentPeriod
-    }
-    return t.date >= start && t.date <= end && t.status === 'COMPLETED'
-  })
-
-  let monthlyIncome = 0
-  let monthlyExpense = 0
-  for (const t of thisMonthTx) {
-    if (t.type === 'INCOME') {
-      monthlyIncome += t.amount_account
-    } else if (t.type === 'OUTCOME') {
-      monthlyExpense += t.amount_account
-    } else if (t.type === 'ADJUSTMENT' || t.type === 'TRANSFER') {
-      if (t.amount_account > 0) monthlyIncome += t.amount_account
-      else monthlyExpense += Math.abs(t.amount_account)
-    }
-  }
-
-  // Si es tarjeta de crédito: límites, compromisos diferidos y disponible
-  const creditLimit = account.credit_limit ?? 0
-  const usedCredit = currentBalance < 0 ? Math.abs(currentBalance) : 0
-  const totalCommitted = usedCredit + pendingAmount
-  const availableCredit = isCreditCard ? Math.max(0, creditLimit - totalCommitted) : 0
-  const creditPct = isCreditCard && creditLimit > 0 ? Math.min(100, Math.round((totalCommitted / creditLimit) * 100)) : 0
-
 
   return (
-    <main className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
-      {/* Navegación superior */}
-      <div className="flex items-center justify-between">
-        <Link
-          href="/accounts"
-          className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition"
-        >
-          <span>←</span>
-          <span>Volver a Cuentas</span>
-        </Link>
-        <Link
-          href={`/accounts/${account.id}/edit`}
-          className="inline-flex items-center gap-1 text-xs text-text-secondary hover:text-accent transition"
-        >
-          <Edit2 size={13} />
-          <span>Editar cuenta</span>
-        </Link>
-      </div>
-
-      {/* Header Principal de la Cuenta */}
-      <div className="bg-surface-1 border border-border rounded-card p-5 md:p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-text-muted font-medium flex items-center gap-1">
-                <Building2 size={13} />
-                {account.institutions?.name}
-              </span>
-              <span className="text-border">·</span>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-surface-2 text-text-secondary font-medium">
-                {ACCOUNT_TYPE_LABELS[account.type] ?? account.type}
-              </span>
-              {!account.is_active && (
-                <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-surface-2 text-text-muted">
-                  Desactivada
-                </span>
-              )}
-            </div>
-            <h1 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-text-primary mt-1">
-              {account.name}
-            </h1>
-          </div>
-
-          {/* Botón de acción: Registrar pago para Tarjetas de Crédito, Ajuste express para el resto */}
-          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-            {isCreditCard ? (
-              <>
-                <Link
-                  href={`/accounts/${account.id}/verify`}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-semibold bg-surface-2 hover:bg-surface-0 text-text-primary border border-border transition shadow-xs"
-                >
-                  <ClipboardCheck size={13} className="text-income" />
-                  <span>Verificar resumen</span>
-                </Link>
-                <Link
-                  href={`/accounts/${account.id}/bulk`}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-semibold bg-surface-2 hover:bg-surface-0 text-text-primary border border-border transition shadow-xs"
-                >
-                  <Sparkles size={13} className="text-accent" />
-                  <span>Carga rápida</span>
-                </Link>
-                <RegisterCardPaymentModal
-                  cardAccount={account}
-                  currentBalance={currentBalance}
-                  fundingAccounts={allAccounts ?? []}
-                />
-              </>
-            ) : (
-              <ExpressAdjustModal account={account} currentBalance={currentBalance} />
-            )}
-          </div>
-        </div>
-
-        {/* Saldo Nominal / Deuda de Tarjeta en Pills Multi-moneda */}
-        <div className="pt-3 border-t border-border flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-          <div className="space-y-2">
-            <p className="text-xs text-text-muted uppercase tracking-wider font-medium">
-              {isCreditCard
-                ? `Total adeudado del resumen en curso (${formatAccountingPeriodLabel(currentPeriod)})`
-                : 'Saldo actual'}
-            </p>
-
-            {isCreditCard ? (
-              <div className="space-y-2">
-                {/* Pills destacadas con el total adeudado en las monedas de la tarjeta (moneda local y USD) */}
-                <div className="flex flex-wrap items-center gap-2">
-                  {cardCurrencyEntries.map(([curr, bal]) => {
-                    const isDebt = bal < 0
-                    return (
-                      <div
-                        key={curr}
-                        className={`inline-flex items-baseline gap-2 px-3.5 py-2 rounded-control border ${
-                          isDebt
-                            ? 'bg-expense/10 border-expense/30 text-expense'
-                            : 'bg-surface-2 border-border text-text-primary'
-                        }`}
-                      >
-                        <span className="text-[11px] uppercase font-semibold tracking-wider opacity-80">
-                          {curr}
-                        </span>
-                        <span className="font-mono tabular-nums amount text-xl md:text-2xl font-bold">
-                          {formatMoney(Math.abs(bal), curr)}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {/* Consolidado discreto en la moneda default del usuario + compromisos futuros */}
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
-                  <span>
-                    Consolidado ({userDisplayCurrency}):{' '}
-                    <span className="font-mono tabular-nums amount font-medium text-text-secondary">
-                      {formatMoney(Math.abs(consolidatedInUserCurrency), userDisplayCurrency)}
-                    </span>
-                  </span>
-                  {cardPendingEntries.length > 0 && (
-                    <>
-                      <span>·</span>
-                      <span>
-                        Cuotas futuras:{' '}
-                        <span className="font-mono tabular-nums amount text-pending font-medium">
-                          {cardPendingEntries
-                            .map(([curr, amt]) => formatMoney(amt, curr))
-                            .join(' + ')}
-                        </span>
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <p
-                  className={`font-mono tabular-nums amount text-3xl md:text-4xl font-semibold mt-0.5 ${
-                    currentBalance < 0 ? 'text-expense' : 'text-text-primary'
-                  }`}
-                >
-                  {formatMoney(currentBalance, account.currency_native)}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Tarjeta de Crédito: métricas de límite */}
-          {isCreditCard && creditLimit > 0 && (
-            <div className="sm:text-right space-y-1">
-              <p className="text-xs text-text-muted">
-                Disponible:{' '}
-                <span className="font-mono font-medium text-text-primary">
-                  {formatMoney(availableCredit, account.currency_native)}
-                </span>{' '}
-                / Límite: <span className="font-mono">{formatMoney(creditLimit, account.currency_native)}</span>
-              </p>
-              <div className="w-full sm:w-48 h-1.5 bg-surface-2 rounded-full overflow-hidden ml-auto">
-                <div
-                  className={`h-full transition-all duration-300 ${creditPct > 80 ? 'bg-expense' : 'bg-accent'}`}
-                  style={{ width: `${creditPct}%` }}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Grilla: Feed de movimientos + Panel Lateral de Resumen */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Columna Izquierda: Feed de Movimientos (2 cols) */}
-        <div className="lg:col-span-2 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-base font-semibold tracking-tight text-text-primary">
-              Historial de movimientos
-            </h2>
-            <span className="text-xs text-text-muted font-mono">
-              {(transactions ?? []).length} {transactions?.length === 1 ? 'registro' : 'registros'}
-            </span>
-          </div>
-
-          {!transactions || transactions.length === 0 ? (
-            <div className="bg-surface-1 border border-border rounded-card p-8 text-center text-sm text-text-muted space-y-2">
-              <p>Esta cuenta no tiene movimientos registrados todavía.</p>
-              <p className="text-xs text-text-muted">
-                {isCreditCard
-                  ? 'Podés cargar un consumo con tarjeta o registrar un pago de deuda.'
-                  : 'Podés cargar un movimiento o realizar un ajuste express de saldo.'}
-              </p>
-            </div>
-          ) : (
-            <div className="bg-surface-1 border border-border rounded-card divide-y divide-border px-4 py-1">
-              {transactions.map((t) => {
-                const isOutcome = t.type === 'OUTCOME'
-                const isIncome = t.type === 'INCOME'
-                const isAdjustment = t.type === 'ADJUSTMENT'
-                const isTransfer = t.type === 'TRANSFER'
-                const isPositiveAdj = isAdjustment && t.amount_account >= 0
-                const isTransferIn = isTransfer && t.amount_account >= 0
-                const isPending = t.status === 'PENDING'
-
-                return (
-                  <div key={t.id} className="flex items-center justify-between py-3">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                          isOutcome
-                            ? 'bg-expense/10 text-expense'
-                            : isIncome
-                            ? 'bg-income/10 text-income'
-                            : isAdjustment
-                            ? 'bg-pending/15 text-pending'
-                            : 'bg-accent/15 text-accent'
-                        }`}
-                      >
-                        {isOutcome && <ArrowUpRight size={16} />}
-                        {isIncome && <ArrowDownLeft size={16} />}
-                        {isAdjustment && <SlidersHorizontal size={14} />}
-                        {isTransfer && <ArrowRightLeft size={14} />}
-                      </div>
-
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className="text-sm font-medium text-text-primary">
-                            {t.notes ||
-                              (isAdjustment
-                                ? 'Ajuste de saldo'
-                                : isTransfer
-                                ? 'Transferencia'
-                                : 'Movimiento')}
-                          </p>
-                          {isAdjustment && (
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-surface-2 text-text-muted font-medium">
-                              Ajuste
-                            </span>
-                          )}
-                          {isTransfer && (
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-surface-2 text-accent font-medium">
-                              Transferencia
-                            </span>
-                          )}
-                          {isPending && (
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-pending/15 text-pending font-medium">
-                              Pendiente
-                            </span>
-                          )}
-                          {isCreditCard && t.is_verified && (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.2 rounded bg-income/15 text-income font-medium">
-                              <CheckCircle2 size={10} />
-                              Confirmado
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-2 text-xs text-text-muted flex-wrap">
-                          <span>{t.date}</span>
-                          {isCreditCard && t.accounting_period && (
-                            <>
-                              <span>·</span>
-                              <span className="font-mono text-[11px]">
-                                Resumen {formatAccountingPeriodLabel(t.accounting_period)}
-                              </span>
-                            </>
-                          )}
-                          {t.categories?.name && (
-                            <>
-                              <span>·</span>
-                              <span>{t.categories.name}</span>
-                            </>
-                          )}
-                          {t.people?.name && (
-                            <>
-                              <span>·</span>
-                              <span className="text-accent font-medium">{t.people.name}</span>
-                            </>
-                          )}
-                          {t.installment_total > 1 && (
-                            <span className="text-[10px] bg-pending/15 text-pending px-2 py-0.2 rounded-full">
-                              Cuota {t.installment_current} de {t.installment_total}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {isPending && t.date <= today && (
-                        <ConfirmTransactionButton transactionId={t.id} />
-                      )}
-                      <div className="text-right font-mono tabular-nums amount text-sm font-semibold">
-                        {isOutcome && (
-                          <div>
-                            <span className={isPending ? 'text-expense/75' : 'text-expense'}>
-                              -{formatMoney(
-                                isCreditCard ? t.amount_original : t.amount_account,
-                                isCreditCard ? t.currency_original : t.currency_account
-                              )}
-                            </span>
-                            {isCreditCard && t.currency_original !== t.currency_account && (
-                              <p className="text-[10px] font-normal text-text-muted">
-                                ≈ {formatMoney(t.amount_account, t.currency_account)}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                        {isIncome && (
-                          <span className={isPending ? 'text-income/75' : 'text-income'}>
-                            +{formatMoney(t.amount_account, t.currency_account)}
-                          </span>
-                        )}
-                        {isAdjustment && (
-                          <span className={isPositiveAdj ? 'text-income' : 'text-expense'}>
-                            {isPositiveAdj ? '+' : '-'}
-                            {formatMoney(Math.abs(t.amount_account), t.currency_account)}
-                          </span>
-                        )}
-                        {isTransfer && (
-                          <span className={isTransferIn ? 'text-income' : 'text-expense'}>
-                            {isTransferIn ? '+' : '-'}
-                            {formatMoney(Math.abs(t.amount_account), t.currency_account)}
-                          </span>
-                        )}
-                      </div>
-                      <DeleteTransactionButton transactionId={t.id} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Columna Derecha: Panel de Estadísticas y Resumen (1 col) */}
-        <div className="space-y-4">
-          <div className="bg-surface-1 border border-border rounded-card p-4 space-y-3">
-            <h3 className="font-display text-sm font-semibold text-text-primary">Resumen del mes</h3>
-            <div className="space-y-2.5 text-xs">
-              <div className="flex justify-between items-center py-1 border-b border-border/60">
-                <span className="text-text-muted">Ingresos / Créditos</span>
-                <span className="font-mono font-medium text-income">
-                  +{formatMoney(monthlyIncome, account.currency_native)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center py-1 border-b border-border/60">
-                <span className="text-text-muted">Gastos / Débitos</span>
-                <span className="font-mono font-medium text-expense">
-                  -{formatMoney(monthlyExpense, account.currency_native)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center py-1">
-                <span className="text-text-muted">Balance neto del mes</span>
-                <span
-                  className={`font-mono font-semibold ${
-                    monthlyIncome - monthlyExpense >= 0 ? 'text-income' : 'text-expense'
-                  }`}
-                >
-                  {formatMoney(monthlyIncome - monthlyExpense, account.currency_native)}
-                </span>
-              </div>
-              {pendingAmount > 0 && (
-                <div className="flex justify-between items-center py-1 border-t border-border/60">
-                  <span className="text-text-muted">Cuotas futuras pendientes</span>
-                  <span className="font-mono font-medium text-pending">
-                    {formatMoney(pendingAmount, account.currency_native)}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-
-
-          <div className="bg-surface-1 border border-border rounded-card p-4 space-y-2 text-xs text-text-secondary">
-            <h3 className="font-display text-sm font-semibold text-text-primary">Detalles técnicos</h3>
-            <div className="space-y-1.5">
-              <div className="flex justify-between">
-                <span className="text-text-muted">Moneda nativa</span>
-                <span className="font-mono font-medium">{account.currency_native}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Institución</span>
-                <span>{account.institutions?.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Tipo</span>
-                <span>{ACCOUNT_TYPE_LABELS[account.type] ?? account.type}</span>
-              </div>
-              {isCreditCard && account.closing_day && (
-                <div className="flex justify-between">
-                  <span className="text-text-muted">Día de cierre</span>
-                  <span className="font-mono font-medium">Día {account.closing_day}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+    <main className="max-w-5xl mx-auto p-4 md:p-6">
+      <AccountDetailClient
+        account={account}
+        allAccounts={allAccounts ?? []}
+        initialTransactions={transactions ?? []}
+        initialUserSettings={settings}
+        initialCustomRates={customRates}
+        initialPeriod={initialPeriod}
+        todayStr={todayStr}
+      />
     </main>
   )
 }

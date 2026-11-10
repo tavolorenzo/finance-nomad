@@ -65,7 +65,7 @@ export function RegisterCardPaymentModal({
       cardAccount.closing_day,
       initialPeriod
     )
-    return `Pago de tarjeta ${cardAccount.name} · Resumen ${formatAccountingPeriodLabel(period)}`
+    return `Pago de tarjeta de crédito ${cardAccount.name} · Resumen ${formatAccountingPeriodLabel(period)}`
   })
   const [rate, setRate] = useState(1)
   const [rateError, setRateError] = useState<string | null>(null)
@@ -108,7 +108,7 @@ export function RegisterCardPaymentModal({
 
   function handlePeriodChange(newPeriod: string) {
     setAccountingPeriod(newPeriod)
-    setNotes(`Pago de tarjeta ${cardAccount.name} · Resumen ${formatAccountingPeriodLabel(newPeriod)}`)
+    setNotes(`Pago de tarjeta de crédito ${cardAccount.name} · Resumen ${formatAccountingPeriodLabel(newPeriod)}`)
   }
 
   function handleOpen() {
@@ -117,7 +117,7 @@ export function RegisterCardPaymentModal({
     setAccountingPeriod(suggestedPeriod)
     setAmount(currentDebt > 0 ? currentDebt.toFixed(2) : '')
     setDate(today)
-    setNotes(`Pago de tarjeta ${cardAccount.name} · Resumen ${formatAccountingPeriodLabel(suggestedPeriod)}`)
+    setNotes(`Pago de tarjeta de crédito ${cardAccount.name} · Resumen ${formatAccountingPeriodLabel(suggestedPeriod)}`)
     setError(null)
     setSuccess(false)
     setIsOpen(true)
@@ -174,7 +174,7 @@ export function RegisterCardPaymentModal({
         date,
         accountingPeriod,
         targetAccountingPeriod: accountingPeriod,
-        notes: notes.trim() || `Pago de tarjeta ${cardAccount.name} · Resumen ${formatAccountingPeriodLabel(accountingPeriod)}`
+        notes: notes.trim() || `Pago de tarjeta de crédito ${cardAccount.name} · Resumen ${formatAccountingPeriodLabel(accountingPeriod)}`
       })
 
       setSuccess(true)
@@ -205,7 +205,7 @@ export function RegisterCardPaymentModal({
           className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
           role="dialog"
           aria-modal="true"
-          aria-label="Registrar pago de tarjeta"
+          aria-label="Registrar pago de tarjeta de crédito"
         >
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/50 backdrop-blur-xs" onClick={() => !saving && setIsOpen(false)} />
@@ -216,7 +216,7 @@ export function RegisterCardPaymentModal({
               <div>
                 <h2 className="font-display text-base font-semibold text-text-primary flex items-center gap-2">
                   <CreditCard size={17} className="text-accent" />
-                  <span>Registrar pago de tarjeta</span>
+                  <span>Registrar pago de tarjeta de crédito</span>
                 </h2>
                 <p className="text-xs text-text-muted mt-0.5">
                   {cardAccount.name} · {cardCurrency}
@@ -370,22 +370,20 @@ export function RegisterCardPaymentModal({
                   <button
                     type="button"
                     onClick={() => handlePeriodChange(prevMonthPeriod)}
-                    className={`py-2 px-2.5 rounded-control text-xs font-medium border transition ${
-                      accountingPeriod === prevMonthPeriod
+                    className={`py-2 px-2.5 rounded-control text-xs font-medium border transition ${accountingPeriod === prevMonthPeriod
                         ? 'bg-accent/15 border-accent text-accent font-semibold'
                         : 'bg-surface-1 border-border text-text-secondary hover:text-text-primary'
-                    }`}
+                      }`}
                   >
                     Mes anterior ({formatAccountingPeriodLabel(prevMonthPeriod)})
                   </button>
                   <button
                     type="button"
                     onClick={() => handlePeriodChange(currentMonthPeriod)}
-                    className={`py-2 px-2.5 rounded-control text-xs font-medium border transition ${
-                      accountingPeriod === currentMonthPeriod
+                    className={`py-2 px-2.5 rounded-control text-xs font-medium border transition ${accountingPeriod === currentMonthPeriod
                         ? 'bg-accent/15 border-accent text-accent font-semibold'
                         : 'bg-surface-1 border-border text-text-secondary hover:text-text-primary'
-                    }`}
+                      }`}
                   >
                     Mes actual ({formatAccountingPeriodLabel(currentMonthPeriod)})
                   </button>
@@ -416,7 +414,7 @@ export function RegisterCardPaymentModal({
                   type="text"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder={`Pago de tarjeta ${cardAccount.name}`}
+                  placeholder={`Pago de tarjeta de crédito ${cardAccount.name}`}
                   className="w-full text-xs"
                 />
               </div>

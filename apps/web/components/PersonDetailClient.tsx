@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Pencil, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatMoney } from '@/lib/currency'
@@ -10,6 +10,7 @@ import {
 } from '@/lib/ledger/builder'
 import { resolveEffectiveAccountingPeriod } from '@/lib/ledger/settlement'
 import { PersonActions } from '@/components/PersonActions'
+import { PaginationControl } from '@/components/PaginationControl'
 import { useOptionalLedger } from '@/lib/ledger/ledger-context'
 import type { Account, Category, MasterTransaction, Person } from '@/lib/types'
 
@@ -66,6 +67,21 @@ export function PersonDetailClient({
     () => all.filter((t) => Boolean(t.settled_at)),
     [all]
   )
+
+  const SETTLED_PAGE_SIZE = 10
+  const [settledPage, setSettledPage] = useState<number>(1)
+  const totalSettledPages = Math.max(1, Math.ceil(settled.length / SETTLED_PAGE_SIZE))
+
+  useEffect(() => {
+    if (settledPage > totalSettledPages) {
+      setSettledPage(totalSettledPages)
+    }
+  }, [settledPage, totalSettledPages])
+
+  const paginatedSettled = useMemo(() => {
+    const start = (settledPage - 1) * SETTLED_PAGE_SIZE
+    return settled.slice(start, start + SETTLED_PAGE_SIZE)
+  }, [settled, settledPage])
 
   const {
     periodPending,
@@ -305,10 +321,17 @@ export function PersonDetailClient({
             Historial cobrado
           </p>
           <div className="bg-surface-1 border border-border rounded-card divide-y divide-border px-4 py-1 opacity-75">
-            {settled.map((t) => (
+            {paginatedSettled.map((t) => (
               <Row key={t.id} t={t} muted />
             ))}
           </div>
+          <PaginationControl
+            currentPage={settledPage}
+            totalItems={settled.length}
+            pageSize={SETTLED_PAGE_SIZE}
+            onPageChange={setSettledPage}
+            itemLabel="cobros históricos"
+          />
         </section>
       )}
 

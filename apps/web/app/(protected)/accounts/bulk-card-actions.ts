@@ -18,6 +18,7 @@ export interface BulkCardMovementInput {
   personId?: string | null
   accountingPeriod?: string | null
   isRefund?: boolean
+  type?: 'OUTCOME' | 'INCOME'
 }
 
 export interface SaveBulkCardMovementsParams {
@@ -32,7 +33,7 @@ export async function saveBulkCardMovementsAction({
   movements
 }: SaveBulkCardMovementsParams) {
   if (!accountId) {
-    throw new Error('Tenés que especificar la cuenta de tarjeta de crédito.')
+    throw new Error('Tenés que especificar la cuenta.')
   }
 
   const validMovements = movements.filter((m) => m.amount > 0 && m.description.trim().length > 0)
@@ -55,7 +56,7 @@ export async function saveBulkCardMovementsAction({
     .single()
 
   if (accError || !account) {
-    throw new Error('No se encontró la tarjeta de crédito seleccionada.')
+    throw new Error('No se encontró la cuenta seleccionada.')
   }
 
   const allRowsToInsert: (MasterTransaction & { user_id: string })[] = []
@@ -72,8 +73,10 @@ export async function saveBulkCardMovementsAction({
       }
     }
 
+    const movementType = m.type || (m.isRefund ? 'INCOME' : 'OUTCOME')
+
     const bundle = buildTransactionBundle({
-      type: m.isRefund ? 'INCOME' : 'OUTCOME',
+      type: movementType,
       amountOriginal: m.amount,
       currencyOriginal: m.currency,
       currencyAccount: account.currency_native,
@@ -123,3 +126,5 @@ export async function saveBulkCardMovementsAction({
     movementsCount: validMovements.length
   }
 }
+
+export const saveBulkAccountMovementsAction = saveBulkCardMovementsAction

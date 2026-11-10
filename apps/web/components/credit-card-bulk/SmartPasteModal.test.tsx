@@ -134,4 +134,39 @@ describe('SmartPasteModal', () => {
       ])
     )
   })
+
+  it('funciona en modo cuenta bancaria / home banking y permite alternar Gasto / Ingreso', () => {
+    const mockOnApply = vi.fn()
+    const mockOnClose = vi.fn()
+
+    render(
+      <SmartPasteModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onApply={mockOnApply}
+        defaultCurrency="ARS"
+        accountType="checking"
+        categories={mockCategories}
+        people={mockPeople}
+      />
+    )
+
+    expect(screen.getByText('Pegado Mágico de Home Banking')).toBeInTheDocument()
+
+    // Cargar ejemplo bancario
+    fireEvent.click(screen.getByText('Cargar ejemplo'))
+
+    // Debe mostrar los movimientos y botones de Gasto e Ingreso
+    expect(screen.getByText('Volcar a la grilla (5)')).toBeInTheDocument()
+    const ingresoButtons = screen.getAllByRole('button', { name: 'Ingreso' })
+    expect(ingresoButtons.length).toBeGreaterThan(0)
+
+    // Alternar el primer ingreso a gasto
+    fireEvent.click(ingresoButtons[0])
+
+    // Volcar a la grilla
+    fireEvent.click(screen.getByText('Volcar a la grilla (5)'))
+    expect(mockOnApply).toHaveBeenCalled()
+    expect(mockOnClose).toHaveBeenCalled()
+  })
 })

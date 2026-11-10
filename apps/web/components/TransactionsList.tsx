@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import {
   ArrowDownLeft,
@@ -13,8 +13,11 @@ import {
 import { formatMoney } from '@/lib/currency'
 import { ConfirmTransactionButton } from '@/components/ConfirmTransactionButton'
 import { DeleteTransactionButton } from '@/components/DeleteTransactionButton'
+import { PaginationControl } from '@/components/PaginationControl'
 import { useLedger } from '@/lib/ledger/ledger-context'
 import type { MasterTransaction } from '@/lib/types'
+
+const PAGE_SIZE = 20
 
 export function TransactionsList({
   initialTransactions
@@ -24,13 +27,30 @@ export function TransactionsList({
   const { recentTransactions, hasMoreTransactions, loadMoreTransactions, isInitialized } =
     useLedger()
   const [loadingMore, setLoadingMore] = useState(false)
+  const [currentPage, setCurrentPage] = useState<number>(1)
 
   const transactions = isInitialized
     ? recentTransactions
     : initialTransactions || recentTransactions
 
   const today = new Date().toISOString().slice(0, 10)
-  const hasTransactions = transactions && transactions.length > 0
+  const totalVisible = transactions?.length ?? 0
+  const hasTransactions = totalVisible > 0
+
+  const totalPages = Math.max(1, Math.ceil(totalVisible / PAGE_SIZE))
+
+  // Ajuste defensivo de página si se reduce el número de transacciones
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
+  const paginatedTransactions = useMemo(() => {
+    if (!transactions) return []
+    const start = (currentPage - 1) * PAGE_SIZE
+    return transactions.slice(start, start + PAGE_SIZE)
+  }, [currentPage, transactions])
 
   async function handleLoadMore() {
     setLoadingMore(true)
@@ -55,7 +75,7 @@ export function TransactionsList({
   return (
     <div className="space-y-4">
       <div className="bg-surface-1 border border-border rounded-card divide-y divide-border px-4 py-1">
-        {transactions.map((t) => {
+        {paginatedTransactions.map((t) => {
           const isOutcome = t.type === 'OUTCOME'
           const isIncome = t.type === 'INCOME'
           const isAdjustment = t.type === 'ADJUSTMENT'
@@ -153,6 +173,15 @@ export function TransactionsList({
           )
         })}
       </div>
+
+      {/* Controles de paginación */}
+      <PaginationControl
+        currentPage={currentPage}
+        totalItems={totalVisible}
+        pageSize={PAGE_SIZE}
+        onPageChange={setCurrentPage}
+        itemLabel="movimientos"
+      />
 
       {/* Botón de Cargar más movimientos */}
       {hasMoreTransactions ? (

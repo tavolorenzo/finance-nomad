@@ -78,7 +78,7 @@ describe('HelpCenter Component', () => {
       screen.getByText('Cargar una cena compartida con amigos')
     ).toBeInTheDocument()
     expect(
-      screen.getByText('Registrar una compra en cuotas con tarjeta')
+      screen.getByText('Registrar una compra en cuotas con tarjeta de crédito')
     ).toBeInTheDocument()
   })
 

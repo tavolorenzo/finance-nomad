@@ -13,9 +13,9 @@ describe('version and environment utility', () => {
   })
 
   it('obtiene la versión por defecto o de variable de entorno', () => {
-    expect(getAppVersion()).toBe('2.17.0')
-    process.env.NEXT_PUBLIC_APP_VERSION = '2.17.0'
-    expect(getAppVersion()).toBe('2.17.0')
+    expect(getAppVersion()).toBe('2.22.0')
+    process.env.NEXT_PUBLIC_APP_VERSION = '2.22.0'
+    expect(getAppVersion()).toBe('2.22.0')
   })
 
   it('detecta entorno development por defecto', () => {

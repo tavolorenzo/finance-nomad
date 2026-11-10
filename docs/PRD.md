@@ -54,27 +54,40 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
 
 ## 4. Especificación de Pantallas y Navegación
 
-### 4.1. Dashboard General (Home)
-* Banner de Balance Disponible y Patrimonio Neto en Moneda Global.
-* Indicador de sincronización en tiempo real (`SyncStatusBadge` con estados Al día, Sincronizando, Guardado local y Reintento).
-* Barra de acciones rápidas (+ Gasto, ↔ Transferencia, 💳 Pago Tarjeta, ⚖️ Ajuste Express).
-* Resumen de Presupuesto Mensual (Gastos Reales + Gastos Fijos Estimados vs. Ingresos Proyectados).
-* Carrusel/Lista de Cuentas principales con saldo nominal.
-* Feed de últimas transacciones con doble indicador de moneda y badges de cuotas.
+### 4.1. Dashboard General (Home / Torre de Control)
+* **Franja Superior de Balances y KPIs Clave (4 Cards Estratégicas):**
+  - **Patrimonio Neto:** Valor patrimonial consolidado en divisa global (activos líquidos en cuentas menos pasivos consolidados).
+  - **Cash Flow del Período:** Flujo neto ($\text{Ingresos} - \text{Gastos Propios}$), tasa de ahorro y desglose de entradas y salidas.
+  - **Total Adeudado (Cálculo Híbrido):** Cifra principal con la deuda corriente a pagar (tarjetas de crédito y cuotas impagas de préstamos tomados) con badge secundario indicando el importe de cuotas futuras ya comprometidas en compras a plazo.
+  - **Por Cobrar:** Cuentas por cobrar acumuladas de terceros (gastos compartidos con `settled_at is null`) y préstamos otorgados vigentes, con acceso directo a `/people`.
+* **Switch de Período Rápido:** Alternador en la cabecera para cambiar la ventana de tiempo del Dashboard entre **"Mes actual"** (mes calendario en curso) y **"Últimos 30 días"** (ventana móvil para cubrir la bisagra del cambio de mes).
+* **Separación Visual Nítida: Cuentas y Tarjetas de Crédito:**
+  - **Cuentas & Efectivo:** Bloque exclusivo de liquidez inmediata (cuentas corrientes, cajas de ahorro, billeteras virtuales, efectivo e inversiones), con total consolidado disponible y accesos directos de creación y listado.
+  - **Tarjetas de Crédito:** Bloque dedicado para plásticos con detección automática de red (VISA, Mastercard, AMEX), saldo corriente a pagar, estado del período contable o alerta de resumen mensual.
+* **Radiografía de Gastos y Analítica:**
+  - **Consumo Propio vs. Asumido por Terceros:** Barra dividida proporcional que aísla el costo de vida real personal frente a consumos pagados por cuenta de terceros a cobrar.
+  - **Gastos Personales por Categoría:** Gráfico de barras horizontales estilizadas y desglose porcentual que refleja estrictamente los consumos propios.
+* **Vista Rápida de Préstamos:** Resumen de préstamos activos tomados (`borrowed`) y otorgados (`lent`) con alerta destacada de la próxima cuota a vencer (monto, fecha y contraparte).
+* **Movimientos Recientes:** Feed de últimas transacciones con doble indicador de moneda, insignias de tipo (`Transferencia`, `Ajuste`, `Pendiente`), badges de cuotas (`C de T`) y personas asignadas.
+* **Banners Inteligentes:**
+  - Recordatorio interactivo durante la ventana de cierre/verificación de resúmenes de tarjetas de crédito (primeros 5 y últimos 5 días del mes).
+  - Tour guiado de incorporación (`OnboardingTour`) para nuevos usuarios.
 
 ### 4.2. Cuentas, Bancos e Instituciones
 * Acordeones agrupados por Institución Financiera con totales consolidados y soporte de baja lógica (`is_active`).
 * **Flujo Continuo Institución $\rightarrow$ Productos Financieros y Efectivo Opcional:** Al crear una institución desde `/accounts` (`InstitutionForm`), la creación de una cuenta `Efectivo` no es forzada sino opcional mediante una casilla desmarcada por defecto (dado que el `WelcomeWizard` ya inicializa la billetera de efectivo). Tras guardar la institución, el sistema redirige automáticamente a `/accounts/new?institutionId={id}` para configurar los productos financieros de esa entidad.
 * **Saldo Inicial en Alta de Cuenta y Carga Múltiple (`AccountForm`):** Permite ingresar el **saldo inicial** opcional al crear cualquier producto (excepto tarjetas de crédito), generando un asiento `ADJUSTMENT` automático para evitar el *cold start*, e incluye la acción **"Crear y agregar otro producto"** para dar de alta varias cuentas en la misma institución sin salir del formulario.
 * **Día de Cierre en Tarjetas de Crédito (`closing_day`):** Campo opcional en la configuración de tarjetas (1 a 31) que permite preseleccionar automáticamente el mes contable siguiente cuando se registra una compra posterior al cierre.
-* **Ficha de Detalle de Cuenta (`/accounts/[id]`):** Saldo nominal (o **Deuda del resumen en curso** en tarjetas de crédito filtrada por `accounting_period`), balance disponible y compromisos diferidos/retención (para tarjetas de crédito), métricas del mes en curso, feed de transacciones filtrado y acceso directo a acciones:
-  - **Verificar Resumen (`/accounts/[id]/verify`):** Acceso al módulo de conciliación mensual de estados de cuenta de tarjeta de crédito.
+* **Ficha de Detalle de Cuenta (`/accounts/[id]`):** Incorpora una **Barra de Período Contable** interactiva (`< Período contable: Mes Año >`) homologada con `/cards` y `/people/[id]`, con soporte de query param `?period=YYYY-MM`, botón *"Volver al período actual"*, y selector de alcance del historial (*"Este período"* vs. *"Todos"*). Muestra el saldo nominal (o **Consumos del resumen del período** en tarjetas de crédito filtrados por `accounting_period`), balance disponible y compromisos diferidos/retención (para tarjetas de crédito), métricas del período seleccionado, feed de transacciones filtrado y acceso directo a acciones:
+  - **Verificar Resumen (`/accounts/[id]/verify?period={period}`):** Acceso al módulo de conciliación mensual con propagación automática del período seleccionado.
   - **Ajuste Express de Saldo (`ExpressAdjustModal`):** Crea un movimiento automático de corrección contable (`ADJUSTMENT`) por la diferencia con el extracto bancario.
   - **Registrar Pago de Tarjeta (`RegisterCardPaymentModal`):** Precarga inteligente del saldo adeudado y genera la transferencia inter-cuenta de liquidación.
+  - **Paginación en Historial de Movimientos (`PaginationControl`):** Navegación en bloques de 20 movimientos con selector de página y resumen tabular (`Mostrando X a Y de Z`), eliminando el scroll infinito y garantizando rendimiento DOM constante.
 * **Inversiones:** Valor de mercado y P&L.
 
 ### 4.3. Formulario Universal de Transacciones (`/transactions/new` y `@modal`)
 * Interfaz **Zero-Wait UI** (< 16ms): persistencia inmediata en memoria y cola local Outbox (IndexedDB) sin congelar la interacción esperando la red.
+* **Listado General de Movimientos (`/transactions`, `TransactionsList`):** Paginación estructurada (20 movimientos por página con `PaginationControl`) sobre el libro diario local, integrando la descarga progresiva de lotes remotos al alcanzar las páginas finales del historial.
 * Toggle Gasto | Ingreso | Transferencia.
 * Selector de Producto (Cuenta / Tarjeta).
 * Importe Original + Moneda del Gasto.
@@ -99,7 +112,7 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
 * **Contacto de Sistema "Personal"**: Entidad reservada del sistema asignada por defecto a los consumos propios del usuario. No puede renombrarse, desactivarse ni duplicarse (protegida como palabra reservada `Personal` en frontend y backend).
 * **Prevención de Nombres Duplicados y Aviso en Tiempo Real**: Si el usuario tipea el nombre de una persona ya existente (activa o desactivada), el formulario muestra un aviso preventivo sugiriendo incorporar una inicial o apellido (ej. *"Diego M."*) para garantizar que los contactos se reconozcan de manera inequívoca en selectores de consumos y cobros.
 * CRUD completo de contactos (`/people/new`, `/people/[id]/edit`) con baja lógica protegida (la desactivación se bloquea si la persona tiene movimientos pendientes de cobro).
-* Ficha de Persona (`/people/[id]`): Saldo por cobrar del período contable seleccionado, alerta y listado separado de períodos anteriores sin cobrar, desglose de cuotas/períodos futuros e historial de movimientos cobrados.
+* Ficha de Persona (`/people/[id]`): Saldo por cobrar del período contable seleccionado, alerta y listado separado de períodos anteriores sin cobrar, desglose de cuotas/períodos futuros e historial de movimientos cobrados con paginación integrada (`PaginationControl`, 10 cobros por página).
 * Acciones en ficha de persona:
   - **"Registrar Cobro / Liquidación"** (precarga el saldo del período contable seleccionado y permite amortizar por período, acumulado o total global con `settled_at`).
   - **"Notificar por WhatsApp" (`WhatsAppNotifyModal`):** Filtra automáticamente los movimientos pendientes correspondientes al período contable seleccionado para generar el detalle y total del mensaje antes de disparar el link a WhatsApp (`wa.me`).
@@ -159,15 +172,21 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
   5. *Cierre y Transición*: Resumen integral, botón *"Configurá mi espacio"* y animación interactiva por etapas mientras se siembra la base de datos. Si el usuario configuró una o más tarjetas de crédito, presenta un prompt opcional para saltar a la carga rápida de consumos o continuar directo al Dashboard.
 * **Requisito Online**: Valida conectividad en vivo (`useOnlineStatus()`), mostrando advertencia preventiva e impidiendo la inicialización si el dispositivo está sin conexión.
 
-### 4.12. Asistente de Carga Rápida de Tarjetas de Crédito (`/welcome/credit-card` y `/accounts/[id]/bulk`)
-* **Propósito**: Resolver la brecha de deuda del resumen actual y arrastre de cuotas vigentes al dar de alta una tarjeta de crédito, evitando la carga manual movimiento por movimiento.
-* **Paso Opcional y Re-accesible**: Se ofrece como paso complementario 100% opcional tras el Asistente de Bienvenida, y permanece accesible de forma permanente desde la ficha de cada tarjeta (`/accounts/[id]/bulk`).
+### 4.12. Asistente de Carga Rápida y Pegado Mágico (`/welcome/credit-card` y `/accounts/[id]/bulk`)
+* **Propósito**: Resolver la brecha de deuda del resumen actual y arrastre de cuotas vigentes en tarjetas de crédito, así como la importación masiva de movimientos desde home banking y extractos bancarios en cuentas de caja de ahorro, cuenta corriente y billeteras, evitando la carga manual movimiento por movimiento.
+* **Acceso y Adaptación por Tipo de Producto**:
+  - **Tarjetas de crédito**: Asistente con gestión de cuotas intermedias ($C$ de $T$), impacto en límite de crédito remanente y proyección de deuda futura.
+  - **Cuentas bancarias y billeteras**: Asistente `AccountBulkWizard` con discriminación de Tipo (**Gasto** vs. **Ingreso**), cómputo de Saldo Neto Resultante en la cuenta y categorías sugeridas automáticamente.
+  - **Accesibilidad**: Permanece accesible de forma permanente desde la ficha de cada cuenta o tarjeta (`/accounts/[id]/bulk`) mediante el botón *"Carga rápida"*.
 * **Dual-Mode de Entrada**:
-  - **Grilla Spreadsheet-like**: Navegación fluida por teclado (`Tab`/`Enter`), columna explícita de **Mes contable** (`accounting_period`) asignado a cada fila, auto-categorización heurística en tiempo real a partir del comercio tipeado, y selector de cuotas con chips rápidos (`1/1`, `3`, `6`, `12`, o cuota intermedia personalizada `C de T`).
-  - **Pegado Mágico (Smart Text Parser)**: Área de texto para volcar líneas en texto plano de extractos bancarios o emails; un motor de expresiones regulares extrae secuencialmente fecha inicial (`DD/MM/AA`, `DD MM AA`, `DD-MM-AA`, `DD/MM/AAAA`), número de tarjeta opcional (`XXXX`), comercio, plan de cuotas (`X/X`, `X/ X`, `C.04/12`), divisa opcional (`UYU`, `USD`, `EUR`, `ARS`, etc.) e importe final (destacando automáticamente las filas con monto negativo como **Pago / Refund**). Incluye selectores de moneda y persona a importar en dos filas, selector individual de **Persona** por cada fila en la vista previa (*Movimientos detectados*) y leyenda recordatoria de verificación manual.
+  - **Grilla Spreadsheet-like**: Navegación fluida por teclado (`Tab`/`Enter`), columna explícita de **Mes contable** (`accounting_period`) asignado a cada fila, auto-categorización heurística en tiempo real a partir del comercio tipeado, y selector de cuotas con chips rápidos (`1/1`, `3`, `6`, `12`, o cuota intermedia personalizada `C de T`) en tarjetas o selector de Tipo (`OUTCOME`/`INCOME`) en cuentas.
+  - **Pegado Mágico (Smart Text Parser)**: Área de texto para volcar líneas en texto plano de extractos bancarios o emails; un motor de expresiones regulares extrae secuencialmente fecha inicial (`DD/MM/AA`, `DD MM AA`, `DD-MM-AA`, `DD.MM.AA`, `DD/MM/AAAA`, `DD.MM.AAAA`), número de tarjeta opcional (`XXXX`), comercio, plan de cuotas (`X/X`, `X/ X`, `C.04/12`), divisa opcional (`UYU`, `USD`, `EUR`, `ARS`, etc.) e importe final.
+    - En tarjetas de crédito: destaca automáticamente filas con monto negativo como **Pago / Refund**.
+    - En cuentas bancarias: interpreta montos con signo negativo o palabras de débito como **Gasto** y montos positivos o palabras de ingresos (sueldo, transferencia recibida, etc.) como **Ingreso**, permitiendo conmutar directamente con 1 clic en la vista previa.
+    - Incluye selectores de moneda y persona a importar en dos filas, selector individual de **Persona** por cada fila en la vista previa (*Movimientos detectados*) y leyenda recordatoria de verificación manual.
 * **Lógica Contable de Cuotas Intermedias**: Al ingresar una cuota $C$ de $T$ (ej: 4 de 12), el sistema asienta la cuota corriente en el período actual y genera automáticamente las cuotas $C+1$ a $T$ como transacciones `PENDING` futuras vinculadas por `parent_transaction_id`, sin ensuciar el libro con cuotas pasadas ya canceladas.
 * **Integración con Personas (Split Pay)**: Cada consumo adopta por defecto *"Personal"*. Permite asignar selectivamente gastos a terceros (con selector de contactos sin opciones duplicadas y preasignación en pegado mágico), resaltando visualmente los consumos compartidos en la grilla y discriminando en la barra de impacto financiero el monto personal frente al total a cobrar.
-* **Live Impact Bar**: Cálculo en vivo de consumos del resumen actual, compromisos diferidos futuros, límite de crédito disponible remanente y desglose de gastos propios vs. a cobrar.
+* **Live Impact Bar**: Cálculo en vivo de consumos del resumen actual, compromisos diferidos futuros, límite de crédito disponible remanente y desglose de gastos propios vs. a cobrar (en tarjetas) o Total Gastos, Total Ingresos y Saldo Neto Resultante (en cuentas bancarias).
 
 ### 4.13. Módulo de Verificación de Estado de Cuenta y Mes Contable (`/accounts/[id]/verify`)
 * **Mes Contable (`accounting_period`):** Cada movimiento en `master_transactions` almacena el período contable (`YYYY-MM`) en el que impacta. Al registrar un gasto con tarjeta de crédito, el formulario presenta opciones rápidas de **Mes actual** y **Próximo mes** (con sugerencia automática si la fecha supera el `closing_day` de la tarjeta) y proyecta las cuotas subsecuentes a partir del mes elegido.
@@ -180,8 +199,8 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
     - **Agregar gasto faltante:** Permite incorporar directamente en el período un cargo presente en el resumen bancario que no había sido registrado.
 * **Banner Recordatorio en Dashboard:** Durante los últimos 5 días y los primeros 5 días de cada mes, si el usuario posee tarjetas de crédito activas, el Dashboard muestra un banner con acceso directo a la verificación de sus resúmenes.
 
-### 4.14. Centro de Control y Análisis de Tarjetas (`/cards`)
-* **Visibilidad Dinámica en Navegación Principal:** El ítem **Tarjetas** (`/cards`) se incorpora en el bloque principal del menú lateral y barra móvil únicamente cuando el usuario posee al menos un producto financiero de tipo `credit_card` (permaneciendo oculto si no opera con tarjetas de crédito).
+### 4.14. Centro de Control y Análisis de Tarjetas de Crédito (`/cards`)
+* **Visibilidad Dinámica en Navegación Principal:** El ítem **Tarjetas de crédito** (`/cards`) se incorpora en el bloque principal del menú lateral y barra móvil únicamente cuando el usuario posee al menos un producto financiero de tipo `credit_card` (permaneciendo oculto si no opera con tarjetas de crédito).
 * **Bloque A — KPIs Globales Consolidados:**
   - **Consumos del Resumen (`accounting_period`):** Selector de período contable (`YYYY-MM`), pills por divisa operada y consolidado en la moneda global del usuario.
   - **Separación Propio vs. Terceros (Split Pay / Extensiones):** Desglose del monto atribuido a *"Personal"* frente a los consumos realizados por o para terceros.
@@ -201,7 +220,7 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
 
 ### 4.15. Análisis y Datos (`/analytics`)
 * Tablero analítico de evolución de ingresos, gastos de consumo (`OUTCOME`), tasa de ahorro, distribución por categorías, divisas e instituciones en moneda global.
-* **Master Switch de Transacciones Personales vs. Terceros (Pendiente de implementación):** Control global (*Master Switch*) en la cabecera de **Análisis y Datos** (`/analytics`) para alternar en tiempo real entre **incluir o excluir las transacciones no personales** (consumos o movimientos asignados a otras personas del directorio distintas de `Personal` / sin asignar). Permite analizar el gasto e indicadores puramente propios sin la distorsión de compras realizadas a nombre de terceros (extensiones o gastos compartidos), o bien auditar el volumen total operado.
+* **Master Switch de Transacciones Personales vs. Terceros:** Control global (*Master Switch*) en la cabecera de **Análisis y Datos** (`/analytics`) para alternar en tiempo real entre **"Solo personales"** (excluye consumos asignados a otras personas del directorio distintas de `Personal` para aislar el costo de vida real) y **"Todos"** (incluye gastos a cuenta de terceros, compras compartidas y extensiones) con recálculo instantáneo en 0ms de todos los KPIs, gráficos y flujos de caja.
 
 ---
 

@@ -335,7 +335,7 @@ export function CreditCardBulkWizard({
           {cardAccounts.length > 1 ? (
             <div className="flex items-center gap-2">
               <label htmlFor="card-select" className="text-xs text-text-muted font-medium">
-                Tarjeta:
+                Tarjeta de crédito:
               </label>
               <select
                 id="card-select"

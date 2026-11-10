@@ -1,4 +1,4 @@
-import type { MasterTransaction, Category, Account } from './types'
+import type { MasterTransaction, Category, Account, Person } from './types'
 
 export type AnalyticsPeriod = 'this_month' | 'last_3_months' | 'last_6_months' | 'this_year' | 'all'
 
@@ -93,6 +93,32 @@ export function filterTransactionsByPeriod(
 ): MasterTransaction[] {
   const { start, end } = getPeriodRange(period, today)
   return transactions.filter((t) => t.date >= start && t.date <= end)
+}
+
+/**
+ * Determina si una transacción corresponde al consumo de un tercero (gasto compartido o asignado a otra persona).
+ * Si no tiene persona asignada o la persona se llama "Personal", se considera consumo propio.
+ */
+export function isThirdPartyTransaction(
+  tx: MasterTransaction,
+  peopleById: Map<string, Person>
+): boolean {
+  if (!tx.person_id) return false
+  const person = peopleById.get(tx.person_id)
+  if (!person) return false
+  return person.name.trim().toLowerCase() !== 'personal'
+}
+
+/**
+ * Filtra transacciones según el alcance: solo consumos personales o todos los movimientos.
+ */
+export function filterTransactionsByScope(
+  transactions: MasterTransaction[],
+  onlyPersonal: boolean,
+  peopleById: Map<string, Person>
+): MasterTransaction[] {
+  if (!onlyPersonal) return transactions
+  return transactions.filter((t) => !isThirdPartyTransaction(t, peopleById))
 }
 
 export function computeAnalyticsKPIs(

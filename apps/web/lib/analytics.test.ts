@@ -5,9 +5,11 @@ import {
   computeAnalyticsKPIs,
   computeCategoryBreakdown,
   computeMonthlyCashflow,
-  computeCurrencyBreakdown
+  computeCurrencyBreakdown,
+  isThirdPartyTransaction,
+  filterTransactionsByScope
 } from './analytics'
-import type { MasterTransaction, Category } from './types'
+import type { MasterTransaction, Category, Person } from './types'
 
 describe('analytics utilities', () => {
   const dummyCategories: Category[] = [
@@ -150,5 +152,40 @@ describe('analytics utilities', () => {
     const usd = currencies.find((c) => c.currency === 'USD')
     expect(eur?.total).toBe(100)
     expect(usd?.total).toBe(300)
+  })
+
+  it('determina correctamente transacciones de terceros vs personales', () => {
+    const people: Person[] = [
+      { id: 'p-personal', name: 'Personal', phone: null, is_active: true, created_at: '' },
+      { id: 'p-friend', name: 'Martín G.', phone: null, is_active: true, created_at: '' }
+    ]
+    const peopleMap = new Map(people.map((p) => [p.id, p]))
+
+    const txPersonalNull = { ...sampleTransactions[0], person_id: null }
+    const txPersonalSystem = { ...sampleTransactions[0], person_id: 'p-personal' }
+    const txThirdParty = { ...sampleTransactions[0], person_id: 'p-friend' }
+
+    expect(isThirdPartyTransaction(txPersonalNull, peopleMap)).toBe(false)
+    expect(isThirdPartyTransaction(txPersonalSystem, peopleMap)).toBe(false)
+    expect(isThirdPartyTransaction(txThirdParty, peopleMap)).toBe(true)
+  })
+
+  it('filtra transacciones según alcance personal o total', () => {
+    const people: Person[] = [
+      { id: 'p-friend', name: 'Martín G.', phone: null, is_active: true, created_at: '' }
+    ]
+    const peopleMap = new Map(people.map((p) => [p.id, p]))
+
+    const txs: MasterTransaction[] = [
+      { ...sampleTransactions[0], id: 'tx-pers', person_id: null },
+      { ...sampleTransactions[1], id: 'tx-third', person_id: 'p-friend' }
+    ]
+
+    const onlyPersonal = filterTransactionsByScope(txs, true, peopleMap)
+    expect(onlyPersonal).toHaveLength(1)
+    expect(onlyPersonal[0].id).toBe('tx-pers')
+
+    const allTxs = filterTransactionsByScope(txs, false, peopleMap)
+    expect(allTxs).toHaveLength(2)
   })
 })

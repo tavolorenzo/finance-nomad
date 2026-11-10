@@ -65,7 +65,7 @@ export function AccountsClient({
               href="/cards"
               className="inline-flex items-center justify-center gap-1.5 bg-surface-2 border border-border text-text-primary text-xs font-medium px-3.5 py-2 rounded-control hover:bg-surface-1 transition"
             >
-              <CreditCard size={15} className="text-accent" /> Analizar tarjetas
+              <CreditCard size={15} className="text-accent" /> Analizar tarjetas de crédito
             </Link>
           )}
           <Link
@@ -149,9 +149,8 @@ function InstitutionCard({
               <Link
                 key={acc.id}
                 href={`/accounts/${acc.id}`}
-                className={`flex justify-between items-center text-xs p-2 rounded-control hover:bg-surface-2 transition ${
-                  !acc.is_active ? 'opacity-50' : ''
-                }`}
+                className={`flex justify-between items-center text-xs p-2 rounded-control hover:bg-surface-2 transition ${!acc.is_active ? 'opacity-50' : ''
+                  }`}
               >
                 <span className="text-text-secondary font-medium">
                   {acc.name}

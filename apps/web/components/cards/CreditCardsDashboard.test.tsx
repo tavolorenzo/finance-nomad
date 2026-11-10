@@ -111,6 +111,8 @@ describe('CreditCardsDashboard', () => {
 
     expect(screen.getByText('Itaú Visa Infinite')).toBeInTheDocument()
     expect(screen.getByText('Scotiabank Mastercard Black')).toBeInTheDocument()
+    expect(screen.getByText('Tus Tarjetas de crédito (2)')).toBeInTheDocument()
+    expect(screen.getByText('Todas las tarjetas de crédito (2)')).toBeInTheDocument()
 
     // Sellos de red detectados por nombre
     expect(screen.getByLabelText('Sello VISA')).toBeInTheDocument()

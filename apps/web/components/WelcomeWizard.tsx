@@ -584,18 +584,16 @@ export function WelcomeWizard() {
                 <div key={item.s} className="flex items-center gap-2 sm:gap-3">
                   {idx > 0 && <div className="w-4 sm:w-6 h-0.5 bg-border hidden xs:block" />}
                   <span
-                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition ${
-                      step >= item.s
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition ${step >= item.s
                         ? 'bg-accent text-[color:var(--on-accent)]'
                         : 'bg-surface-2 text-text-muted'
-                    }`}
+                      }`}
                   >
                     {item.s}
                   </span>
                   <span
-                    className={`text-xs font-medium whitespace-nowrap hidden sm:inline ${
-                      step === item.s ? 'text-text-primary font-semibold' : 'text-text-muted'
-                    }`}
+                    className={`text-xs font-medium whitespace-nowrap hidden sm:inline ${step === item.s ? 'text-text-primary font-semibold' : 'text-text-muted'
+                      }`}
                   >
                     {item.label}
                   </span>
@@ -634,11 +632,10 @@ export function WelcomeWizard() {
 
             <div className="max-w-md mx-auto space-y-3 pt-2 text-left text-xs font-medium">
               <div
-                className={`flex items-center gap-3 p-2.5 rounded-control border transition ${
-                  transitionStage >= 1
+                className={`flex items-center gap-3 p-2.5 rounded-control border transition ${transitionStage >= 1
                     ? 'border-accent/40 bg-accent/5 text-text-primary'
                     : 'border-border text-text-muted'
-                }`}
+                  }`}
               >
                 {transitionStage >= 1 ? (
                   <CheckCircle2 className="w-4 h-4 text-accent" />
@@ -649,11 +646,10 @@ export function WelcomeWizard() {
               </div>
 
               <div
-                className={`flex items-center gap-3 p-2.5 rounded-control border transition ${
-                  transitionStage >= 2
+                className={`flex items-center gap-3 p-2.5 rounded-control border transition ${transitionStage >= 2
                     ? 'border-accent/40 bg-accent/5 text-text-primary'
                     : 'border-border text-text-muted'
-                }`}
+                  }`}
               >
                 {transitionStage >= 2 ? (
                   <CheckCircle2 className="w-4 h-4 text-accent" />
@@ -664,11 +660,10 @@ export function WelcomeWizard() {
               </div>
 
               <div
-                className={`flex items-center gap-3 p-2.5 rounded-control border transition ${
-                  transitionStage >= 3
+                className={`flex items-center gap-3 p-2.5 rounded-control border transition ${transitionStage >= 3
                     ? 'border-accent/40 bg-accent/5 text-text-primary'
                     : 'border-border text-text-muted'
-                }`}
+                  }`}
               >
                 {transitionStage >= 3 ? (
                   <CheckCircle2 className="w-4 h-4 text-accent" />
@@ -679,11 +674,10 @@ export function WelcomeWizard() {
               </div>
 
               <div
-                className={`flex items-center gap-3 p-2.5 rounded-control border transition ${
-                  transitionStage >= 4
+                className={`flex items-center gap-3 p-2.5 rounded-control border transition ${transitionStage >= 4
                     ? 'border-accent/40 bg-accent/5 text-text-primary'
                     : 'border-border text-text-muted'
-                }`}
+                  }`}
               >
                 {transitionStage >= 4 ? (
                   <CheckCircle2 className="w-4 h-4 text-accent" />
@@ -703,7 +697,7 @@ export function WelcomeWizard() {
                 <div className="flex items-center justify-center gap-2 text-accent">
                   <CreditCard className="w-5 h-5" />
                   <h3 className="font-display text-sm font-bold text-text-primary">
-                    ¿Tenés consumos o cuotas en tu tarjeta?
+                    ¿Tenés consumos o cuotas en tu tarjeta de crédito?
                   </h3>
                 </div>
                 <p className="text-xs text-text-secondary leading-relaxed">
@@ -754,11 +748,10 @@ export function WelcomeWizard() {
                     key={c.code}
                     type="button"
                     onClick={() => handleCurrencySelect(c.code)}
-                    className={`p-4 rounded-card border text-left transition relative flex flex-col justify-between ${
-                      isSelected
+                    className={`p-4 rounded-card border text-left transition relative flex flex-col justify-between ${isSelected
                         ? 'border-accent bg-accent/5 ring-1 ring-accent'
                         : 'border-border bg-surface-1 hover:border-text-secondary/30'
-                    }`}
+                      }`}
                   >
                     <div>
                       <div className="flex items-center justify-between mb-3">
@@ -850,179 +843,179 @@ export function WelcomeWizard() {
                         <div
                           className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 p-3 rounded-control bg-surface-0 border border-border items-center"
                         >
-                        {/* Nombre de cuenta */}
-                        <div className="sm:col-span-4">
-                          <label className="block text-[10px] text-text-muted mb-0.5">Nombre de la cuenta</label>
-                          <input
-                            type="text"
-                            value={acc.name}
-                            onChange={(e) => handleAccountChange(inst.id, acc.id, 'name', e.target.value)}
-                            placeholder="Ej. Caja de Ahorro, Efectivo..."
-                            className="w-full bg-surface-1 border border-border rounded-control px-2.5 py-1.5 text-xs text-text-primary focus:border-accent outline-none"
-                          />
-                        </div>
-
-                        {/* Tipo de cuenta */}
-                        <div className="sm:col-span-3">
-                          <label className="block text-[10px] text-text-muted mb-0.5">Tipo</label>
-                          <select
-                            value={acc.type}
-                            onChange={(e) =>
-                              handleAccountChange(inst.id, acc.id, 'type', e.target.value as DraftAccount['type'])
-                            }
-                            className="w-full bg-surface-1 border border-border rounded-control px-2.5 py-1.5 text-xs text-text-primary focus:border-accent outline-none"
-                          >
-                            <option value="checking">Caja de Ahorro / Corriente</option>
-                            <option value="savings">Ahorro</option>
-                            <option value="credit_card">Tarjeta de Crédito</option>
-                            <option value="cash">Efectivo (Cash)</option>
-                          </select>
-                        </div>
-
-                        {/* Divisa nativa */}
-                        <div className="sm:col-span-2">
-                          <label className="block text-[10px] text-text-muted mb-0.5">Divisa</label>
-                          <select
-                            value={acc.currencyNative}
-                            onChange={(e) => {
-                              if (e.target.value === '__add_more__') {
-                                setModalTargetAccount({ instId: inst.id, accId: acc.id })
-                                setCurrencyModalOpen(true)
-                              } else {
-                                handleAccountChange(inst.id, acc.id, 'currencyNative', e.target.value)
-                              }
-                            }}
-                            className="w-full bg-surface-1 border border-border rounded-control px-2 py-1.5 text-xs font-mono text-text-primary focus:border-accent outline-none"
-                          >
-                            {availableCurrencies.map((c) => (
-                              <option key={c.code} value={c.code}>
-                                {c.code} ({c.symbol})
-                              </option>
-                            ))}
-                            <option value="__add_more__">+ Otra divisa...</option>
-                          </select>
-                        </div>
-
-                        {/* Saldo inicial actual / Límite de crédito según tipo */}
-                        <div className="sm:col-span-2">
-                          {acc.type === 'credit_card' ? (
-                            <>
-                              <label htmlFor={`credit-limit-${acc.id}`} className="block text-[10px] text-text-muted mb-0.5">
-                                Límite de crédito
-                              </label>
-                              <input
-                                id={`credit-limit-${acc.id}`}
-                                type="number"
-                                step="any"
-                                value={acc.creditLimit}
-                                onChange={(e) => handleAccountChange(inst.id, acc.id, 'creditLimit', e.target.value)}
-                                placeholder="0.00"
-                                className="w-full bg-surface-1 border border-border rounded-control px-2 py-1.5 text-xs font-mono tabular-nums text-text-primary focus:border-accent outline-none"
-                              />
-                            </>
-                          ) : (
-                            <>
-                              <label htmlFor={`balance-${acc.id}`} className="block text-[10px] text-text-muted mb-0.5">
-                                Saldo real actual
-                              </label>
-                              <input
-                                id={`balance-${acc.id}`}
-                                type="number"
-                                step="any"
-                                value={acc.initialBalance}
-                                onChange={(e) => handleAccountChange(inst.id, acc.id, 'initialBalance', e.target.value)}
-                                placeholder="0.00"
-                                className="w-full bg-surface-1 border border-border rounded-control px-2 py-1.5 text-xs font-mono tabular-nums text-text-primary focus:border-accent outline-none"
-                              />
-                            </>
-                          )}
-                        </div>
-
-                        {/* Borrar cuenta */}
-                        <div className="sm:col-span-1 flex justify-end">
-                          {inst.accounts.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveAccount(inst.id, acc.id)}
-                              className="text-text-muted hover:text-expense p-1 transition"
-                              title="Eliminar cuenta"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Asistente de Cotización Directa si difiere de la Moneda Global */}
-                      {acc.currencyNative !== currency && (
-                        <div className="mt-2 p-2.5 rounded-control bg-surface-1 border border-border/80 text-xs space-y-2">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5 text-text-secondary">
-                              <span className="inline-flex items-center gap-1 font-semibold text-accent">
-                                <Sparkles className="w-3.5 h-3.5" />
-                                Tipo de cambio directo:
-                              </span>
-                              <span className="font-mono font-medium text-text-primary">
-                                1 {currency} = {directRates[acc.currencyNative]?.rate ?? 1} {acc.currencyNative}
-                              </span>
-                              <span className="text-[10px] text-text-muted">
-                                ({directRates[acc.currencyNative]?.mode === 'manual' ? 'Personalizada / Mercado' : 'En vivo'})
-                              </span>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => toggleCustomRate(acc.currencyNative)}
-                              className="text-xs text-accent hover:underline font-medium"
-                            >
-                              {directRates[acc.currencyNative]?.mode === 'manual'
-                                ? 'Restablecer a oficial'
-                                : 'Ajustar cotización manual'}
-                            </button>
+                          {/* Nombre de cuenta */}
+                          <div className="sm:col-span-4">
+                            <label className="block text-[10px] text-text-muted mb-0.5">Nombre de la cuenta</label>
+                            <input
+                              type="text"
+                              value={acc.name}
+                              onChange={(e) => handleAccountChange(inst.id, acc.id, 'name', e.target.value)}
+                              placeholder="Ej. Caja de Ahorro, Efectivo..."
+                              className="w-full bg-surface-1 border border-border rounded-control px-2.5 py-1.5 text-xs text-text-primary focus:border-accent outline-none"
+                            />
                           </div>
 
-                          {directRates[acc.currencyNative]?.mode === 'manual' && (
-                            <div className="flex items-center gap-2 pt-1 border-t border-border-subtle">
-                              <label className="text-[11px] text-text-secondary">
-                                1 {currency} equivale a:
-                              </label>
-                              <div className="flex items-center gap-1.5">
+                          {/* Tipo de cuenta */}
+                          <div className="sm:col-span-3">
+                            <label className="block text-[10px] text-text-muted mb-0.5">Tipo</label>
+                            <select
+                              value={acc.type}
+                              onChange={(e) =>
+                                handleAccountChange(inst.id, acc.id, 'type', e.target.value as DraftAccount['type'])
+                              }
+                              className="w-full bg-surface-1 border border-border rounded-control px-2.5 py-1.5 text-xs text-text-primary focus:border-accent outline-none"
+                            >
+                              <option value="checking">Caja de Ahorro / Corriente</option>
+                              <option value="savings">Ahorro</option>
+                              <option value="credit_card">Tarjeta de Crédito</option>
+                              <option value="cash">Efectivo (Cash)</option>
+                            </select>
+                          </div>
+
+                          {/* Divisa nativa */}
+                          <div className="sm:col-span-2">
+                            <label className="block text-[10px] text-text-muted mb-0.5">Divisa</label>
+                            <select
+                              value={acc.currencyNative}
+                              onChange={(e) => {
+                                if (e.target.value === '__add_more__') {
+                                  setModalTargetAccount({ instId: inst.id, accId: acc.id })
+                                  setCurrencyModalOpen(true)
+                                } else {
+                                  handleAccountChange(inst.id, acc.id, 'currencyNative', e.target.value)
+                                }
+                              }}
+                              className="w-full bg-surface-1 border border-border rounded-control px-2 py-1.5 text-xs font-mono text-text-primary focus:border-accent outline-none"
+                            >
+                              {availableCurrencies.map((c) => (
+                                <option key={c.code} value={c.code}>
+                                  {c.code} ({c.symbol})
+                                </option>
+                              ))}
+                              <option value="__add_more__">+ Otra divisa...</option>
+                            </select>
+                          </div>
+
+                          {/* Saldo inicial actual / Límite de crédito según tipo */}
+                          <div className="sm:col-span-2">
+                            {acc.type === 'credit_card' ? (
+                              <>
+                                <label htmlFor={`credit-limit-${acc.id}`} className="block text-[10px] text-text-muted mb-0.5">
+                                  Límite de crédito
+                                </label>
                                 <input
+                                  id={`credit-limit-${acc.id}`}
                                   type="number"
                                   step="any"
-                                  value={directRates[acc.currencyNative]?.rate ?? ''}
-                                  onChange={(e) =>
-                                    updateCustomRate(acc.currencyNative, parseFloat(e.target.value) || 0)
-                                  }
-                                  placeholder="Ej. 1280"
-                                  className="w-24 bg-surface-0 border border-border rounded-control px-2 py-1 text-xs font-mono text-text-primary focus:border-accent outline-none"
+                                  value={acc.creditLimit}
+                                  onChange={(e) => handleAccountChange(inst.id, acc.id, 'creditLimit', e.target.value)}
+                                  placeholder="0.00"
+                                  className="w-full bg-surface-1 border border-border rounded-control px-2 py-1.5 text-xs font-mono tabular-nums text-text-primary focus:border-accent outline-none"
                                 />
-                                <span className="font-mono text-xs text-text-secondary">{acc.currencyNative}</span>
-                              </div>
-                              <span className="text-[10px] text-text-muted">
-                                (Se usará en el Dashboard para consolidar tu patrimonio)
-                              </span>
-                            </div>
-                          )}
+                              </>
+                            ) : (
+                              <>
+                                <label htmlFor={`balance-${acc.id}`} className="block text-[10px] text-text-muted mb-0.5">
+                                  Saldo real actual
+                                </label>
+                                <input
+                                  id={`balance-${acc.id}`}
+                                  type="number"
+                                  step="any"
+                                  value={acc.initialBalance}
+                                  onChange={(e) => handleAccountChange(inst.id, acc.id, 'initialBalance', e.target.value)}
+                                  placeholder="0.00"
+                                  className="w-full bg-surface-1 border border-border rounded-control px-2 py-1.5 text-xs font-mono tabular-nums text-text-primary focus:border-accent outline-none"
+                                />
+                              </>
+                            )}
+                          </div>
 
-                          {/* Previsualización del Saldo Convertido */}
-                          {acc.initialBalance && !isNaN(parseFloat(acc.initialBalance)) && parseFloat(acc.initialBalance) > 0 && (
-                            <div className="text-[11px] text-text-secondary pt-0.5">
-                              Saldo nominal: <span className="font-mono font-medium">{formatMoney(parseFloat(acc.initialBalance), acc.currencyNative)}</span>
-                              {' '}≈{' '}
-                              <span className="font-mono font-semibold text-accent">
-                                {formatMoney(
-                                  parseFloat(acc.initialBalance) / (directRates[acc.currencyNative]?.rate || 1),
-                                  currency
-                                )}
-                              </span>
-                              {' '}<span className="text-text-muted">(en tu moneda de referencia {currency})</span>
-                            </div>
-                          )}
+                          {/* Borrar cuenta */}
+                          <div className="sm:col-span-1 flex justify-end">
+                            {inst.accounts.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveAccount(inst.id, acc.id)}
+                                className="text-text-muted hover:text-expense p-1 transition"
+                                title="Eliminar cuenta"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  ))}
+
+                        {/* Asistente de Cotización Directa si difiere de la Moneda Global */}
+                        {acc.currencyNative !== currency && (
+                          <div className="mt-2 p-2.5 rounded-control bg-surface-1 border border-border/80 text-xs space-y-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 text-text-secondary">
+                                <span className="inline-flex items-center gap-1 font-semibold text-accent">
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                  Tipo de cambio directo:
+                                </span>
+                                <span className="font-mono font-medium text-text-primary">
+                                  1 {currency} = {directRates[acc.currencyNative]?.rate ?? 1} {acc.currencyNative}
+                                </span>
+                                <span className="text-[10px] text-text-muted">
+                                  ({directRates[acc.currencyNative]?.mode === 'manual' ? 'Personalizada / Mercado' : 'En vivo'})
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => toggleCustomRate(acc.currencyNative)}
+                                className="text-xs text-accent hover:underline font-medium"
+                              >
+                                {directRates[acc.currencyNative]?.mode === 'manual'
+                                  ? 'Restablecer a oficial'
+                                  : 'Ajustar cotización manual'}
+                              </button>
+                            </div>
+
+                            {directRates[acc.currencyNative]?.mode === 'manual' && (
+                              <div className="flex items-center gap-2 pt-1 border-t border-border-subtle">
+                                <label className="text-[11px] text-text-secondary">
+                                  1 {currency} equivale a:
+                                </label>
+                                <div className="flex items-center gap-1.5">
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    value={directRates[acc.currencyNative]?.rate ?? ''}
+                                    onChange={(e) =>
+                                      updateCustomRate(acc.currencyNative, parseFloat(e.target.value) || 0)
+                                    }
+                                    placeholder="Ej. 1280"
+                                    className="w-24 bg-surface-0 border border-border rounded-control px-2 py-1 text-xs font-mono text-text-primary focus:border-accent outline-none"
+                                  />
+                                  <span className="font-mono text-xs text-text-secondary">{acc.currencyNative}</span>
+                                </div>
+                                <span className="text-[10px] text-text-muted">
+                                  (Se usará en el Dashboard para consolidar tu patrimonio)
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Previsualización del Saldo Convertido */}
+                            {acc.initialBalance && !isNaN(parseFloat(acc.initialBalance)) && parseFloat(acc.initialBalance) > 0 && (
+                              <div className="text-[11px] text-text-secondary pt-0.5">
+                                Saldo nominal: <span className="font-mono font-medium">{formatMoney(parseFloat(acc.initialBalance), acc.currencyNative)}</span>
+                                {' '}≈{' '}
+                                <span className="font-mono font-semibold text-accent">
+                                  {formatMoney(
+                                    parseFloat(acc.initialBalance) / (directRates[acc.currencyNative]?.rate || 1),
+                                    currency
+                                  )}
+                                </span>
+                                {' '}<span className="text-text-muted">(en tu moneda de referencia {currency})</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
 
                     <button
                       type="button"

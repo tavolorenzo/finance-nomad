@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { Sparkles, X, Check, FileText, AlertCircle, Trash2, Users, Coins } from 'lucide-react'
 import { parseCreditCardStatement, type ParsedCardMovement } from '@/lib/parsers/card-statement-parser'
 import { formatMoney } from '@/lib/currency'
+import type { AccountType } from '@/lib/types'
 
 interface SmartPasteModalProps {
   isOpen: boolean
@@ -13,12 +14,21 @@ interface SmartPasteModalProps {
   availableCurrencies?: string[]
   categories: { id: string; name: string }[]
   people: { id: string; name: string }[]
+  accountType?: AccountType
+  title?: string
+  description?: string
 }
 
-const EXAMPLE_TEXT = `12/10/2026 COTO SUC 123 $ 14.500,00
+const EXAMPLE_TEXT_CARD = `12/10/2026 COTO SUC 123 $ 14.500,00
 10/11/25 5029 NICO RENT A CAR 12/12 USD 137,38
 27/08/26 5045 SUPERMERCADOS EL DOR 2/ 3 UYU 1263,87
 20/10/26 5029 REINTEGRO PROMO -2.500,00`
+
+const EXAMPLE_TEXT_BANK = `12/10/2026 TRANSFERENCIA ENVIADA A JUAN -15.000,00
+13/10/2026 SUELDO HABERES EMPRESA SA 850.000,00
+14/10/2026 DEBITO AUTOMATICO METROGAS -3.420,50
+15/10/2026 COTO SUC 123 -14.500,00
+16/10/2026 TRANSFERENCIA RECIBIDA 25.000,00`
 
 export function SmartPasteModal({
   isOpen,
@@ -27,10 +37,14 @@ export function SmartPasteModal({
   defaultCurrency,
   availableCurrencies,
   categories,
-  people
+  people,
+  accountType = 'credit_card',
+  title,
+  description
 }: SmartPasteModalProps) {
   const [rawText, setRawText] = useState('')
   const [currencyOverride, setCurrencyOverride] = useState<string>('')
+  const isBankAccount = Boolean(accountType && accountType !== 'credit_card')
 
   const currencyOptions = useMemo(() => {
     const base = availableCurrencies && availableCurrencies.length > 0
@@ -43,6 +57,7 @@ export function SmartPasteModal({
   const otherPeople = people.filter((p) => p.name.trim().toLowerCase() !== 'personal')
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(personalPerson?.id || null)
   const [rowPersonOverrides, setRowPersonOverrides] = useState<Record<number, string | null>>({})
+  const [rowTypeOverrides, setRowTypeOverrides] = useState<Record<number, boolean>>({})
 
   useEffect(() => {
     if (!isOpen) return
@@ -56,21 +71,28 @@ export function SmartPasteModal({
   const baseParsedItems = useMemo(() => {
     if (!rawText.trim()) return []
     return parseCreditCardStatement(rawText, {
+      accountType,
       defaultCurrency: currencyOverride || defaultCurrency,
       forceCurrency: currencyOverride || null,
       defaultPersonId: selectedPersonId,
       categories,
       people
     })
-  }, [rawText, defaultCurrency, currencyOverride, selectedPersonId, categories, people])
+  }, [rawText, accountType, defaultCurrency, currencyOverride, selectedPersonId, categories, people])
 
   const parsedItems = useMemo(() => {
-    return baseParsedItems.map((item, idx) => ({
-      ...item,
-      personId:
-        rowPersonOverrides[idx] !== undefined ? rowPersonOverrides[idx] : item.personId
-    }))
-  }, [baseParsedItems, rowPersonOverrides])
+    return baseParsedItems.map((item, idx) => {
+      const isRefundEffective =
+        rowTypeOverrides[idx] !== undefined ? rowTypeOverrides[idx] : Boolean(item.isRefund)
+      return {
+        ...item,
+        isRefund: isRefundEffective,
+        type: (isRefundEffective ? 'INCOME' : 'OUTCOME') as 'INCOME' | 'OUTCOME',
+        personId:
+          rowPersonOverrides[idx] !== undefined ? rowPersonOverrides[idx] : item.personId
+      }
+    })
+  }, [baseParsedItems, rowPersonOverrides, rowTypeOverrides])
 
   if (!isOpen) return null
 
@@ -79,13 +101,31 @@ export function SmartPasteModal({
     onApply(parsedItems)
     setRawText('')
     setRowPersonOverrides({})
+    setRowTypeOverrides({})
     onClose()
   }
 
   function handlePasteExample() {
-    setRawText(EXAMPLE_TEXT)
+    setRawText(isBankAccount ? EXAMPLE_TEXT_BANK : EXAMPLE_TEXT_CARD)
     setRowPersonOverrides({})
+    setRowTypeOverrides({})
   }
+
+  function toggleRowRefund(idx: number, currentVal: boolean) {
+    setRowTypeOverrides((prev) => ({
+      ...prev,
+      [idx]: !currentVal
+    }))
+  }
+
+  const modalTitle =
+    title ||
+    (isBankAccount ? 'Pegado Mágico de Home Banking' : 'Pegado Mágico de Resumen')
+  const modalDescription =
+    description ||
+    (isBankAccount
+      ? 'Pegá movimientos de tu extracto bancario o home banking para importarlos al instante.'
+      : 'Pegá líneas de tu homebanking, resumen bancario o emails de compra.')
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
@@ -98,10 +138,10 @@ export function SmartPasteModal({
             </div>
             <div>
               <h3 className="font-display text-base font-bold text-text-primary">
-                Pegado Mágico de Resumen
+                {modalTitle}
               </h3>
               <p className="text-xs text-text-secondary">
-                Pegá líneas de tu homebanking, resumen bancario o emails de compra.
+                {modalDescription}
               </p>
             </div>
           </div>
@@ -203,7 +243,7 @@ export function SmartPasteModal({
           <textarea
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
-            placeholder={`Pegá acá el texto copiado de tu banco, por ejemplo:\n${EXAMPLE_TEXT}`}
+            placeholder={`Pegá acá el texto copiado de tu banco, por ejemplo:\n${isBankAccount ? EXAMPLE_TEXT_BANK : EXAMPLE_TEXT_CARD}`}
             className="w-full h-32 bg-surface-1 border border-border rounded-control p-3 text-xs font-mono text-text-primary focus:border-accent outline-none resize-none leading-relaxed"
             autoFocus
           />
@@ -239,10 +279,15 @@ export function SmartPasteModal({
                 return (
                   <div
                     key={item.id || idx}
-                    className={`pt-1.5 flex items-center justify-between text-xs gap-2 ${item.isRefund
-                        ? 'bg-pending/10 px-2 py-1.5 rounded-control border border-pending/30'
+                    className={`pt-1.5 flex items-center justify-between text-xs gap-2 ${
+                      item.isRefund
+                        ? isBankAccount
+                          ? 'bg-income/10 px-2 py-1.5 rounded-control border border-income/30'
+                          : 'bg-pending/10 px-2 py-1.5 rounded-control border border-pending/30'
+                        : isBankAccount
+                        ? 'bg-surface-1/40 px-2 py-1.5 rounded-control border border-border/60'
                         : ''
-                      }`}
+                    }`}
                   >
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <span className="font-mono text-text-muted text-[11px] shrink-0">
@@ -251,12 +296,32 @@ export function SmartPasteModal({
                       <span className="font-medium text-text-primary truncate">
                         {item.description}
                       </span>
-                      {item.isRefund && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-pending/20 text-pending shrink-0 border border-pending/30">
-                          Pago / Refund
-                        </span>
+                      {isBankAccount ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleRowRefund(idx, Boolean(item.isRefund))}
+                          title="Hacé clic para alternar entre Gasto e Ingreso"
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 border transition cursor-pointer ${
+                            item.isRefund
+                              ? 'bg-income/20 text-income border-income/40 hover:bg-income/30'
+                              : 'bg-surface-2 text-text-secondary border-border hover:bg-surface-0'
+                          }`}
+                        >
+                          {item.isRefund ? 'Ingreso' : 'Gasto'}
+                        </button>
+                      ) : (
+                        item.isRefund && (
+                          <button
+                            type="button"
+                            onClick={() => toggleRowRefund(idx, Boolean(item.isRefund))}
+                            title="Hacé clic para alternar reintegro"
+                            className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-pending/20 text-pending shrink-0 border border-pending/30 hover:opacity-80 transition cursor-pointer"
+                          >
+                            Pago / Refund
+                          </button>
+                        )
                       )}
-                      {item.installmentTotal > 1 && (
+                      {!isBankAccount && item.installmentTotal > 1 && (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-pending/10 text-pending shrink-0 border border-pending/20">
                           {item.installmentCurrent}/{item.installmentTotal}
                         </span>
@@ -280,10 +345,11 @@ export function SmartPasteModal({
                               [idx]: nextPersonId
                             }))
                           }}
-                          className={`h-7 rounded-control px-2 text-[11px] outline-none transition ${isAssignedToOther
+                          className={`h-7 rounded-control px-2 text-[11px] outline-none transition ${
+                            isAssignedToOther
                               ? 'bg-accent/15 border border-accent/40 text-accent font-semibold'
                               : 'bg-surface-0 border border-border text-text-secondary focus:border-accent'
-                            }`}
+                          }`}
                         >
                           <option value={personalPerson?.id || ''}>Personal</option>
                           {otherPeople.map((p) => (
@@ -294,10 +360,17 @@ export function SmartPasteModal({
                         </select>
                       )}
                       <span
-                        className={`font-mono tabular-nums font-semibold amount shrink-0 min-w-[80px] text-right ${item.isRefund ? 'text-income' : 'text-expense'
-                          }`}
+                        className={`font-mono tabular-nums font-semibold amount shrink-0 min-w-[80px] text-right ${
+                          item.isRefund ? 'text-income' : 'text-expense'
+                        }`}
                       >
-                        {item.isRefund ? '-' : ''}
+                        {isBankAccount
+                          ? item.isRefund
+                            ? '+'
+                            : '-'
+                          : item.isRefund
+                          ? '-'
+                          : ''}
                         {formatMoney(item.amount, item.currency)}
                       </span>
                     </div>

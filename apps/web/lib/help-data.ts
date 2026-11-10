@@ -23,7 +23,7 @@ export interface FaqItem {
   id: string
   question: string
   answer: string
-  category: 'core' | 'accounts' | 'cards' | 'people' | 'budget' | 'offline' | 'loans'
+  category: 'core' | 'accounts' | 'cards' | 'people' | 'budget' | 'offline' | 'loans' | 'transactions' | 'analytics'
   categoryLabel: string
   tags: string[]
   relatedWikiSlug?: string
@@ -42,7 +42,7 @@ export interface QuickGuide {
 export const HELP_CATEGORIES = [
   { id: 'all', label: 'Todo' },
   { id: 'core', label: 'Multi-moneda (FX)' },
-  { id: 'cards', label: 'Tarjetas & Cuotas' },
+  { id: 'cards', label: 'Tarjetas de crédito & Cuotas' },
   { id: 'loans', label: 'Préstamos & Marcha' },
   { id: 'people', label: 'Personas & Cobros' },
   { id: 'accounts', label: 'Cuentas & Bancos' },
@@ -53,6 +53,42 @@ export const HELP_CATEGORIES = [
 ] as const
 
 export const WIKI_ARTICLES: WikiArticle[] = [
+  {
+    id: 'wiki-dashboard',
+    slug: 'dashboard-principal-y-torre-de-control',
+    title: 'Dashboard Principal y Torre de Control',
+    category: 'core',
+    categoryLabel: 'Multi-moneda (FX)',
+    iconName: 'LayoutDashboard',
+    badge: 'Torre de Control',
+    targetRoute: '/dashboard',
+    targetLabel: 'Ir al Dashboard',
+    summary: 'El centro de comando diario de Finance Nomad: separación de liquidez y tarjetas, balances desglosados, gastos propios vs. terceros y vista rápida de préstamos.',
+    sections: [
+      {
+        title: 'Franja de Balances y KPIs Estratégicos',
+        content: 'La parte superior del Dashboard resume tus cuatro métricas vitales: Patrimonio Neto consolidado, Flujo de Caja (Cash Flow) del período, Total Adeudado (tarjetas y cuotas de préstamos tomados) y Cuentas por Cobrar (gastos compartidos asumidos por terceros y préstamos otorgados).'
+      },
+      {
+        title: 'Separación Nítida: Cuentas vs. Tarjetas de Crédito',
+        content: 'Tus cuentas bancarias, cajas de ahorro y efectivo se visualizan en un bloque independiente enfocado en tu liquidez inmediata disponible. Las tarjetas de crédito se agrupan en su propio espacio mostrando el saldo corriente a pagar, su marca de red y el estado del período contable o alerta de resumen.'
+      },
+      {
+        title: 'Alternador de Período: Mes Actual vs. Últimos 30 Días',
+        content: 'Para evitar el punto ciego del cambio de mes cuando el calendario arranca en día 1 o 2, podés alternar con un toque entre "Mes actual" y "Últimos 30 días". Las métricas de ingresos, egresos y categorías se recalculan al instante.'
+      },
+      {
+        title: 'Gastos Propios vs. Asumidos por Terceros',
+        content: 'El widget de radiografía de gastos discrimina tu consumo personal real de lo que pagaste por cuenta de amigos o familiares en salidas grupales. El gráfico por categorías refleja estrictamente tus gastos propios para no distorsionar tu costo de vida.',
+        tip: 'Tocá "Por Cobrar" o el botón de terceros para ir a /people y asentar reintegros recibidos en un toque.'
+      },
+      {
+        title: 'Vista Rápida de Préstamos',
+        content: 'Monitoreá tus préstamos activos tomados y otorgados sin salir del Dashboard, con alerta destacada de la próxima cuota a vencer indicando fecha, monto y contraparte.'
+      }
+    ],
+    relatedFaqIds: ['faq-dashboard-periods', 'faq-dashboard-third-party', 'faq-dashboard-card-debt', 'faq-fx-dashboard']
+  },
   {
     id: 'wiki-fx',
     slug: 'multi-moneda-y-cotizaciones',
@@ -90,16 +126,16 @@ export const WIKI_ARTICLES: WikiArticle[] = [
     slug: 'tarjetas-de-credito-y-cuotas',
     title: 'Tarjetas de Crédito y Cuotas Diferidas',
     category: 'cards',
-    categoryLabel: 'Tarjetas & Cuotas',
+    categoryLabel: 'Tarjetas de crédito & Cuotas',
     iconName: 'CreditCard',
     badge: 'Contabilidad Precisa',
     targetRoute: '/cards',
-    targetLabel: 'Ir al Centro de Tarjetas',
+    targetLabel: 'Ir al Centro de Tarjetas de Crédito',
     summary: 'Centro de control unificado (/cards), sistema de cuotas automáticas (1 de N), curva de liberación de cuotas y liquidación de resúmenes.',
     sections: [
       {
-        title: 'Centro de Control y Análisis de Tarjetas (/cards)',
-        content: 'Cuando tenés al menos una tarjeta de crédito configurada, se habilita en el menú principal la vista "Tarjetas" (/cards). Allí podés analizar en un solo lugar el total de tus resúmenes del período contable elegido, cuánto corresponde a tus gastos propios ("Personal") frente a consumos de terceros (extensiones), la utilización global de tu límite de crédito y una matriz visual que simula cada plástico detectando automáticamente el sello de la red (VISA, AMEX, Mastercard o Maestro) a partir del nombre de la cuenta.',
+        title: 'Centro de Control y Análisis de Tarjetas de Crédito (/cards)',
+        content: 'Cuando tenés al menos una tarjeta de crédito configurada, se habilita en el menú principal la vista "Tarjetas de crédito" (/cards). Allí podés analizar en un solo lugar el total de tus resúmenes del período contable elegido, cuánto corresponde a tus gastos propios ("Personal") frente a consumos de terceros (extensiones), la utilización global de tu límite de crédito y una matriz visual que simula cada plástico detectando automáticamente el sello de la red (VISA, AMEX, Mastercard o Maestro) a partir del nombre de la cuenta.',
         tip: 'Desde cada tarjeta en /cards podés disparar en 1 clic la verificación del resumen, la carga rápida en bloque o el registro del pago mensual.'
       },
       {
@@ -190,9 +226,19 @@ export const WIKI_ARTICLES: WikiArticle[] = [
         title: 'Ajuste Express de Saldo',
         content: 'Si tu saldo en la app no coincide con tu extracto bancario real (por ejemplo por propinas, redondeos o comisiones chicas), tocá "Ajuste Express" en la cuenta. Ingresá el saldo real del banco y el sistema generará automáticamente una fila contable de tipo ADJUSTMENT por la diferencia exacta, sin borrar ni alterar tu historial previo.',
         tip: 'Por seguridad contable, las instituciones y cuentas nunca se borran físicamente (soft delete: is_active = false) para no dejar transacciones huérfanas.'
+      },
+      {
+        title: 'Navegación por Período Contable e Historial Filtrado',
+        content: 'Al ingresar al detalle de cualquier cuenta o tarjeta (/accounts/{id}), contás con una barra de control de Período Contable idéntica a la del Centro de Tarjetas de Crédito. Podés avanzar o retroceder entre meses (o volver al mes actual con un clic) para analizar los consumos del resumen en tarjetas de crédito o el balance mensual de ingresos y débitos en cuentas bancarias. También podés alternar el historial entre "Este período" y "Todos los movimientos".',
+        tip: 'Al pasar de Tarjetas de crédito al detalle de una cuenta, el período contable seleccionado se conserva automáticamente en la URL (?period=YYYY-MM).'
+      },
+      {
+        title: 'Carga Rápida y Pegado Mágico de Home Banking',
+        content: 'Desde la ficha de cualquier cuenta bancaria, caja de ahorro, cuenta corriente o billetera (/accounts/{id}), tocá el botón "Carga rápida" para registrar múltiples movimientos en bloque o volcar directamente el extracto de tu home banking. El Pegado Mágico interpreta fechas (incluyendo formatos con puntos como DD.MM.AAAA), conceptos, montos y signos (+ para ingresos y - para gastos o débitos), sugiriendo categorías en tiempo real y permitiéndote alternar entre Gasto e Ingreso antes de asentar los movimientos en el ledger.',
+        tip: 'El cálculo en vivo del bloque te muestra el Total de Gastos, Total de Ingresos y el Saldo Neto resultante que impactará en tu cuenta.'
       }
     ],
-    relatedFaqIds: ['faq-acc-cash', 'faq-acc-express', 'faq-acc-delete']
+    relatedFaqIds: ['faq-acc-cash', 'faq-acc-express', 'faq-acc-delete', 'faq-acc-period', 'faq-acc-bulk', 'faq-acc-magic-paste']
   },
   {
     id: 'wiki-ledger',
@@ -217,9 +263,14 @@ export const WIKI_ARTICLES: WikiArticle[] = [
       {
         title: 'Cálculo Reactivo: Baseline + Delta',
         content: 'Para ofrecer velocidad extrema sin consumir datos móviles excesivos, la app nunca descarga historiales completos de años pasados: toma un saldo base (Baseline) calculado en base de datos y le suma los deltas de las operaciones locales pendientes de sincronizar.'
+      },
+      {
+        title: 'Paginación de Historial y Prevención de Scroll Infinito',
+        content: 'Para evitar listas interminables y acelerar la navegación en dispositivos móviles, tanto la vista general de Movimientos (/transactions) como las fichas de Cuentas y Personas presentan paginación automática (en bloques de 20 movimientos y 10 en cobros históricos). Podés avanzar o retroceder entre páginas al instante y solicitar más movimientos del servidor cuando llegues al final de los registros ya cargados.',
+        tip: 'El control de paginación te muestra en todo momento el rango exacto visible y el total de movimientos registrados.'
       }
     ],
-    relatedFaqIds: ['faq-ledger-types', 'faq-ledger-speed', 'faq-offline-sync']
+    relatedFaqIds: ['faq-ledger-types', 'faq-ledger-speed', 'faq-offline-sync', 'faq-transactions-pagination']
   },
   {
     id: 'wiki-analytics',
@@ -245,9 +296,14 @@ export const WIKI_ARTICLES: WikiArticle[] = [
         title: 'Filtros de Período Rápido',
         content: 'Alterná con un toque entre "Este mes", "Últimos 3 meses", "Últimos 6 meses", "Este año" o "Histórico completo" para evaluar tu evolución a lo largo del viaje.',
         tip: 'Todos los gráficos se sincronizan de inmediato con las nuevas transacciones cargadas en modo local.'
+      },
+      {
+        title: 'Master Switch: Gastos Propios vs. Terceros',
+        content: 'En la cabecera contás con el alternador "Solo personales" y "Todos". Con "Solo personales" activo, la pantalla aísla tu costo de vida real excluyendo consumos realizados por cuenta de amigos, familiares o extensiones de tarjeta (gastos compartidos a cobrar). Si querés auditar el flujo bruto total que movieron tus cuentas, cambiá a "Todos".',
+        tip: 'Si tenés movimientos de terceros en el período, el sistema te muestra discretamente al lado del switch cuántos consumos fueron excluidos.'
       }
     ],
-    relatedFaqIds: ['faq-analytics-filters', 'faq-analytics-currencies']
+    relatedFaqIds: ['faq-analytics-filters', 'faq-analytics-currencies', 'faq-analytics-scope-switch']
   },
   {
     id: 'wiki-categories',
@@ -393,6 +449,33 @@ export const FAQ_ITEMS: FaqItem[] = [
     relatedWikiSlug: 'multi-moneda-y-cotizaciones'
   },
   {
+    id: 'faq-dashboard-periods',
+    question: '¿Cómo funciona el alternador entre "Mes actual" y "Últimos 30 días" en el Dashboard?',
+    answer: 'El switch superior te permite cambiar la ventana de tiempo del Dashboard en un clic: "Mes actual" computa desde el día 1 del mes calendario hasta fin de mes; "Últimos 30 días" toma los 30 días corridos hasta hoy. Esto resulta ideal para los primeros días del mes cuando necesitás ver tu flujo reciente sin perder perspectiva.',
+    category: 'core',
+    categoryLabel: 'Multi-moneda (FX)',
+    tags: ['dashboard', 'período', 'mes actual', '30 días', 'cash flow'],
+    relatedWikiSlug: 'dashboard-principal-y-torre-de-control'
+  },
+  {
+    id: 'faq-dashboard-third-party',
+    question: '¿Por qué el Dashboard separa mis gastos propios de los gastos de terceros?',
+    answer: 'Porque cuando pagás una cena o un viaje grupal con tu tarjeta, el dinero sale de tu plástico pero no es un consumo personal tuyo, sino un crédito a tu favor que te van a reintegrar. Separarlo en la Radiografía de Gastos evita que tu costo de vida parezca falsamente inflado y te indica exactamente cuánto dinero tenés en la calle para cobrar.',
+    category: 'people',
+    categoryLabel: 'Personas & Cobros',
+    tags: ['dashboard', 'terceros', 'gastos compartidos', 'consumo propio', 'por cobrar'],
+    relatedWikiSlug: 'dashboard-principal-y-torre-de-control'
+  },
+  {
+    id: 'faq-dashboard-card-debt',
+    question: '¿Cómo se calcula el "Total Adeudado" en el Dashboard?',
+    answer: 'Utiliza un cálculo híbrido: muestra en valor principal la deuda corriente a pagar (saldo deudor actual de tus tarjetas de crédito más cuotas impagas de préstamos tomados) y detalla debajo el total de cuotas futuras ya comprometidas en compras a plazo, dándote control inmediato sin perder de vista tu pasivo total.',
+    category: 'cards',
+    categoryLabel: 'Tarjetas de crédito & Cuotas',
+    tags: ['dashboard', 'adeudado', 'deuda', 'tarjetas', 'préstamos', 'cuotas futuras'],
+    relatedWikiSlug: 'dashboard-principal-y-torre-de-control'
+  },
+  {
     id: 'faq-fx-custom-currency',
     question: '¿Cómo agrego una moneda regional o personalizada (ej. Pesos Argentinos - ARS)?',
     answer: 'Andá a Ajustes > "Mis Divisas Activas" y tocá "+ Agregar divisa". Se abrirá el catálogo con más de 30 monedas del mundo (ARS, BRL, CLP, COP, MXN, etc.) con buscador en vivo. Seleccionala y quedará disponible de inmediato en todos tus formularios de cuentas y movimientos.',
@@ -413,9 +496,9 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     id: 'faq-card-analytics-center',
     question: '¿Dónde puedo ver todas mis tarjetas juntas, cuándo libero cuotas y cuánto gastaron terceros?',
-    answer: 'En la sección "Tarjetas" (/cards) del menú principal (que se activa automáticamente cuando tenés al menos una tarjeta de crédito creada). Ahí vas a encontrar tus plásticos con detección automática de sello (VISA, AMEX, Mastercard o Maestro), el desglose entre tu consumo propio ("Personal") y el de terceros, la curva de liberación de cuotas a 6 o 12 meses y la tabla maestra de todos tus planes de cuotas activos.',
+    answer: 'En la sección "Tarjetas de crédito" (/cards) del menú principal (que se activa automáticamente cuando tenés al menos una tarjeta de crédito creada). Ahí vas a encontrar tus plásticos con detección automática de sello (VISA, AMEX, Mastercard o Maestro), el desglose entre tu consumo propio ("Personal") y el de terceros, la curva de liberación de cuotas a 6 o 12 meses y la tabla maestra de todos tus planes de cuotas activos.',
     category: 'cards',
-    categoryLabel: 'Tarjetas & Cuotas',
+    categoryLabel: 'Tarjetas de crédito & Cuotas',
     tags: ['tarjetas', 'análisis', 'cuotas futuras', 'liberación', 'visa', 'mastercard', 'amex', 'maestro', 'terceros'],
     relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
   },
@@ -424,7 +507,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: '¿Cómo registro una compra en cuotas con tarjeta de crédito?',
     answer: 'En el formulario de nuevo movimiento, seleccioná tu tarjeta de crédito y en el campo "Cuotas" elegí la cantidad de pagos (por ejemplo 3, 6 o 12). La app debitará la primera cuota hoy y agendará automáticamente las cuotas restantes mes a mes en estado pendiente.',
     category: 'cards',
-    categoryLabel: 'Tarjetas & Cuotas',
+    categoryLabel: 'Tarjetas de crédito & Cuotas',
     tags: ['tarjeta', 'cuotas', 'pagos', 'crédito', 'diferido'],
     relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
   },
@@ -433,7 +516,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: '¿Pagar el resumen de mi tarjeta cuenta como un gasto en mis reportes?',
     answer: 'No. Cuando compraste algo con la tarjeta, ese consumo ya se contabilizó en tus gastos. El pago del resumen se registra como una Transferencia desde tu cuenta bancaria hacia la tarjeta, disminuyendo tu deuda sin duplicar tus gastos en los reportes.',
     category: 'cards',
-    categoryLabel: 'Tarjetas & Cuotas',
+    categoryLabel: 'Tarjetas de crédito & Cuotas',
     tags: ['pago tarjeta', 'transferencia', 'presupuesto', 'consumo', 'duplicado'],
     relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
   },
@@ -442,7 +525,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: 'Si pago el resumen de octubre en los primeros días de noviembre, ¿a qué mes se imputa el pago?',
     answer: 'Al registrar el pago de tu tarjeta, podés seleccionar el "Resumen a cancelar (mes contable)" —por ejemplo Octubre—. La app registra la salida del dinero de tu cuenta bancaria en la fecha del pago (noviembre), pero imputa el crédito de cancelación al resumen seleccionado (octubre). Así, el estado de cuenta de octubre queda saldado y no absorbe pagos que distorsionen el resumen de noviembre.',
     category: 'cards',
-    categoryLabel: 'Tarjetas & Cuotas',
+    categoryLabel: 'Tarjetas de crédito & Cuotas',
     tags: ['pago tarjeta', 'mes contable', 'resumen', 'vencimiento', 'impago', 'deuda'],
     relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
   },
@@ -451,7 +534,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: '¿Qué pasa si una cuota futura cambia de fecha o se adelanta?',
     answer: 'Podés ingresar a la sección de Movimientos y editar cualquier cuota pendiente para ajustar su fecha o confirmarla inmediatamente como cobrada/pagada.',
     category: 'cards',
-    categoryLabel: 'Tarjetas & Cuotas',
+    categoryLabel: 'Tarjetas de crédito & Cuotas',
     tags: ['cuotas', 'fechas', 'adelantar', 'movimientos'],
     relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
   },
@@ -460,7 +543,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: '¿Cómo cargo los consumos actuales o cuotas viejas de mi tarjeta sin cargarlas una a una?',
     answer: 'Podés usar el Asistente de Carga Rápida ("Carga rápida" desde la ficha de tu tarjeta o el paso opcional post-onboarding). Te permite tipear múltiples filas en segundos con navegación ágil por teclado (Tab/Enter) o pegar directamente el texto copiado de tu resumen bancario. Además, cada consumo viene asignado a "Personal" por defecto, pero podés reasignarlo a un contacto si fue un gasto compartido a cobrar.',
     category: 'cards',
-    categoryLabel: 'Tarjetas & Cuotas',
+    categoryLabel: 'Tarjetas de crédito & Cuotas',
     tags: ['carga rápida', 'bulk', 'resumen', 'pegar texto', 'cuotas vigentes', 'tarjeta', 'personas', 'split pay'],
     relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
   },
@@ -469,7 +552,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: '¿Qué formato de texto reconoce el Pegado Mágico de resúmenes?',
     answer: 'Reconoce líneas que empiezan con la fecha (en formato DD/MM/AA, DD MM AA, DD-MM-AA, DD/MM/AAAA o DD/MM), seguidas opcionalmente por los 4 dígitos de la tarjeta (XXXX), la descripción del comercio, la cuota (ej. 12/12, 2/ 3, C.04/12 o Cuota 3 de 6), la moneda opcional (UYU, USD, EUR, ARS) y el importe final. Si el importe es negativo, se asume como un pago o reintegro (refund) y la fila se destaca visualmente. También podés usar el selector de moneda para asignarle una divisa a todas las filas cuando no viene indicada en cada línea.',
     category: 'cards',
-    categoryLabel: 'Tarjetas & Cuotas',
+    categoryLabel: 'Tarjetas de crédito & Cuotas',
     tags: ['pegado mágico', 'copiar y pegar', 'resumen bancario', 'parser', 'extracto', 'refund', 'moneda'],
     relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
   },
@@ -478,7 +561,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: '¿Qué pasa cuando compro con tarjeta después de la fecha de cierre?',
     answer: 'Al cargar un gasto con tarjeta de crédito vas a ver el selector "Mes contable (estado de cuenta)" con las opciones "Mes actual" y "Próximo mes". Si configuraste el día de cierre en tu tarjeta (por ejemplo, día 24) y cargás una compra del día 26, el sistema selecciona automáticamente "Próximo mes". Si la compra es en cuotas, todas las cuotas se desplazan en bloque a partir del próximo resumen.',
     category: 'cards',
-    categoryLabel: 'Tarjetas & Cuotas',
+    categoryLabel: 'Tarjetas de crédito & Cuotas',
     tags: ['mes contable', 'cierre', 'próximo mes', 'resumen', 'corte', 'cuotas', 'tarjeta'],
     relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
   },
@@ -487,7 +570,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: '¿Cómo verifico y concilio el estado de cuenta mensual de mi tarjeta?',
     answer: 'Entrá al detalle de tu tarjeta de crédito y tocá "Verificar resumen" (o accedé desde el banner recordatorio que aparece en el Dashboard durante los últimos 5 y primeros 5 días del mes). Vas a ver las pills con el total en moneda local y moneda extranjera, y debajo cada consumo con botones para Confirmar, Corregir el importe, Asignar al próximo mes (desplazando en cascada sus cuotas si aplica) o Agregar un gasto que no habías anotado.',
     category: 'cards',
-    categoryLabel: 'Tarjetas & Cuotas',
+    categoryLabel: 'Tarjetas de crédito & Cuotas',
     tags: ['verificar', 'conciliar', 'estado de cuenta', 'resumen', 'confirmar', 'corregir', 'próximo mes'],
     relatedWikiSlug: 'tarjetas-de-credito-y-cuotas'
   },
@@ -555,6 +638,33 @@ export const FAQ_ITEMS: FaqItem[] = [
     relatedWikiSlug: 'cuentas-instituciones-y-efectivo'
   },
   {
+    id: 'faq-acc-period',
+    question: '¿Cómo funciona el Período Contable dentro del detalle de una cuenta?',
+    answer: 'Al igual que en Tarjetas de crédito y Personas, el detalle de cada cuenta (/accounts/{id}) incluye un selector de Período Contable (YYYY-MM). Te permite revisar resúmenes anteriores o futuros, sincronizar la verificación del estado de cuenta y alternar entre los movimientos del mes activo o el historial completo.',
+    category: 'accounts',
+    categoryLabel: 'Cuentas & Bancos',
+    tags: ['período contable', 'cuentas', 'resumen', 'mes', 'filtro movimientos'],
+    relatedWikiSlug: 'cuentas-instituciones-y-efectivo'
+  },
+  {
+    id: 'faq-acc-bulk',
+    question: '¿Cómo importo movimientos de mi home banking o extracto en una cuenta?',
+    answer: 'Desde la ficha de tu cuenta bancaria o billetera (/accounts/{id}), tocá el botón "Carga rápida". Vas a ingresar a una grilla spreadsheet donde podés cargar movimientos por teclado o usar "Pegado Mágico" con el ícono de chispas. Pegá las líneas de texto copiadas de tu home banking o extracto; el sistema reconoce automáticamente fecha, comercio/concepto, monto, moneda y clasifica si es gasto (débito) o ingreso (sueldo, transferencia recibida).',
+    category: 'accounts',
+    categoryLabel: 'Cuentas & Bancos',
+    tags: ['carga rápida', 'home banking', 'extracto', 'pegado mágico', 'importar', 'banco', 'billetera', 'caja de ahorro'],
+    relatedWikiSlug: 'cuentas-instituciones-y-efectivo'
+  },
+  {
+    id: 'faq-acc-magic-paste',
+    question: '¿Cómo distingue el Pegado Mágico entre gastos e ingresos en cuentas bancarias?',
+    answer: 'En cuentas bancarias y billeteras, el motor interpreta los montos con signo negativo o palabras de débito/compra como gastos (OUTCOME), y los montos positivos con signo más o palabras como sueldo, haberes, acreditación o transferencia recibida como ingresos (INCOME). Además, en la vista previa del pegado podés hacer clic en la etiqueta de cada fila para conmutar directamente entre Gasto e Ingreso antes de volcar a la grilla.',
+    category: 'accounts',
+    categoryLabel: 'Cuentas & Bancos',
+    tags: ['pegado mágico', 'gastos', 'ingresos', 'signo', 'débito', 'crédito', 'conmutar', 'home banking'],
+    relatedWikiSlug: 'cuentas-instituciones-y-efectivo'
+  },
+  {
     id: 'faq-offline-airplane',
     question: '¿Puedo usar la aplicación en un avión o sin datos móviles?',
     answer: 'Sí, totalmente. Toda la carga de movimientos, cobros, cuotas y transferencias funciona offline gracias al almacenamiento local en IndexedDB. Al reconectarte a internet, tus operaciones se sincronizan automáticamente con el servidor.',
@@ -571,6 +681,15 @@ export const FAQ_ITEMS: FaqItem[] = [
     categoryLabel: 'Offline & Datos',
     tags: ['badge', 'sincronización', 'indicador', 'conexión'],
     relatedWikiSlug: 'modo-offline-y-sincronizacion'
+  },
+  {
+    id: 'faq-transactions-pagination',
+    question: '¿Por qué los movimientos se muestran paginados en lugar de una lista interminable?',
+    answer: 'Para prevenir el scroll infinito y mantener la interfaz ágil incluso con cientos o miles de operaciones registradas. Al paginar en bloques de 20 movimientos (y 10 en cobros de personas), el navegador consume menos memoria y renderiza fluidamente en cualquier teléfono. Podés recorrer las páginas con los botones Anterior/Siguiente o los números de página, y cargar lotes más antiguos cuando llegues al final.',
+    category: 'transactions',
+    categoryLabel: 'Movimientos & Ledger',
+    tags: ['paginación', 'páginas', 'histórico', 'scroll', 'movimientos', 'cuentas'],
+    relatedWikiSlug: 'libro-diario-y-zero-wait-ui'
   },
   {
     id: 'faq-cat-create',
@@ -624,6 +743,15 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'core',
     categoryLabel: 'Análisis & Reportes',
     tags: ['análisis', 'gráficos', 'conversión', 'divisas locales'],
+    relatedWikiSlug: 'analisis-reportes-y-kpis'
+  },
+  {
+    id: 'faq-analytics-scope-switch',
+    question: '¿Cómo excluyo los gastos de terceros o compartidos en mis reportes?',
+    answer: 'En la cabecera de Análisis (/analytics) disponés del Master Switch: elegí "Solo personales" para analizar estrictamente tus consumos y tasa de ahorro personal sin la distorsión de compras que hiciste a nombre de otras personas. Si seleccionás "Todos", vas a ver la totalidad de movimientos registrados.',
+    category: 'analytics',
+    categoryLabel: 'Análisis & Reportes',
+    tags: ['análisis', 'master switch', 'terceros', 'gastos compartidos', 'costo de vida', 'personales'],
     relatedWikiSlug: 'analisis-reportes-y-kpis'
   },
   {
@@ -714,22 +842,22 @@ export const QUICK_GUIDES: QuickGuide[] = [
   },
   {
     id: 'guide-pay-card-statement',
-    title: 'Pagar el resumen mensual de tu tarjeta',
-    description: 'Registrá la cancelación del resumen mensual de tu tarjeta eligiendo el mes contable a cancelar.',
+    title: 'Pagar el resumen mensual de tu tarjeta de crédito',
+    description: 'Registrá la cancelación del resumen mensual de tu tarjeta de crédito eligiendo el mes contable a cancelar.',
     iconName: 'CreditCard',
     route: '/cards',
-    routeLabel: 'Ir a Tarjetas',
+    routeLabel: 'Ir a Tarjetas de crédito',
     steps: [
-      'Entrá a "Tarjetas" (/cards) o al detalle de tu tarjeta de crédito desde Cuentas.',
+      'Entrá a "Tarjetas de crédito" (/cards) o al detalle de tu tarjeta de crédito desde Cuentas.',
       'Tocá el botón "Registrar pago" para abrir el modal transaccional.',
       'En "Resumen a cancelar (mes contable)", confirmá si pagás el resumen del mes anterior o el mes en curso (la app sugiere automáticamente el mes cerrado).',
       'Seleccioná la cuenta bancaria de origen de los fondos e ingresá o cargá el monto total de la deuda con el atajo "Pagar total".',
-      'Confirmá el pago: el débito se asienta en tu banco en la fecha real de la transferencia y el resumen de la tarjeta queda saldado sin duplicar gastos.'
+      'Confirmá el pago: el débito se asienta en tu banco en la fecha real de la transferencia y el resumen de la tarjeta de crédito queda saldado sin duplicar gastos.'
     ]
   },
   {
     id: 'guide-verify-statement',
-    title: 'Verificar y conciliar el resumen de tu tarjeta',
+    title: 'Verificar y conciliar el resumen de tu tarjeta de crédito',
     description: 'Compará tus gastos registrados contra el estado de cuenta mensual, corregí diferencias o pasá compras post-cierre al próximo mes.',
     iconName: 'CreditCard',
     route: '/accounts',
@@ -773,7 +901,7 @@ export const QUICK_GUIDES: QuickGuide[] = [
   },
   {
     id: 'guide-installments',
-    title: 'Registrar una compra en cuotas con tarjeta',
+    title: 'Registrar una compra en cuotas con tarjeta de crédito',
     description: 'Gestioná compras en varios pagos sin distorsionar tu saldo de dinero disponible hoy.',
     iconName: 'CreditCard',
     route: '/transactions/new',
@@ -856,7 +984,7 @@ export const QUICK_GUIDES: QuickGuide[] = [
   },
   {
     id: 'guide-card-bulk-ingest',
-    title: 'Cargar consumos y cuotas pendientes de tarjeta en bloque',
+    title: 'Cargar consumos y cuotas pendientes de tarjeta de crédito en bloque',
     description: 'Importá los consumos de tu resumen bancario o compras en cuotas en segundos con la grilla rápida o pegado de texto.',
     iconName: 'CreditCard',
     route: '/accounts',
@@ -868,6 +996,21 @@ export const QUICK_GUIDES: QuickGuide[] = [
       'Si tenés compras en cuotas intermedias (ej. cuota 4 de 12), seleccionalo en el chip de cuotas: se computará la cuota 4 en el resumen y se agendarán automáticamente las cuotas 5 a 12 en meses futuros.',
       'Si pagaste gastos de un contacto, reasigná la columna Persona de "Personal" al contacto: se computará a cobrar y podrás ver el desglose en vivo.',
       'Verificá el cálculo en vivo de impacto financiero y tocá "Guardar consumos".'
+    ]
+  },
+  {
+    id: 'guide-account-bulk-ingest',
+    title: 'Importar movimientos de home banking en una cuenta con Pegado Mágico',
+    description: 'Copia y pegá los movimientos de tu extracto bancario o billetera para registrar ingresos y gastos en bloque.',
+    iconName: 'Wallet',
+    route: '/accounts',
+    routeLabel: 'Ir a Cuentas',
+    steps: [
+      'Ingresá a Cuentas y abrí tu cuenta bancaria, caja de ahorro o billetera.',
+      'Tocá el botón "Carga rápida" con el ícono de chispas en la cabecera.',
+      'Presioná "Pegado Mágico" y pegá las líneas copiadas de tu home banking (o tocá "Cargar ejemplo" para ver el formato).',
+      'Revisá la vista previa: el detector clasifica automáticamente si es Gasto o Ingreso y sugiere categorías.',
+      'Hacé clic en "Volcar a la grilla", revisá el impacto financiero en vivo y tocá "Guardar movimientos".'
     ]
   }
 ]

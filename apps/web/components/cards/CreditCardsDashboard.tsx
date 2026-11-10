@@ -420,7 +420,7 @@ export function CreditCardsDashboard({
             onChange={(e) => setSelectedCardFilter(e.target.value)}
             className="text-xs py-1.5 px-2.5 rounded-control bg-surface-2 border border-border text-text-primary"
           >
-            <option value="ALL">Todas las tarjetas ({activeCards.length})</option>
+            <option value="ALL">Todas las tarjetas de crédito ({activeCards.length})</option>
             {activeCards.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.institutions?.name ? `${c.institutions.name} · ` : ''}
@@ -432,7 +432,7 @@ export function CreditCardsDashboard({
       </div>
 
       {/* ── BLOQUE A: KPIs Globales Consolidados ── */}
-      <section aria-label="Resumen consolidado de tarjetas" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <section aria-label="Resumen consolidado de tarjetas de crédito" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KPI 1: Total del Resumen del Período */}
         <div className="bg-surface-1 border border-border rounded-card p-4 space-y-2.5">
           <div className="flex items-center justify-between">
@@ -563,13 +563,12 @@ export function CreditCardsDashboard({
 
           <div className="w-full h-1.5 bg-surface-2 rounded-full overflow-hidden">
             <div
-              className={`h-full transition-all ${
-                globalKpis.globalUtilizationPct > 75
+              className={`h-full transition-all ${globalKpis.globalUtilizationPct > 75
                   ? 'bg-expense'
                   : globalKpis.globalUtilizationPct >= 30
-                  ? 'bg-pending'
-                  : 'bg-income'
-              }`}
+                    ? 'bg-pending'
+                    : 'bg-income'
+                }`}
               style={{ width: `${globalKpis.globalUtilizationPct}%` }}
             />
           </div>
@@ -581,7 +580,7 @@ export function CreditCardsDashboard({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-display text-base font-semibold tracking-tight text-text-primary">
-              Tus Tarjetas ({activeCards.length})
+              Tus Tarjetas de crédito ({activeCards.length})
             </h2>
             <p className="text-xs text-text-muted">
               Estado individual en {formatAccountingPeriodLabel(selectedPeriod)}, límite disponible y acciones rápidas
@@ -592,7 +591,7 @@ export function CreditCardsDashboard({
             className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
           >
             <Plus size={14} />
-            <span>Nueva tarjeta</span>
+            <span>Nueva tarjeta de crédito</span>
           </Link>
         </div>
 
@@ -611,9 +610,8 @@ export function CreditCardsDashboard({
             return (
               <div
                 key={account.id}
-                className={`bg-surface-1 border rounded-card overflow-hidden flex flex-col justify-between transition ${
-                  isSelectedFilter ? 'border-accent ring-1 ring-accent/30' : 'border-border'
-                }`}
+                className={`bg-surface-1 border rounded-card overflow-hidden flex flex-col justify-between transition ${isSelectedFilter ? 'border-accent ring-1 ring-accent/30' : 'border-border'
+                  }`}
               >
                 {/* Parte superior: Simulación estética de plástico de tarjeta de crédito */}
                 <div className="p-5 bg-surface-2/60 border-b border-border space-y-4 relative">
@@ -627,7 +625,7 @@ export function CreditCardsDashboard({
                         <span className="font-mono">{account.currency_native}</span>
                       </div>
                       <Link
-                        href={`/accounts/${account.id}`}
+                        href={`/accounts/${account.id}?period=${selectedPeriod}`}
                         className="font-display text-lg font-bold tracking-tight text-text-primary hover:text-accent transition block"
                       >
                         {account.name}
@@ -654,22 +652,20 @@ export function CreditCardsDashboard({
                       ) : null}
                       {closingInfo && (
                         <span
-                          className={`text-[11px] px-2 py-0.5 rounded-full font-medium border ${
-                            closingInfo.daysUntilClosing <= 3
+                          className={`text-[11px] px-2 py-0.5 rounded-full font-medium border ${closingInfo.daysUntilClosing <= 3
                               ? 'bg-pending/15 border-pending/30 text-pending'
                               : 'bg-surface-1 border-border text-text-secondary'
-                          }`}
+                            }`}
                         >
                           {closingInfo.label}
                         </span>
                       )}
                       {summary.totalPeriodItems > 0 && (
                         <span
-                          className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium border ${
-                            summary.verifiedPeriodItems === summary.totalPeriodItems
+                          className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium border ${summary.verifiedPeriodItems === summary.totalPeriodItems
                               ? 'bg-income/15 border-income/30 text-income'
                               : 'bg-surface-1 border-border text-text-secondary'
-                          }`}
+                            }`}
                         >
                           <CheckCircle2 size={11} />
                           <span>
@@ -736,13 +732,12 @@ export function CreditCardsDashboard({
                       </div>
                       <div className="w-full h-1.5 bg-surface-2 rounded-full overflow-hidden">
                         <div
-                          className={`h-full transition-all ${
-                            summary.utilizationLevel === 'high'
+                          className={`h-full transition-all ${summary.utilizationLevel === 'high'
                               ? 'bg-expense'
                               : summary.utilizationLevel === 'moderate'
-                              ? 'bg-pending'
-                              : 'bg-accent'
-                          }`}
+                                ? 'bg-pending'
+                                : 'bg-accent'
+                            }`}
                           style={{ width: `${summary.utilizationPct}%` }}
                         />
                       </div>
@@ -797,7 +792,7 @@ export function CreditCardsDashboard({
                         <span>Carga rápida</span>
                       </Link>
                       <Link
-                        href={`/accounts/${account.id}`}
+                        href={`/accounts/${account.id}?period=${selectedPeriod}`}
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-control text-xs font-medium text-text-secondary hover:text-text-primary transition"
                       >
                         <span>Detalle</span>
@@ -839,22 +834,20 @@ export function CreditCardsDashboard({
             <button
               type="button"
               onClick={() => setRunoffHorizon(6)}
-              className={`px-2.5 py-1 text-xs rounded-control transition ${
-                runoffHorizon === 6
+              className={`px-2.5 py-1 text-xs rounded-control transition ${runoffHorizon === 6
                   ? 'bg-surface-1 text-text-primary font-semibold shadow-2xs'
                   : 'text-text-muted hover:text-text-primary'
-              }`}
+                }`}
             >
               6 meses
             </button>
             <button
               type="button"
               onClick={() => setRunoffHorizon(12)}
-              className={`px-2.5 py-1 text-xs rounded-control transition ${
-                runoffHorizon === 12
+              className={`px-2.5 py-1 text-xs rounded-control transition ${runoffHorizon === 12
                   ? 'bg-surface-1 text-text-primary font-semibold shadow-2xs'
                   : 'text-text-muted hover:text-text-primary'
-              }`}
+                }`}
             >
               12 meses
             </button>
@@ -882,11 +875,10 @@ export function CreditCardsDashboard({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') setSelectedPeriod(bucket.period)
                 }}
-                className={`p-3 rounded-control border transition cursor-pointer flex flex-col justify-between ${
-                  bucket.period === selectedPeriod
+                className={`p-3 rounded-control border transition cursor-pointer flex flex-col justify-between ${bucket.period === selectedPeriod
                     ? 'bg-surface-2 border-accent'
                     : 'bg-surface-2/40 border-border hover:border-text-muted'
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-between gap-1 mb-2">
                   <span className="text-xs font-display font-semibold text-text-primary">
@@ -1125,7 +1117,7 @@ export function CreditCardsDashboard({
           >
             <h3 className="font-display text-sm font-semibold text-text-primary flex items-center gap-1.5">
               <PieChart size={15} className="text-expense" />
-              <span>Rubros en Tarjeta ({formatAccountingPeriodLabel(selectedPeriod)})</span>
+              <span>Rubros en Tarjetas de crédito ({formatAccountingPeriodLabel(selectedPeriod)})</span>
             </h3>
 
             {breakdowns.categories.length === 0 ? (
@@ -1163,13 +1155,13 @@ export function CreditCardsDashboard({
       {inactiveCards.length > 0 && (
         <details className="pt-2">
           <summary className="text-xs font-medium text-text-muted cursor-pointer hover:text-text-primary transition select-none">
-            Tarjetas desactivadas ({inactiveCards.length})
+            Tarjetas de crédito desactivadas ({inactiveCards.length})
           </summary>
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 opacity-60">
             {inactiveCards.map((card) => (
               <Link
                 key={card.id}
-                href={`/accounts/${card.id}`}
+                href={`/accounts/${card.id}?period=${selectedPeriod}`}
                 className="p-3 rounded-card bg-surface-1 border border-border flex items-center justify-between text-xs"
               >
                 <div>

@@ -89,4 +89,36 @@ describe('TransactionsList', () => {
       expect(mockLoadMore).toHaveBeenCalled()
     })
   })
+
+  it('pagína a 20 movimientos por página e incluye controles de navegación', () => {
+    const twentyFiveTx: MasterTransaction[] = Array.from({ length: 25 }, (_, i) => ({
+      ...mockTx,
+      id: `tx-${i + 1}`,
+      notes: `Movimiento general ${i + 1}`
+    }))
+
+    vi.mocked(ledgerContext.useLedger).mockReturnValue({
+      recentTransactions: twentyFiveTx,
+      hasMoreTransactions: false,
+      loadMoreTransactions: mockLoadMore,
+      isInitialized: true
+    } as any)
+
+    render(<TransactionsList />)
+
+    expect(screen.getByText('Movimiento general 1')).toBeInTheDocument()
+    expect(screen.getByText('Movimiento general 20')).toBeInTheDocument()
+    expect(screen.queryByText('Movimiento general 21')).not.toBeInTheDocument()
+
+    // Control de paginación
+    expect(screen.getByLabelText('Paginación de resultados')).toBeInTheDocument()
+
+    // Ir a página 2
+    const nextBtn = screen.getByLabelText('Página siguiente')
+    fireEvent.click(nextBtn)
+
+    expect(screen.getByText('Movimiento general 21')).toBeInTheDocument()
+    expect(screen.getByText('Movimiento general 25')).toBeInTheDocument()
+    expect(screen.queryByText('Movimiento general 1')).not.toBeInTheDocument()
+  })
 })

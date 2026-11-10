@@ -5,8 +5,8 @@ import { CreditCardBulkWizard } from '@/components/credit-card-bulk/CreditCardBu
 import type { Account, Category, Person } from '@/lib/types'
 
 export const metadata = {
-  title: 'Carga Rápida de Tarjetas — Finance Nomad',
-  description: 'Cargá en bloque los consumos del resumen actual y compras en cuotas de tus tarjetas'
+  title: 'Carga Rápida de Tarjetas de Crédito — Finance Nomad',
+  description: 'Cargá en bloque los consumos del resumen actual y compras en cuotas de tus tarjetas de crédito'
 }
 
 export default async function WelcomeCreditCardPage() {

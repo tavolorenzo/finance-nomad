@@ -3,23 +3,38 @@
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  SlidersHorizontal,
-  ArrowRightLeft,
   Sparkles,
   X,
-  BarChart3,
-  ClipboardCheck
+  ClipboardCheck,
+  Plus,
+  Calendar,
+  BarChart3
 } from 'lucide-react'
-import { formatMoney } from '@/lib/currency'
 import { useLedger } from '@/lib/ledger/ledger-context'
 import { convertToDisplayCurrency } from '@/lib/networth'
+import { getCachedRate } from '@/lib/storage/fx-cache'
+import {
+  type DashboardPeriod,
+  type CurrencyConverterSync,
+  getDashboardPeriodRange,
+  computeDashboardCashFlow,
+  computeDashboardCategorySpending,
+  computeDashboardLiabilities,
+  computeDashboardReceivables,
+  computeQuickLoansSummary,
+  formatDateStr
+} from '@/lib/dashboard/metrics'
+import { DashboardKpiGrid } from './dashboard/DashboardKpiGrid'
+import { AccountsCardList } from './dashboard/AccountsCardList'
+import { CreditCardsSummaryList } from './dashboard/CreditCardsSummaryList'
+import { ExpensesAnalyticsWidget } from './dashboard/ExpensesAnalyticsWidget'
+import { QuickLoansWidget } from './dashboard/QuickLoansWidget'
+import { RecentTransactionsWidget } from './dashboard/RecentTransactionsWidget'
 import { OnboardingTour } from './OnboardingTour'
-import type { Account, MasterTransaction } from '@/lib/types'
+import type { Account, MasterTransaction, LoanWithInstallments, Person, Category } from '@/lib/types'
 import type { AccountBalance } from '@/lib/ledger/types'
 
-// Determina si la fecha cae en los primeros 5 días o los últimos 5 días del mes
+// Determina si la fecha cae en la ventana de verificación de resumen de tarjeta (primeros 5 o últimos 5 días)
 export function isStatementVerificationWindow(date = new Date()): boolean {
   const day = date.getDate()
   const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
@@ -35,10 +50,14 @@ interface DashboardEstimate {
 }
 
 interface DashboardClientProps {
-  initialAccounts: (Account & { institutions: { name: string } })[]
+  initialAccounts: (Account & { institutions?: { name: string } | null })[]
   initialBalances: AccountBalance[]
   initialTransactions: MasterTransaction[]
   initialEstimates: DashboardEstimate[]
+  initialLoans: LoanWithInstallments[]
+  initialPeople: Person[]
+  initialCategories: Category[]
+  initialCustomRates: Record<string, number>
   displayCurrency: string
   initialNetWorth: number
   initialRealSpent: number
@@ -47,15 +66,19 @@ interface DashboardClientProps {
 }
 
 export function DashboardClient({
-  initialAccounts,
-  initialBalances,
-  initialTransactions,
-  initialEstimates,
-  displayCurrency,
-  initialNetWorth,
-  initialRealSpent,
-  monthStart,
-  monthEnd
+  initialAccounts = [],
+  initialBalances = [],
+  initialTransactions = [],
+  initialEstimates = [],
+  initialLoans = [],
+  initialPeople = [],
+  initialCategories = [],
+  initialCustomRates = {},
+  displayCurrency = 'EUR',
+  initialNetWorth = 0,
+  initialRealSpent = 0,
+  monthStart = '',
+  monthEnd = ''
 }: DashboardClientProps) {
   const {
     balances: ledgerBalances,
@@ -65,9 +88,12 @@ export function DashboardClient({
     seedInitialData
   } = useLedger()
 
+  const [period, setPeriod] = useState<DashboardPeriod>('this_month')
   const [tourOpen, setTourOpen] = useState(false)
   const [showTourBanner, setShowTourBanner] = useState(false)
   const [dismissedCardBanner, setDismissedCardBanner] = useState(false)
+
+  const todayStr = useMemo(() => formatDateStr(new Date()), [])
 
   useEffect(() => {
     try {
@@ -89,7 +115,7 @@ export function DashboardClient({
     })
   }, [initialAccounts, initialBalances, initialTransactions, seedInitialData])
 
-  // Usar estado reactivo del ledger si está poblado, o datos iniciales del SSR
+  // Cuentas reactivas combinando SSR con mutaciones en IndexedDB
   const accounts = useMemo(() => {
     if (ledgerAccounts.length === 0) return initialAccounts
     const instMap = new Map(initialAccounts.map((a) => [a.id, a.institutions]))
@@ -98,13 +124,89 @@ export function DashboardClient({
       institutions: a.institutions ?? instMap.get(a.id)
     }))
   }, [ledgerAccounts, initialAccounts])
+
   const balances = ledgerBalances.length > 0 ? ledgerBalances : initialBalances
-  const transactions =
-    ledgerTransactions.length > 0 ? ledgerTransactions.slice(0, 5) : initialTransactions
+
+  // Transacciones combinadas (SSR + creadas localmente en IndexedDB)
+  const allTransactions = useMemo(() => {
+    const map = new Map<string, MasterTransaction>()
+    for (const t of initialTransactions) map.set(t.id, t)
+    for (const t of ledgerTransactions) map.set(t.id, t)
+    return Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date))
+  }, [initialTransactions, ledgerTransactions])
 
   const balanceByAccount = useMemo(() => {
     return new Map(balances.map((b) => [b.accountId, b.balance]))
   }, [balances])
+
+  const peopleById = useMemo(() => {
+    return new Map(initialPeople.map((p) => [p.id, p]))
+  }, [initialPeople])
+
+  const categoriesById = useMemo(() => {
+    return new Map(initialCategories.map((c) => [c.id, c]))
+  }, [initialCategories])
+
+  // Conversor síncrono ultra-rápido en memoria apoyado en tasas manuales y fx-cache local
+  const convert = useMemo<CurrencyConverterSync>(() => {
+    return (amount: number, fromCurr: string, toCurr: string) => {
+      if (!amount) return 0
+      const from = fromCurr.toUpperCase()
+      const to = toCurr.toUpperCase()
+      if (from === to) return amount
+
+      const pairKey = `${from}_${to}`
+      if (initialCustomRates[pairKey] && initialCustomRates[pairKey] > 0) {
+        return amount * initialCustomRates[pairKey]
+      }
+
+      const invKey = `${to}_${from}`
+      if (initialCustomRates[invKey] && initialCustomRates[invKey] > 0) {
+        return amount / initialCustomRates[invKey]
+      }
+
+      const cached = getCachedRate(from, to)
+      if (cached && cached.rate > 0) {
+        return amount * cached.rate
+      }
+
+      const invCached = getCachedRate(to, from)
+      if (invCached && invCached.rate > 0) {
+        return amount / invCached.rate
+      }
+
+      return amount
+    }
+  }, [initialCustomRates])
+
+  // Separación nítida de Cuentas / Liquidez y Tarjetas de Crédito
+  const liquidityAccounts = useMemo(
+    () => accounts.filter((a) => a.type !== 'credit_card' && a.is_active !== false),
+    [accounts]
+  )
+
+  const creditCardAccounts = useMemo(
+    () => accounts.filter((a) => a.type === 'credit_card' && a.is_active !== false),
+    [accounts]
+  )
+
+  // Total de liquidez disponible (solo cuentas no-tarjeta)
+  const totalLiquidityInDisplay = useMemo(() => {
+    let sum = 0
+    for (const acc of liquidityAccounts) {
+      const bal = balanceByAccount.get(acc.id) ?? 0
+      if (bal > 0) {
+        sum += convert(bal, acc.currency_native, displayCurrency)
+      }
+    }
+    return Math.round(sum * 100) / 100
+  }, [liquidityAccounts, balanceByAccount, convert, displayCurrency])
+
+  // Rango del período seleccionado (Mes actual vs Últimos 30 días)
+  const periodRange = useMemo(
+    () => getDashboardPeriodRange(period),
+    [period]
+  )
 
   // Cálculo reactivo de Patrimonio Neto
   const [netWorth, setNetWorth] = useState(initialNetWorth)
@@ -112,9 +214,8 @@ export function DashboardClient({
   useEffect(() => {
     if (balances.length === 0) return
     let active = true
-    const today = new Date().toISOString().slice(0, 10)
 
-    convertToDisplayCurrency(balances, displayCurrency, today)
+    convertToDisplayCurrency(balances, displayCurrency, todayStr, initialCustomRates)
       .then((val) => {
         if (active) setNetWorth(val)
       })
@@ -123,52 +224,71 @@ export function DashboardClient({
     return () => {
       active = false
     }
-  }, [balances, displayCurrency])
+  }, [balances, displayCurrency, todayStr, initialCustomRates])
 
-  // Cálculo reactivo de Presupuesto del mes
-  const estimatedTotal = useMemo(() => {
-    return (initialEstimates ?? []).reduce((sum, e) => sum + e.estimated_amount, 0)
-  }, [initialEstimates])
+  // Métricas de Cash Flow del período
+  const cashFlow = useMemo(() => {
+    return computeDashboardCashFlow({
+      transactions: allTransactions,
+      startDate: periodRange.start,
+      endDate: periodRange.end,
+      displayCurrency,
+      peopleById,
+      convert
+    })
+  }, [allTransactions, periodRange, displayCurrency, peopleById, convert])
 
-  const categoryIds = useMemo(() => {
-    return new Set((initialEstimates ?? []).map((e) => e.category_id))
-  }, [initialEstimates])
+  // Gastos Personales por Categoría (excluyendo consumos de terceros)
+  const categoryItems = useMemo(() => {
+    return computeDashboardCategorySpending({
+      transactions: allTransactions,
+      categoriesById,
+      peopleById,
+      startDate: periodRange.start,
+      endDate: periodRange.end,
+      displayCurrency,
+      convert
+    })
+  }, [allTransactions, categoriesById, peopleById, periodRange, displayCurrency, convert])
 
-  // Delta de gastos en memoria no contabilizados en el snapshot de SSR
-  const localSpentDelta = useMemo(() => {
-    if (categoryIds.size === 0 || ledgerTransactions.length === 0) return 0
-    const serverTxIds = new Set(initialTransactions.map((t) => t.id))
+  // Pasivos y Deuda Híbrida (Tarjetas + Préstamos)
+  const liabilities = useMemo(() => {
+    return computeDashboardLiabilities({
+      creditCardAccounts,
+      balanceByAccount,
+      transactions: allTransactions,
+      loans: initialLoans,
+      todayStr,
+      displayCurrency,
+      convert
+    })
+  }, [creditCardAccounts, balanceByAccount, allTransactions, initialLoans, todayStr, displayCurrency, convert])
 
-    // Identificar transacciones en memoria creadas en esta sesión para el mes en curso
-    const newOutcomes = ledgerTransactions.filter(
-      (t) =>
-        !serverTxIds.has(t.id) &&
-        t.type === 'OUTCOME' &&
-        t.status === 'COMPLETED' &&
-        t.category_id &&
-        categoryIds.has(t.category_id) &&
-        t.date >= monthStart &&
-        t.date <= monthEnd
-    )
+  // Cuentas por Cobrar (Terceros + Préstamos Otorgados)
+  const receivables = useMemo(() => {
+    return computeDashboardReceivables({
+      transactions: allTransactions,
+      loans: initialLoans,
+      peopleById,
+      displayCurrency,
+      convert
+    })
+  }, [allTransactions, initialLoans, peopleById, displayCurrency, convert])
 
-    return newOutcomes.reduce((sum, t) => sum + Number(t.amount_account || 0), 0)
-  }, [ledgerTransactions, initialTransactions, categoryIds, monthStart, monthEnd])
+  // Resumen compacto de Préstamos
+  const quickLoans = useMemo(() => {
+    return computeQuickLoansSummary(initialLoans, todayStr)
+  }, [initialLoans, todayStr])
 
-  const realSpent = initialRealSpent + localSpentDelta
-  const budgetPct =
-    estimatedTotal > 0 ? Math.min(100, Math.round((realSpent / estimatedTotal) * 100)) : 0
-
-  const creditCardAccounts = useMemo(
-    () => accounts.filter((a) => a.type === 'credit_card' && a.is_active !== false),
-    [accounts]
-  )
+  // Alerta de ventana de resumen de tarjeta
   const showCardVerifyBanner =
     creditCardAccounts.length > 0 && isStatementVerificationWindow() && !dismissedCardBanner
 
   return (
-    <main className="max-w-6xl mx-auto p-4 md:p-6 lg:p-8">
+    <main className="max-w-6xl mx-auto p-4 md:p-6 lg:p-8 space-y-6">
+      {/* Banner de Tour de Bienvenida */}
       {showTourBanner && (
-        <div className="mb-6 p-4 rounded-card bg-surface-1 border border-accent/40 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="p-4 rounded-card bg-surface-1 border border-accent/40 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-start gap-3">
             <span className="p-2 rounded-full bg-accent/15 text-accent mt-0.5">
               <Sparkles size={18} />
@@ -208,8 +328,9 @@ export function DashboardClient({
         </div>
       )}
 
+      {/* Banner de Verificación de Resumen de Tarjetas */}
       {showCardVerifyBanner && (
-        <div className="relative mb-6 p-4 rounded-card bg-surface-1 border border-income/40 shadow-sm flex flex-col gap-3">
+        <div className="relative p-4 rounded-card bg-surface-1 border border-income/40 shadow-sm flex flex-col gap-3">
           <button
             type="button"
             onClick={() => setDismissedCardBanner(true)}
@@ -224,7 +345,7 @@ export function DashboardClient({
             </span>
             <div className="flex flex-col gap-0.5">
               <p className="text-sm font-semibold text-text-primary">
-                ¿Te llegó el resumen de la tarjeta?
+                ¿Te llegó el resumen de la tarjeta de crédito?
               </p>
               <p className="text-xs text-text-muted">
                 Revisá tu estado de cuenta mensual en un toque: confirmá los consumos registrados, corregí diferencias o asigná gastos al próximo mes.
@@ -252,214 +373,100 @@ export function DashboardClient({
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Columna 1: Balance y Presupuesto */}
-        <div className="space-y-4">
-          <div className="bg-surface-1 border border-border rounded-card p-4">
-            <p className="text-sm font-medium text-text-secondary">Patrimonio neto</p>
-            <p className="font-mono amount text-3xl font-medium mt-1">
-              {formatMoney(netWorth, displayCurrency)}
-            </p>
+      {/* Cabecera Principal del Dashboard con Selector de Período */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-text-primary">
+            Dashboard
+          </h1>
+          <p className="text-xs text-text-muted mt-0.5">
+            Control de liquidez, consumos del período y balances consolidados
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 self-start sm:self-center">
+          {/* Switch Alternador de Período: Mes actual vs Últimos 30 días */}
+          <div className="inline-flex p-1 rounded-control bg-surface-1 border border-border text-xs">
+            <button
+              type="button"
+              onClick={() => setPeriod('this_month')}
+              className={`px-3 py-1 rounded-[8px] font-medium transition ${
+                period === 'this_month'
+                  ? 'bg-accent text-[color:var(--on-accent)] shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              Mes actual
+            </button>
+            <button
+              type="button"
+              onClick={() => setPeriod('last_30_days')}
+              className={`px-3 py-1 rounded-[8px] font-medium transition ${
+                period === 'last_30_days'
+                  ? 'bg-accent text-[color:var(--on-accent)] shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              Últimos 30 días
+            </button>
           </div>
 
           <Link
-            href="/analytics"
-            className="group flex items-center justify-between p-3.5 bg-surface-1 border border-border rounded-card hover:border-accent hover:bg-surface-2/60 transition block"
+            href="/transactions/new"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-semibold bg-accent text-[color:var(--on-accent)] hover:opacity-95 transition shadow-sm"
           >
-            <div className="flex items-center gap-2.5">
-              <span className="p-1.5 rounded-full bg-accent/15 text-accent">
-                <BarChart3 size={16} />
-              </span>
-              <div>
-                <p className="text-xs font-semibold text-text-primary group-hover:text-accent transition">
-                  Análisis de Datos & Flujo
-                </p>
-                <p className="text-[11px] text-text-muted">
-                  Evolución mensual, gastos por categoría y métricas
-                </p>
-              </div>
-            </div>
-            <span className="text-xs font-medium text-accent">Ver →</span>
+            <Plus size={14} />
+            <span>Nuevo movimiento</span>
           </Link>
+        </div>
+      </div>
 
-          {estimatedTotal > 0 ? (
-            <Link
-              href="/budget"
-              className="group block bg-surface-1 border border-border rounded-card p-4 hover:border-accent transition"
-            >
-              <div className="flex justify-between mb-2">
-                <span className="text-sm font-medium text-text-secondary group-hover:text-accent transition">
-                  Presupuesto del mes
-                </span>
-                <span className="text-sm font-mono font-medium">{budgetPct}%</span>
-              </div>
-              <div className="h-1.5 bg-surface-0 rounded-full overflow-hidden">
-                <div className="h-full bg-accent transition-all duration-300" style={{ width: `${budgetPct}%` }} />
-              </div>
-              <p className="text-xs text-text-muted mt-2 font-mono tabular-nums amount">
-                {formatMoney(realSpent, initialEstimates?.[0]?.currency ?? displayCurrency)} gastados de{' '}
-                {formatMoney(estimatedTotal, initialEstimates?.[0]?.currency ?? displayCurrency)} proyectados
-              </p>
-            </Link>
-          ) : (
-            <Link
-              href="/budget"
-              className="group flex items-center justify-between p-3.5 bg-surface-1 border border-border rounded-card hover:border-accent hover:bg-surface-2/60 transition block"
-            >
-              <div>
-                <p className="text-xs font-semibold text-text-primary group-hover:text-accent transition">
-                  Presupuesto & Gastos Fijos
-                </p>
-                <p className="text-[11px] text-text-muted">
-                  Configurá tus gastos recurrentes e ingresos proyectados
-                </p>
-              </div>
-              <span className="text-xs font-medium text-accent">Configurar →</span>
-            </Link>
-          )}
+      {/* Franja Superior: Grid de 4 KPIs Clave */}
+      <DashboardKpiGrid
+        netWorth={netWorth}
+        displayCurrency={displayCurrency}
+        cashFlow={cashFlow}
+        liabilities={liabilities}
+        receivables={receivables}
+        periodLabel={periodRange.label}
+      />
+
+      {/* Grilla Principal en 2 Columnas Responsivas */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Columna 1: Cuentas, Tarjetas de Crédito y Préstamos */}
+        <div className="space-y-6">
+          <AccountsCardList
+            accounts={liquidityAccounts}
+            balanceByAccount={balanceByAccount}
+            displayCurrency={displayCurrency}
+            totalLiquidityInDisplay={totalLiquidityInDisplay}
+          />
+
+          <CreditCardsSummaryList
+            cards={creditCardAccounts}
+            balanceByAccount={balanceByAccount}
+            todayStr={todayStr}
+          />
+
+          <QuickLoansWidget
+            summary={quickLoans}
+            displayCurrency={displayCurrency}
+          />
         </div>
 
-        {/* Columna 2: Cuentas */}
-        <div>
-          <div className="flex justify-between items-center mb-3">
-            <p className="font-display text-base font-medium">Cuentas</p>
-            <Link href="/accounts" className="text-xs text-text-muted hover:text-accent transition font-medium">
-              Ver todas
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
-            {(accounts ?? []).map((a) => {
-              const bal = balanceByAccount.get(a.id) ?? 0
-              return (
-                <Link
-                  key={a.id}
-                  href={`/accounts/${a.id}`}
-                  className="group bg-surface-1 border border-border rounded-card p-3 hover:border-accent hover:bg-surface-2/60 transition block"
-                >
-                  <p className="text-xs text-text-muted truncate group-hover:text-accent transition">
-                    {a.institutions?.name} · {a.name}
-                  </p>
-                  <p className={`font-mono amount text-base mt-1 tabular-nums ${bal < 0 ? 'text-expense font-semibold' : 'text-text-primary'}`}>
-                    {formatMoney(bal, a.currency_native)}
-                  </p>
-                </Link>
-              )
-            })}
-            {(!accounts || accounts.length === 0) && (
-              <div className="bg-surface-1 border border-border rounded-card p-4 col-span-full">
-                <p className="text-sm text-text-muted">
-                  No tenés cuentas activas todavía. Creá una para empezar.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Columna 2: Radiografía de Gastos (Propios vs Terceros, Categorías) y Movimientos */}
+        <div className="space-y-6">
+          <ExpensesAnalyticsWidget
+            categoryItems={categoryItems}
+            cashFlow={cashFlow}
+            displayCurrency={displayCurrency}
+            periodLabel={periodRange.label}
+          />
 
-        {/* Columna 3: Movimientos recientes */}
-        <div>
-          <div className="flex justify-between items-center mb-3">
-            <p className="font-display text-base font-medium">Movimientos</p>
-            <Link href="/transactions/new" className="text-sm text-accent font-medium hover:underline">
-              Cargar movimiento
-            </Link>
-          </div>
-          <div className="bg-surface-1 border border-border rounded-card p-4 divide-y divide-border">
-            {(!transactions || transactions.length === 0) && (
-              <p className="text-sm text-text-muted py-2">
-                Todavía no cargaste movimientos este mes.{' '}
-                <Link href="/transactions/new" className="text-accent font-medium hover:underline">
-                  Cargá el primero.
-                </Link>
-              </p>
-            )}
-            {(transactions ?? []).map((t) => {
-              const isOutcome = t.type === 'OUTCOME'
-              const isIncome = t.type === 'INCOME'
-              const isAdjustment = t.type === 'ADJUSTMENT'
-              const isTransfer = t.type === 'TRANSFER'
-              const isPositiveAdj = isAdjustment && t.amount_account >= 0
-              const isTransferIn = isTransfer && t.amount_account >= 0
-              const isPending = t.status === 'PENDING'
-
-              return (
-                <div key={t.id} className="flex justify-between items-center py-2.5 first:pt-0 last:pb-0">
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className={`p-1.5 rounded-full ${
-                        isOutcome
-                          ? 'bg-expense/10 text-expense'
-                          : isIncome
-                          ? 'bg-income/10 text-income'
-                          : isAdjustment
-                          ? 'bg-pending/15 text-pending'
-                          : 'bg-accent/15 text-accent'
-                      }`}
-                    >
-                      {isOutcome && <ArrowUpRight size={14} />}
-                      {isIncome && <ArrowDownLeft size={14} />}
-                      {isAdjustment && <SlidersHorizontal size={12} />}
-                      {isTransfer && <ArrowRightLeft size={12} />}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-medium text-text-primary">
-                          {t.notes ??
-                            (isAdjustment
-                              ? 'Ajuste de saldo'
-                              : isTransfer
-                              ? 'Transferencia'
-                              : 'Movimiento')}
-                        </p>
-                        {isAdjustment && (
-                          <span className="text-[10px] px-1 py-0.1 rounded bg-surface-2 text-text-muted font-medium">
-                            Ajuste
-                          </span>
-                        )}
-                        {isTransfer && (
-                          <span className="text-[10px] px-1 py-0.1 rounded bg-surface-2 text-accent font-medium">
-                            Transferencia
-                          </span>
-                        )}
-                        {isPending && (
-                          <span className="text-[10px] px-1 py-0.1 rounded bg-pending/15 text-pending font-medium">
-                            Pendiente
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-text-muted">{t.date}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p
-                      className={`font-mono amount text-sm tabular-nums ${
-                        isOutcome || (isAdjustment && !isPositiveAdj) || (isTransfer && !isTransferIn)
-                          ? 'text-expense'
-                          : 'text-income'
-                      }`}
-                    >
-                      {isOutcome
-                        ? '-'
-                        : isAdjustment
-                        ? isPositiveAdj
-                          ? '+'
-                          : '-'
-                        : isTransfer
-                        ? isTransferIn
-                          ? '+'
-                          : '-'
-                        : '+'}
-                      {formatMoney(Math.abs(t.amount_account), t.currency_account)}
-                    </p>
-                    {t.installment_total > 1 && (
-                      <span className="text-[11px] bg-pending/15 text-pending px-2 py-0.5 rounded-full">
-                        {t.installment_current} de {t.installment_total}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          <RecentTransactionsWidget
+            transactions={allTransactions}
+            peopleById={peopleById}
+          />
         </div>
       </div>
 

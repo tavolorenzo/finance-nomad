@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getAuthenticatedUser } from '@/lib/supabase/auth-helper'
 import { getAccountBalances, convertToDisplayCurrency } from '@/lib/networth'
 import { DashboardClient } from '@/components/DashboardClient'
-import type { Account, MasterTransaction, UserSettings } from '@/lib/types'
+import type { Account, MasterTransaction, UserSettings, LoanWithInstallments, Person, Category } from '@/lib/types'
 import type { AccountBalance } from '@/lib/ledger/types'
 
 function monthRange(date = new Date()) {
@@ -26,9 +26,13 @@ export default async function DashboardPage() {
   let accounts: (Account & { institutions: { name: string } })[] = []
   let transactions: MasterTransaction[] = []
   let estimates: any[] = []
+  let loans: LoanWithInstallments[] = []
+  let people: Person[] = []
+  let categories: Category[] = []
   let balances: AccountBalance[] = []
   let netWorth = 0
   let realSpent = 0
+  const customRates: Record<string, number> = {}
 
   try {
     const [
@@ -36,6 +40,9 @@ export default async function DashboardPage() {
       accountsRes,
       transactionsRes,
       estimatesRes,
+      loansRes,
+      peopleRes,
+      categoriesRes,
       balancesRes
     ] = await Promise.all([
       supabase
@@ -45,7 +52,7 @@ export default async function DashboardPage() {
         .maybeSingle(),
       supabase
         .from('accounts')
-        .select('id, name, type, currency_native, institutions!inner(name)')
+        .select('id, name, type, currency_native, closing_day, due_day, credit_limit, is_active, institutions!inner(name)')
         .eq('is_active', true)
         .eq('institutions.is_active', true)
         .returns<(Account & { institutions: { name: string } })[]>(),
@@ -53,13 +60,32 @@ export default async function DashboardPage() {
         .from('master_transactions')
         .select('*')
         .order('date', { ascending: false })
-        .limit(5)
+        .limit(300)
         .returns<MasterTransaction[]>(),
       supabase
         .from('budget_estimates')
         .select('*')
         .eq('is_active', true)
         .eq('type', 'EXPENSE_ESTIMATE'),
+      supabase
+        .from('loans')
+        .select(`
+          *,
+          institution:counterparty_institution_id (id, name),
+          person:beneficiary_person_id (id, name),
+          installments:loan_installments (*)
+        `)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('people')
+        .select('id, name, is_active')
+        .returns<Person[]>(),
+      supabase
+        .from('categories')
+        .select('id, name, icon, color')
+        .order('name', { ascending: true })
+        .returns<Category[]>(),
       getAccountBalances(supabase, today)
     ])
 
@@ -67,6 +93,9 @@ export default async function DashboardPage() {
     accounts = accountsRes.data ?? []
     transactions = transactionsRes.data ?? []
     estimates = estimatesRes.data ?? []
+    loans = (loansRes.data as unknown as LoanWithInstallments[]) ?? []
+    people = peopleRes.data ?? []
+    categories = categoriesRes.data ?? []
     balances = balancesRes
 
     // Redirección inteligente al asistente de bienvenida si no hay cuentas configuradas
@@ -78,7 +107,6 @@ export default async function DashboardPage() {
     const categoryIds = estimates.map((e) => e.category_id)
 
     // Construir mapa de cotizaciones manuales si el usuario las configuró
-    const customRates: Record<string, number> = {}
     if (settings?.active_currencies && Array.isArray(settings.active_currencies)) {
       for (const c of settings.active_currencies) {
         if (
@@ -156,6 +184,10 @@ export default async function DashboardPage() {
       initialBalances={balances}
       initialTransactions={transactions}
       initialEstimates={estimates}
+      initialLoans={loans}
+      initialPeople={people}
+      initialCategories={categories}
+      initialCustomRates={customRates}
       displayCurrency={displayCurrency}
       initialNetWorth={netWorth}
       initialRealSpent={realSpent}

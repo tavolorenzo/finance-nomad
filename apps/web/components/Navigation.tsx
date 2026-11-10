@@ -34,9 +34,8 @@ function NavLink({ href, label, icon: Icon, active }: any) {
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 px-3 py-2 rounded-control text-sm ${
-        active ? 'bg-accent/15 text-accent font-medium' : 'text-text-secondary'
-      }`}
+      className={`flex items-center gap-3 px-3 py-2 rounded-control text-sm ${active ? 'bg-accent/15 text-accent font-medium' : 'text-text-secondary'
+        }`}
     >
       <Icon size={18} />
       {label}
@@ -54,11 +53,11 @@ export function Navigation() {
 
   const mainItems = hasCreditCards
     ? [
-        BASE_MAIN_ITEMS[0],
-        BASE_MAIN_ITEMS[1],
-        { href: '/cards', label: 'Tarjetas', icon: CreditCard },
-        BASE_MAIN_ITEMS[2]
-      ]
+      BASE_MAIN_ITEMS[0],
+      BASE_MAIN_ITEMS[1],
+      { href: '/cards', label: 'Tarjetas de crédito', icon: CreditCard },
+      BASE_MAIN_ITEMS[2]
+    ]
     : BASE_MAIN_ITEMS
 
   const isActive = (href: string) => {
@@ -110,12 +109,10 @@ export function Navigation() {
         <div className="border-t border-border pt-3 space-y-2">
           <div className="flex items-center justify-between px-2 text-[11px] text-text-muted">
             <span className="font-mono tabular-nums">v{envInfo.version}</span>
-            <span className={`inline-flex items-center gap-1 font-medium ${
-              envInfo.isProduction ? 'text-income' : 'text-accent'
-            }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${
-                envInfo.isProduction ? 'bg-income' : 'bg-accent'
-              }`} />
+            <span className={`inline-flex items-center gap-1 font-medium ${envInfo.isProduction ? 'text-income' : 'text-accent'
+              }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${envInfo.isProduction ? 'bg-income' : 'bg-accent'
+                }`} />
               {envInfo.label}
             </span>
           </div>
@@ -145,8 +142,8 @@ export function Navigation() {
         {hasCreditCards ? (
           <Link href="/cards" className="flex flex-col items-center gap-1 px-2">
             <CreditCard size={20} className={isActive('/cards') ? 'text-accent' : 'text-text-secondary'} />
-            <span className={`text-[11px] ${isActive('/cards') ? 'text-accent' : 'text-text-secondary'}`}>
-              Tarjetas
+            <span className={`text-[10px] text-center leading-tight ${isActive('/cards') ? 'text-accent' : 'text-text-secondary'}`}>
+              Tarjetas de crédito
             </span>
           </Link>
         ) : (
@@ -179,9 +176,8 @@ export function Navigation() {
               <Link
                 href="/transactions"
                 onClick={() => setMoreOpen(false)}
-                className={`flex items-center gap-3 px-2 py-3 text-sm rounded-control ${
-                  isActive('/transactions') ? 'text-accent font-medium' : 'text-text-primary'
-                }`}
+                className={`flex items-center gap-3 px-2 py-3 text-sm rounded-control ${isActive('/transactions') ? 'text-accent font-medium' : 'text-text-primary'
+                  }`}
               >
                 <List size={18} />
                 Movimientos
@@ -193,9 +189,8 @@ export function Navigation() {
                   key={item.href}
                   href={item.href}
                   onClick={() => setMoreOpen(false)}
-                  className={`flex items-center gap-3 px-2 py-3 text-sm rounded-control ${
-                    isActive(item.href) ? 'text-accent font-medium' : 'text-text-primary'
-                  }`}
+                  className={`flex items-center gap-3 px-2 py-3 text-sm rounded-control ${isActive(item.href) ? 'text-accent font-medium' : 'text-text-primary'
+                    }`}
                 >
                   <item.icon size={18} />
                   {item.label}
@@ -211,12 +206,10 @@ export function Navigation() {
             <div className="border-t border-border pt-3 mt-2 space-y-2">
               <div className="flex items-center justify-between px-2 text-[11px] text-text-muted">
                 <span className="font-mono tabular-nums">v{envInfo.version}</span>
-                <span className={`inline-flex items-center gap-1 font-medium ${
-                  envInfo.isProduction ? 'text-income' : 'text-accent'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${
-                    envInfo.isProduction ? 'bg-income' : 'bg-accent'
-                  }`} />
+                <span className={`inline-flex items-center gap-1 font-medium ${envInfo.isProduction ? 'text-income' : 'text-accent'
+                  }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${envInfo.isProduction ? 'bg-income' : 'bg-accent'
+                    }`} />
                   {envInfo.label}
                 </span>
               </div>

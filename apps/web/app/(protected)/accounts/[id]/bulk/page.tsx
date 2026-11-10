@@ -1,14 +1,15 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { ArrowLeft, CreditCard } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthenticatedUser } from '@/lib/supabase/auth-helper'
 import { CreditCardBulkWizard } from '@/components/credit-card-bulk/CreditCardBulkWizard'
+import { AccountBulkWizard } from '@/components/account-bulk/AccountBulkWizard'
 import type { Account, Category, Person } from '@/lib/types'
 
 export const metadata = {
-  title: 'Carga Rápida de Consumos — Finance Nomad',
-  description: 'Cargá en bloque consumos del resumen actual y cuotas de tu tarjeta de crédito'
+  title: 'Carga Rápida de Movimientos — Finance Nomad',
+  description: 'Cargá en bloque o pegá movimientos de home banking, extractos o resúmenes'
 }
 
 export default async function AccountBulkIngestPage({
@@ -44,29 +45,39 @@ export default async function AccountBulkIngestPage({
       .returns<Person[]>()
   ])
 
-  if (!account || account.type !== 'credit_card') {
+  if (!account) {
     notFound()
   }
 
   return (
     <main className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <Link
-          href={`/accounts/${account.id}`}
-          className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition"
-        >
-          <ArrowLeft size={14} />
-          <span>Volver a {account.name}</span>
-        </Link>
-      </div>
+      {account.type === 'credit_card' ? (
+        <>
+          <div className="flex items-center justify-between">
+            <Link
+              href={`/accounts/${account.id}`}
+              className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition"
+            >
+              <ArrowLeft size={14} />
+              <span>Volver a {account.name}</span>
+            </Link>
+          </div>
 
-      <CreditCardBulkWizard
-        cardAccounts={[account]}
-        initialCardId={account.id}
-        categories={categories ?? []}
-        people={people ?? []}
-        isPostOnboarding={false}
-      />
+          <CreditCardBulkWizard
+            cardAccounts={[account]}
+            initialCardId={account.id}
+            categories={categories ?? []}
+            people={people ?? []}
+            isPostOnboarding={false}
+          />
+        </>
+      ) : (
+        <AccountBulkWizard
+          account={account}
+          categories={categories ?? []}
+          people={people ?? []}
+        />
+      )}
     </main>
   )
 }

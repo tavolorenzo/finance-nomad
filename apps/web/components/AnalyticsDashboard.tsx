@@ -24,25 +24,30 @@ import {
   Coffee,
   Dumbbell,
   Book,
-  Plus
+  Plus,
+  User,
+  Users
 } from 'lucide-react'
 import { formatMoney } from '@/lib/currency'
 import { useLedger } from '@/lib/ledger/ledger-context'
 import {
   type AnalyticsPeriod,
   filterTransactionsByPeriod,
+  filterTransactionsByScope,
+  isThirdPartyTransaction,
   getPeriodRange,
   computeAnalyticsKPIs,
   computeCategoryBreakdown,
   computeMonthlyCashflow,
   computeCurrencyBreakdown
 } from '@/lib/analytics'
-import type { MasterTransaction, Category, Account } from '@/lib/types'
+import type { MasterTransaction, Category, Account, Person } from '@/lib/types'
 
 interface AnalyticsDashboardProps {
   initialTransactions: MasterTransaction[]
   categories: Category[]
   accounts: Account[]
+  people?: Person[]
   displayCurrency: string
 }
 
@@ -66,10 +71,24 @@ export function AnalyticsDashboard({
   initialTransactions,
   categories,
   accounts,
+  people,
   displayCurrency
 }: AnalyticsDashboardProps) {
-  const { recentTransactions: localTransactions } = useLedger()
+  const { recentTransactions: localTransactions, people: localPeople } = useLedger()
   const [period, setPeriod] = useState<AnalyticsPeriod>('this_month')
+  const [onlyPersonal, setOnlyPersonal] = useState<boolean>(true)
+
+  // Combinar catálogo de personas de servidor y local (IndexedDB)
+  const peopleMap = useMemo(() => {
+    const map = new Map<string, Person>()
+    if (people) {
+      for (const p of people) map.set(p.id, p)
+    }
+    if (localPeople) {
+      for (const p of localPeople) map.set(p.id, p)
+    }
+    return map
+  }, [people, localPeople])
 
   // Combinar transacciones de servidor con las mutadas localmente en memoria
   const allTransactions = useMemo(() => {
@@ -78,6 +97,11 @@ export function AnalyticsDashboard({
     for (const t of localTransactions) map.set(t.id, t)
     return Array.from(map.values())
   }, [initialTransactions, localTransactions])
+
+  // Transacciones según el Master Switch (Solo personales vs Todos)
+  const scopedAllTransactions = useMemo(() => {
+    return filterTransactionsByScope(allTransactions, onlyPersonal, peopleMap)
+  }, [allTransactions, onlyPersonal, peopleMap])
 
   const categoryMap = useMemo(() => {
     return new Map<string, Category>(categories.map((c) => [c.id, c]))
@@ -89,9 +113,15 @@ export function AnalyticsDashboard({
 
   const periodRange = useMemo(() => getPeriodRange(period), [period])
   const filteredTransactions = useMemo(
-    () => filterTransactionsByPeriod(allTransactions, period),
-    [allTransactions, period]
+    () => filterTransactionsByPeriod(scopedAllTransactions, period),
+    [scopedAllTransactions, period]
   )
+
+  // Cantidad de transacciones de terceros excluidas en el período actual
+  const thirdPartyCountInPeriod = useMemo(() => {
+    const inPeriod = filterTransactionsByPeriod(allTransactions, period)
+    return inPeriod.filter((t) => isThirdPartyTransaction(t, peopleMap)).length
+  }, [allTransactions, period, peopleMap])
 
   const kpis = useMemo(
     () => computeAnalyticsKPIs(filteredTransactions, periodRange.days, categoryMap),
@@ -104,8 +134,8 @@ export function AnalyticsDashboard({
   )
 
   const monthlyCashflow = useMemo(
-    () => computeMonthlyCashflow(allTransactions),
-    [allTransactions]
+    () => computeMonthlyCashflow(scopedAllTransactions),
+    [scopedAllTransactions]
   )
 
   const currencyBreakdown = useMemo(
@@ -170,63 +200,105 @@ export function AnalyticsDashboard({
 
   return (
     <div className="space-y-6">
-      {/* Selector de Período */}
-      <div className="flex flex-wrap items-center gap-1.5 p-1 bg-surface-1 border border-border rounded-control w-fit text-xs">
-        <button
-          type="button"
-          onClick={() => setPeriod('this_month')}
-          className={`px-3 py-1.5 rounded-control transition font-medium ${
-            period === 'this_month'
-              ? 'bg-accent text-[color:var(--on-accent)]'
-              : 'text-text-secondary hover:text-text-primary'
-          }`}
-        >
-          Este mes
-        </button>
-        <button
-          type="button"
-          onClick={() => setPeriod('last_3_months')}
-          className={`px-3 py-1.5 rounded-control transition font-medium ${
-            period === 'last_3_months'
-              ? 'bg-accent text-[color:var(--on-accent)]'
-              : 'text-text-secondary hover:text-text-primary'
-          }`}
-        >
-          Últimos 3 meses
-        </button>
-        <button
-          type="button"
-          onClick={() => setPeriod('last_6_months')}
-          className={`px-3 py-1.5 rounded-control transition font-medium ${
-            period === 'last_6_months'
-              ? 'bg-accent text-[color:var(--on-accent)]'
-              : 'text-text-secondary hover:text-text-primary'
-          }`}
-        >
-          Últimos 6 meses
-        </button>
-        <button
-          type="button"
-          onClick={() => setPeriod('this_year')}
-          className={`px-3 py-1.5 rounded-control transition font-medium ${
-            period === 'this_year'
-              ? 'bg-accent text-[color:var(--on-accent)]'
-              : 'text-text-secondary hover:text-text-primary'
-          }`}
-        >
-          Este año
-        </button>
-        <button
-          type="button"
-          onClick={() => setPeriod('all')}
-          className={`px-3 py-1.5 rounded-control transition font-medium ${
-            period === 'all'
-              ? 'bg-accent text-[color:var(--on-accent)]'
-              : 'text-text-secondary hover:text-text-primary'
-          }`}
-        >
-          Histórico
-        </button>
+      {/* Barra de Filtros y Master Switch */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        {/* Selector de Período */}
+        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-surface-1 border border-border rounded-control w-fit text-xs">
+          <button
+            type="button"
+            onClick={() => setPeriod('this_month')}
+            className={`px-3 py-1.5 rounded-control transition font-medium ${
+              period === 'this_month'
+                ? 'bg-accent text-[color:var(--on-accent)]'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            Este mes
+          </button>
+          <button
+            type="button"
+            onClick={() => setPeriod('last_3_months')}
+            className={`px-3 py-1.5 rounded-control transition font-medium ${
+              period === 'last_3_months'
+                ? 'bg-accent text-[color:var(--on-accent)]'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            Últimos 3 meses
+          </button>
+          <button
+            type="button"
+            onClick={() => setPeriod('last_6_months')}
+            className={`px-3 py-1.5 rounded-control transition font-medium ${
+              period === 'last_6_months'
+                ? 'bg-accent text-[color:var(--on-accent)]'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            Últimos 6 meses
+          </button>
+          <button
+            type="button"
+            onClick={() => setPeriod('this_year')}
+            className={`px-3 py-1.5 rounded-control transition font-medium ${
+              period === 'this_year'
+                ? 'bg-accent text-[color:var(--on-accent)]'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            Este año
+          </button>
+          <button
+            type="button"
+            onClick={() => setPeriod('all')}
+            className={`px-3 py-1.5 rounded-control transition font-medium ${
+              period === 'all'
+                ? 'bg-accent text-[color:var(--on-accent)]'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            Histórico
+          </button>
+        </div>
+
+        {/* Master Switch: Personales vs Terceros */}
+        <div className="flex items-center gap-2 self-start sm:self-center">
+          <div
+            role="group"
+            aria-label="Alcance de transacciones"
+            className="inline-flex p-1 rounded-control bg-surface-1 border border-border text-xs"
+          >
+            <button
+              type="button"
+              onClick={() => setOnlyPersonal(true)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] font-medium transition ${
+                onlyPersonal
+                  ? 'bg-accent text-[color:var(--on-accent)] shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              <User size={13} />
+              <span>Solo personales</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setOnlyPersonal(false)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] font-medium transition ${
+                !onlyPersonal
+                  ? 'bg-accent text-[color:var(--on-accent)] shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              <Users size={13} />
+              <span>Todos</span>
+            </button>
+          </div>
+          {onlyPersonal && thirdPartyCountInPeriod > 0 && (
+            <span className="text-[11px] text-text-muted hidden md:inline">
+              ({thirdPartyCountInPeriod} de terceros {thirdPartyCountInPeriod === 1 ? 'excluido' : 'excluidos'})
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Grid de 5 KPI Cards */}

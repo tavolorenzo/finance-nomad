@@ -45,7 +45,7 @@ describe('RegisterCardPaymentModal', () => {
     fireEvent.click(btn)
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect(screen.getByText('Registrar pago de tarjeta')).toBeInTheDocument()
+    expect(screen.getByText('Registrar pago de tarjeta de crédito')).toBeInTheDocument()
   })
 
   it('permite cargar el monto total de deuda con el botón de atajo', () => {

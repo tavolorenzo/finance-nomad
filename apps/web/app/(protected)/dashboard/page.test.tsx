@@ -92,7 +92,39 @@ describe('DashboardPage Server Component', () => {
           })
         }
       }
-      return {}
+      if (table === 'loans') {
+        return {
+          select: () => ({
+            eq: () => ({
+              order: vi.fn().mockResolvedValue({ data: [] })
+            })
+          })
+        }
+      }
+      if (table === 'people') {
+        return {
+          select: () => ({
+            returns: vi.fn().mockResolvedValue({ data: [] })
+          })
+        }
+      }
+      if (table === 'categories') {
+        return {
+          select: () => ({
+            order: () => ({
+              returns: vi.fn().mockResolvedValue({ data: [] })
+            })
+          })
+        }
+      }
+      return {
+        select: () => ({
+          order: () => ({
+            returns: vi.fn().mockResolvedValue({ data: [] })
+          }),
+          returns: vi.fn().mockResolvedValue({ data: [] })
+        })
+      }
     })
 
     await expect(DashboardPage()).rejects.toThrow('NEXT_REDIRECT;/welcome')
@@ -145,7 +177,39 @@ describe('DashboardPage Server Component', () => {
           })
         }
       }
-      return {}
+      if (table === 'loans') {
+        return {
+          select: () => ({
+            eq: () => ({
+              order: vi.fn().mockResolvedValue({ data: [] })
+            })
+          })
+        }
+      }
+      if (table === 'people') {
+        return {
+          select: () => ({
+            returns: vi.fn().mockResolvedValue({ data: [] })
+          })
+        }
+      }
+      if (table === 'categories') {
+        return {
+          select: () => ({
+            order: () => ({
+              returns: vi.fn().mockResolvedValue({ data: [] })
+            })
+          })
+        }
+      }
+      return {
+        select: () => ({
+          order: () => ({
+            returns: vi.fn().mockResolvedValue({ data: [] })
+          }),
+          returns: vi.fn().mockResolvedValue({ data: [] })
+        })
+      }
     })
 
     const result = await DashboardPage()

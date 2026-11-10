@@ -20,6 +20,13 @@ vi.mock('./SyncStatusBadge', () => ({
   SyncStatusBadge: () => <div>Sync Badge Mock</div>
 }))
 
+vi.mock('@/lib/ledger/ledger-context', () => ({
+  useOptionalLedger: vi.fn(),
+  useLedger: vi.fn()
+}))
+
+import * as ledgerModule from '@/lib/ledger/ledger-context'
+
 describe('Navigation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -42,6 +49,18 @@ describe('Navigation', () => {
     expect(screen.getAllByText('Cuentas')[0]).toBeInTheDocument()
     expect(screen.getAllByText('Movimientos')[0]).toBeInTheDocument()
     expect(screen.getAllByText('Cerrar sesión mock')[0]).toBeInTheDocument()
+  })
+
+  it('muestra "Tarjetas de crédito" en navegación cuando el usuario tiene plásticos activos', () => {
+    vi.mocked(ledgerModule.useOptionalLedger).mockReturnValue({
+      accounts: [
+        { id: 'card-1', name: 'Visa Infinite', type: 'credit_card', is_active: true } as any
+      ]
+    } as any)
+
+    render(<Navigation />)
+    const cardNavItems = screen.getAllByText('Tarjetas de crédito')
+    expect(cardNavItems.length).toBeGreaterThan(0)
   })
 
   it('abre y cierra el menú Más en móvil', () => {

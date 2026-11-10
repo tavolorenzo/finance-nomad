@@ -4,7 +4,23 @@ Este archivo contiene las directivas y restricciones obligatorias para cualquier
 
 ---
 
-## 1. Registro Obligatorio de Versiones y Mantenimiento de Versión (CHANGELOG y Proyecto)
+## 1. Presentación Previa Obligatoria de Plan de Implementación e Impacto
+
+> [!IMPORTANT]
+> **Antes de ejecutar cualquier modificación en el código fuente, refactorización, migración de base de datos o desarrollo de nuevas funcionalidades, es OBLIGATORIO presentar previamente un Plan de Implementación detallado junto con su Evaluación de Impacto.**
+>
+> * **Contenido mínimo del Plan**:
+>   - **Objetivo y Alcance**: Definición precisa de la necesidad y delimitación de módulos y rutas involucradas.
+>   - **Nodos y Componentes Afectados**: Lista exhaustiva de archivos a crear o modificar.
+>   - **Propuesta Técnica y Arquitectura**: Diseño de componentes, flujos de estado (ej. React, IndexedDB, Server Actions) y apego a las directivas de diseño.
+>   - **Análisis de Impacto**: Evaluación de rendimiento (DOM, renders, memoria), compatibilidad con el modo offline, efectos secundarios en la base de datos o en otros flujos contables, y posibles riesgos con sus mitigaciones.
+>   - **Estrategia de Verificación**: Pruebas unitarias o de integración a ejecutar para validar que no haya regresiones.
+>   - **Plan de Acción por Pasos**: Desglose secuencial y verificable de la ejecución.
+> * **Alineación con el Usuario**: Esperar confirmación o feedback del usuario cuando existan alternativas de diseño o decisiones clave de UX/arquitectura.
+
+---
+
+## 2. Registro Obligatorio de Versiones y Mantenimiento de Versión (CHANGELOG y Proyecto)
 
 > [!IMPORTANT]
 > **En cada cambio funcional, refactorización, corrección de bugs o nueva funcionalidad implementada, es OBLIGATORIO mantener actualizada la versión tanto en el código del proyecto como en la documentación.**
@@ -22,7 +38,7 @@ Este archivo contiene las directivas y restricciones obligatorias para cualquier
 
 ---
 
-## 2. Reglas de Diseño y UI (`apps/web`)
+## 3. Reglas de Diseño y UI (`apps/web`)
 
 * **Tokens de Color**: Cero colores hardcodeados. Utilizar exclusivamente las variables CSS semánticas definidas en `globals.css`:
   * Fondos: `--surface-0`, `--surface-1`, `--surface-2`, `--surface-card`
@@ -35,7 +51,7 @@ Este archivo contiene las directivas y restricciones obligatorias para cualquier
 
 ---
 
-## 3. Reglas de Negocio y Ledger Contable
+## 4. Reglas de Negocio y Ledger Contable
 
 * **Transacciones**: Toda fila en `master_transactions` debe persistir tanto `amount_original` + `currency_original` como `amount_account` + `currency_account`.
 * **Transferencias y Pagos**: Se registran como 2 filas atómicas enlazadas por `parent_transaction_id` (débito negativo en origen, crédito positivo en destino).
@@ -44,7 +60,7 @@ Este archivo contiene las directivas y restricciones obligatorias para cualquier
 
 ---
 
-## 4. Base de Datos y Supabase
+## 5. Base de Datos y Supabase
 
 * **Seguridad (RLS)**: Toda tabla mutable lleva `user_id` y política RLS restringida al usuario autenticado.
 * **Integridad y Soft Deletes**: No realizar borrados físicos (`DELETE`) en `institutions` ni `accounts` (el trigger SQL `prevent_account_hard_delete` lanzará excepción). Utilizar siempre `is_active = false`.
@@ -53,7 +69,7 @@ Este archivo contiene las directivas y restricciones obligatorias para cualquier
 
 ---
 
-## 5. Directivas de Sincronización y Mutaciones en Cliente
+## 6. Directivas de Sincronización y Mutaciones en Cliente
 
 * **Ledger Bundles**: Toda operación contable generada en la UI debe encapsularse en un `LedgerBundle` con UUIDs asignados mediante `crypto.randomUUID()` en el cliente. Queda prohibido persistir o sincronizar filas huérfanas de cuotas o transferencias.
 * **Cálculo de Saldos (Baseline + Delta)**: No descargar historiales completos para computar saldos en memoria de Node o browser. Usar siempre el baseline provisto por el backend más los deltas de las filas locales `COMPLETED`.
@@ -62,7 +78,7 @@ Este archivo contiene las directivas y restricciones obligatorias para cualquier
 
 ---
 
-## 6. Mantenimiento Obligatorio del Centro de Ayuda, FAQ y Wiki (`apps/web/lib/help-data.ts`)
+## 7. Mantenimiento Obligatorio del Centro de Ayuda, FAQ y Wiki (`apps/web/lib/help-data.ts`)
 
 > [!IMPORTANT]
 > **En cada nueva funcionalidad, flujo transaccional, parámetro de configuración o cambio de regla de negocio, es OBLIGATORIO mantener actualizado el Centro de Ayuda, su Wiki y sus Preguntas Frecuentes.**

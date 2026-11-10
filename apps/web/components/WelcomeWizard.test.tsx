@@ -230,7 +230,7 @@ describe('WelcomeWizard', () => {
 
     // Comprobar que aparece el prompt opcional de consumos de tarjeta
     await waitFor(() => {
-      expect(screen.getByText('¿Tenés consumos o cuotas en tu tarjeta?')).toBeInTheDocument()
+      expect(screen.getByText('¿Tenés consumos o cuotas en tu tarjeta de crédito?')).toBeInTheDocument()
       expect(screen.getByText('Cargar consumos ahora')).toBeInTheDocument()
     })
 

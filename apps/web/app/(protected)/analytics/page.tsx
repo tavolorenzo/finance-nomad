@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthenticatedUser } from '@/lib/supabase/auth-helper'
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard'
-import type { MasterTransaction, Category, Account } from '@/lib/types'
+import type { MasterTransaction, Category, Account, Person } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,6 +14,7 @@ export default async function AnalyticsPage() {
   let transactions: MasterTransaction[] = []
   let categories: Category[] = []
   let accounts: Account[] = []
+  let people: Person[] = []
   let displayCurrency = 'EUR'
 
   try {
@@ -21,6 +22,7 @@ export default async function AnalyticsPage() {
       { data: txData },
       { data: catData },
       { data: accData },
+      { data: peopleData },
       { data: settingsData }
     ] = await Promise.all([
       supabase
@@ -45,6 +47,12 @@ export default async function AnalyticsPage() {
         .returns<Account[]>(),
 
       supabase
+        .from('people')
+        .select('*')
+        .eq('user_id', user.id)
+        .returns<Person[]>(),
+
+      supabase
         .from('user_settings')
         .select('display_currency')
         .eq('user_id', user.id)
@@ -54,6 +62,7 @@ export default async function AnalyticsPage() {
     transactions = txData ?? []
     categories = catData ?? []
     accounts = accData ?? []
+    people = peopleData ?? []
     displayCurrency = settingsData?.display_currency ?? 'EUR'
   } catch {
     // Si la conexión falla (offline), AnalyticsDashboard toma los datos reactivos desde LedgerContext
@@ -74,6 +83,7 @@ export default async function AnalyticsPage() {
         initialTransactions={transactions}
         categories={categories}
         accounts={accounts}
+        people={people}
         displayCurrency={displayCurrency}
       />
     </main>

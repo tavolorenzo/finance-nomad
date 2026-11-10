@@ -1,3 +1,5 @@
+import type { AccountType } from '@/lib/types'
+
 export interface ParsedCardMovement {
   id: string
   date: string // YYYY-MM-DD
@@ -11,10 +13,12 @@ export interface ParsedCardMovement {
   confidence: 'high' | 'medium' | 'low'
   rawLine: string
   isRefund?: boolean
+  type?: 'OUTCOME' | 'INCOME'
   cardDigits?: string | null
 }
 
 export interface ParseStatementOptions {
+  accountType?: AccountType
   defaultCurrency?: string
   forceCurrency?: string | null
   defaultDate?: string
@@ -69,8 +73,14 @@ export function suggestCategory(
 
   for (const [catName, keywords] of Object.entries(KEYWORD_CATEGORY_MAP)) {
     const hasKeyword = keywords.some((kw) => {
-      const reg = new RegExp(`\\b${kw}\\b`, 'i')
-      return reg.test(normalized) || normalized.includes(kw)
+      // Si la palabra clave es corta (<= 5 caracteres), requerir palabra completa (ej. 'metro' vs 'metrogas')
+      // Si es más larga, permitir prefijo con límite inicial (ej. 'supermercado' -> 'supermercados')
+      if (kw.length <= 5) {
+        const reg = new RegExp(`(?:^|\\W)${kw}(?:\\W|$)`, 'i')
+        return reg.test(normalized)
+      }
+      const reg = new RegExp(`(?:^|\\W)${kw}`, 'i')
+      return reg.test(normalized)
     })
 
     if (hasKeyword) {
@@ -135,7 +145,7 @@ export function parseAmount(raw: string): number | null {
 
 /**
  * Parsea una fecha en texto a formato ISO YYYY-MM-DD
- * Soporta: DD/MM/AA, DD MM AA, DD-MM-AA, DD/MM/AAAA, DD-MM-AAAA, DD MM AAAA, YYYY-MM-DD, DD/MM
+ * Soporta: DD/MM/AA, DD MM AA, DD-MM-AA, DD.MM.AA, DD/MM/AAAA, DD-MM-AAAA, DD.MM.AAAA, DD MM AAAA, YYYY-MM-DD, DD/MM, DD.MM
  */
 export function parseDate(rawDate: string, referenceYear?: number): string | null {
   const curYear = referenceYear || new Date().getFullYear()
@@ -147,32 +157,32 @@ export function parseDate(rawDate: string, referenceYear?: number): string | nul
     return d >= 1 && d <= 31 && m >= 1 && m <= 12
   }
 
-  // YYYY-MM-DD o YYYY/MM/DD
-  const isoMatch = trimmed.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/)
+  // YYYY-MM-DD o YYYY/MM/DD o YYYY.MM.DD
+  const isoMatch = trimmed.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/)
   if (isoMatch) {
     const [, y, m, d] = isoMatch
     if (!isValidDayMonth(d, m)) return null
     return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
   }
 
-  // DD/MM/YYYY, DD-MM-YYYY o DD MM YYYY (año de 4 dígitos)
-  const fullMatch = trimmed.match(/^(\d{1,2})(?:[-/]|\s+)(\d{1,2})(?:[-/]|\s+)(\d{4})$/)
+  // DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY o DD MM YYYY (año de 4 dígitos)
+  const fullMatch = trimmed.match(/^(\d{1,2})(?:[-/.]|\s+)(\d{1,2})(?:[-/.]|\s+)(\d{4})$/)
   if (fullMatch) {
     const [, d, m, y] = fullMatch
     if (!isValidDayMonth(d, m)) return null
     return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
   }
 
-  // DD/MM/AA, DD-MM-AA o DD MM AA (año de 2 dígitos, ej: 10/11/25, 27 08 26, 15-10-26)
-  const twoDigitYearMatch = trimmed.match(/^(\d{1,2})(?:[-/]|\s+)(\d{1,2})(?:[-/]|\s+)(\d{2})$/)
+  // DD/MM/AA, DD-MM-AA, DD.MM.AA o DD MM AA (año de 2 dígitos, ej: 10/11/25, 27 08 26, 15-10-26, 15.10.26)
+  const twoDigitYearMatch = trimmed.match(/^(\d{1,2})(?:[-/.]|\s+)(\d{1,2})(?:[-/.]|\s+)(\d{2})$/)
   if (twoDigitYearMatch) {
     const [, d, m, y] = twoDigitYearMatch
     if (!isValidDayMonth(d, m)) return null
     return `20${y.padStart(2, '0')}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
   }
 
-  // DD/MM o DD-MM (sin año, usa referenceYear)
-  const shortMatch = trimmed.match(/^(\d{1,2})[-/](\d{1,2})$/)
+  // DD/MM, DD-MM o DD.MM (sin año, usa referenceYear)
+  const shortMatch = trimmed.match(/^(\d{1,2})[-/.](\d{1,2})$/)
   if (shortMatch) {
     const [, d, m] = shortMatch
     if (!isValidDayMonth(d, m)) return null
@@ -251,7 +261,7 @@ export function parseCreditCardStatement(
     let parsedDate = defaultDate
     let hadDateMatch = false
     const leadingDateMatch = remaining.match(
-      /^(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}\s+\d{1,2}\s+\d{2,4}|\d{1,2}[-/]\d{1,2})\b/
+      /^(\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{1,2}\s+\d{1,2}\s+\d{2,4}|\d{1,2}[-/.]\d{1,2})\b/
     )
     if (leadingDateMatch) {
       const d = parseDate(leadingDateMatch[0], referenceYear)
@@ -262,7 +272,7 @@ export function parseCreditCardStatement(
       }
     } else {
       const fallbackDateMatch = remaining.match(
-        /\b(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}[-/]\d{1,2})\b/
+        /\b(\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{1,2}[-/.]\d{1,2})\b/
       )
       if (fallbackDateMatch) {
         const d = parseDate(fallbackDateMatch[0], referenceYear)
@@ -324,10 +334,13 @@ export function parseCreditCardStatement(
       }
     }
 
-    // 5. Detectar Monto al final (y verificar si es negativo -> pago o refund)
+    // 5. Detectar Monto al final (y verificar signos +/- o palabras clave)
     const amountTokens = remaining.match(/[\d.,]+/g)
     let amount: number | null = null
-    let isRefund = false
+    let hasLeadingMinus = false
+    let hasTrailingMinus = false
+    let hasLeadingPlus = false
+    let hasTrailingPlus = false
 
     if (amountTokens && amountTokens.length > 0) {
       for (let i = amountTokens.length - 1; i >= 0; i--) {
@@ -339,12 +352,21 @@ export function parseCreditCardStatement(
           if (idx !== -1) {
             const before = remaining.slice(0, idx)
             const after = remaining.slice(idx + token.length)
-            const hasLeadingMinus = /(?:^|\s)-\s*$/.test(before)
-            const hasTrailingMinus = /^\s*-/.test(after)
-            isRefund = hasLeadingMinus || hasTrailingMinus
+            hasLeadingMinus = /(?:^|\s)-\s*$/.test(before)
+            hasTrailingMinus = /^\s*-/.test(after)
+            hasLeadingPlus = /(?:^|\s)\+\s*$/.test(before)
+            hasTrailingPlus = /^\s*\+/.test(after)
 
-            const cleanBefore = hasLeadingMinus ? before.replace(/-\s*$/, ' ') : before
-            const cleanAfter = hasTrailingMinus ? after.replace(/^\s*-/, ' ') : after
+            const cleanBefore = hasLeadingMinus
+              ? before.replace(/-\s*$/, ' ')
+              : hasLeadingPlus
+              ? before.replace(/\+\s*$/, ' ')
+              : before
+            const cleanAfter = hasTrailingMinus
+              ? after.replace(/^\s*-/, ' ')
+              : hasTrailingPlus
+              ? after.replace(/^\s*\+/, ' ')
+              : after
             remaining = cleanBefore + ' ' + cleanAfter
           }
           break
@@ -355,11 +377,53 @@ export function parseCreditCardStatement(
     // Si no pudimos determinar un monto válido, descartamos la línea
     if (!amount || amount <= 0) continue
 
+    const hasMinus = hasLeadingMinus || hasTrailingMinus
+    const hasPlus = hasLeadingPlus || hasTrailingPlus
+
+    // Detección heurística de ingresos vs gastos en extractos bancarios / home banking o tarjetas
+    const hasIncomeKeyword =
+      /(?:^|\b)(?:sueldo|haberes|acreditaci[oó]n|dep[oó]sito|deposito|rendimiento|rendimientos|inter[eé]ses|intereses|reintegro|reintegros|devoluci[oó]n|devolucion|premio|cashback|cobro|transferencia recibida|transf\.?\s*recibida|cr[eé]dito|credito)(?:\b|$)/i.test(
+        rawLine
+      )
+    const hasExpenseKeyword =
+      /(?:^|\b)(?:transferencia enviada|transf\.?\s*enviada|d[eé]bito|debito|extracci[oó]n|extraccion|pago|compra)(?:\b|$)/i.test(
+        rawLine
+      )
+
+    const isBankAccount = options.accountType && options.accountType !== 'credit_card'
+    let isRefund = false
+
+    if (isBankAccount) {
+      // En cuentas corrientes / cajas de ahorro / billeteras:
+      // - Monto con signo menos o palabras explícitas de débito -> Gasto (OUTCOME, isRefund = false)
+      // - Monto con signo más o palabras de ingreso -> Ingreso (INCOME, isRefund = true)
+      // - Si no tiene signo, evaluamos palabras de ingreso vs gasto
+      if (hasMinus || hasExpenseKeyword) {
+        isRefund = false
+      } else if (hasPlus || hasIncomeKeyword) {
+        isRefund = true
+      } else {
+        isRefund = false
+      }
+    } else {
+      // En tarjetas de crédito:
+      // - Todo consumo es OUTCOME por defecto.
+      // - Monto negativo o con palabra de reintegro/pago se considera Refund / Pago (INCOME, isRefund = true).
+      isRefund = hasMinus || hasPlus || hasIncomeKeyword
+    }
+
     // 6. Limpiar descripción
-    const description = remaining
-      .replace(/[^\w\s\sáéíóúÁÉÍÓÚñÑ&.-]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim() || 'Consumo tarjeta'
+    const fallbackDefaultDesc = isBankAccount
+      ? isRefund
+        ? 'Ingreso de cuenta'
+        : 'Movimiento de cuenta'
+      : 'Consumo tarjeta'
+
+    const description =
+      remaining
+        .replace(/[^\w\s\sáéíóúÁÉÍÓÚñÑ&.-]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim() || fallbackDefaultDesc
 
     // 7. Asignar categoría sugerida
     const catSuggestion = suggestCategory(description, categories)
@@ -367,7 +431,7 @@ export function parseCreditCardStatement(
     // 8. Calidad de parseo (confianza)
     let confidence: 'high' | 'medium' | 'low' = 'high'
     if (parsedDate === defaultDate && !hadDateMatch) confidence = 'medium'
-    if (description === 'Consumo tarjeta') confidence = 'low'
+    if (description === fallbackDefaultDesc) confidence = 'low'
 
     results.push({
       id: crypto.randomUUID ? crypto.randomUUID() : `item-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -382,6 +446,7 @@ export function parseCreditCardStatement(
       confidence,
       rawLine,
       isRefund,
+      type: isRefund ? 'INCOME' : 'OUTCOME',
       cardDigits
     })
   }

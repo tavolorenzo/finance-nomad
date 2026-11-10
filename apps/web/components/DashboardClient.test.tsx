@@ -90,10 +90,18 @@ describe('DashboardClient', () => {
       />
     )
 
-    expect(screen.getByText('Patrimonio neto')).toBeInTheDocument()
-    expect(screen.getByText('Análisis de Datos & Flujo')).toBeInTheDocument()
+    expect(screen.getByText(/Patrimonio Neto/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Cuentas & Efectivo/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Tarjetas de Crédito/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Radiografía de Gastos/i })).toBeInTheDocument()
     expect(screen.getByText(/Cuenta Principal/)).toBeInTheDocument()
     expect(screen.getByText('Supermercado')).toBeInTheDocument()
+
+    // Permite alternar período entre Mes actual y Últimos 30 días
+    const last30Btn = screen.getByRole('button', { name: /Últimos 30 días/i })
+    expect(last30Btn).toBeInTheDocument()
+    fireEvent.click(last30Btn)
+    expect(screen.getByText(/Flujo \(Últimos 30 días\)/i)).toBeInTheDocument()
   })
 
   it('evalúa correctamente la ventana de verificación (primeros 5 o últimos 5 días del mes)', () => {
@@ -142,7 +150,7 @@ describe('DashboardClient', () => {
       />
     )
 
-    expect(screen.getByText('¿Te llegó el resumen de la tarjeta?')).toBeInTheDocument()
+    expect(screen.getByText('¿Te llegó el resumen de la tarjeta de crédito?')).toBeInTheDocument()
     const verifyLink = screen.getByRole('link', { name: /Verificar Visa Infinite - Banco Itaú/i })
     expect(verifyLink).toBeInTheDocument()
     expect(verifyLink).toHaveAttribute('href', '/accounts/card-1/verify')
@@ -151,7 +159,7 @@ describe('DashboardClient', () => {
     const closeBtn = screen.getByRole('button', { name: /Cerrar aviso de verificación/i })
     expect(closeBtn).toBeInTheDocument()
     fireEvent.click(closeBtn)
-    expect(screen.queryByText('¿Te llegó el resumen de la tarjeta?')).not.toBeInTheDocument()
+    expect(screen.queryByText('¿Te llegó el resumen de la tarjeta de crédito?')).not.toBeInTheDocument()
 
     vi.useRealTimers()
   })

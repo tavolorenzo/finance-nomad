@@ -122,11 +122,10 @@ export function OnboardingTour({
                     setSelectedCurrency(c.code)
                     if (onCurrencyChange) onCurrencyChange(c.code)
                   }}
-                  className={`flex items-center justify-between p-3 rounded-control border text-left transition ${
-                    isSelected
+                  className={`flex items-center justify-between p-3 rounded-control border text-left transition ${isSelected
                       ? 'border-accent bg-accent/10 text-accent font-medium'
                       : 'border-border bg-surface-2/50 text-text-secondary hover:border-text-muted'
-                  }`}
+                    }`}
                 >
                   <span className="flex items-center gap-2 text-sm">
                     <span className="text-base">{c.flag}</span>
@@ -166,7 +165,7 @@ export function OnboardingTour({
           </div>
           <div className="p-3 bg-surface-2/60 rounded-control border border-border-subtle">
             <p className="font-semibold text-text-primary text-xs uppercase tracking-wider text-pending mb-1">
-              Tarjetas y Pagos
+              Tarjetas de crédito y Pagos
             </p>
             <p className="text-xs text-text-muted">
               Pagá tu resumen con 1 clic usando el modal de liquidación inter-cuenta para mantener tu saldo contable impecable.

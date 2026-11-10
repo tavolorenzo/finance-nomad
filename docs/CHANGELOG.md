@@ -12,6 +12,115 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.22.0] - 2026-11-10
+### Agregado
+- **Master Switch en Análisis y Datos (`/analytics`, `AnalyticsDashboard.tsx`, `page.tsx`, `lib/analytics.ts`, PRD §4.15)**:
+  - **Alternador de Alcance de Transacciones (Personales vs. Terceros)**:
+    - Control segmented switch en la cabecera de `/analytics` que permite alternar en 0ms entre **"Solo personales"** (aísla el costo de vida real excluyendo consumos por cuenta de terceros) y **"Todos"** (audita el volumen financiero bruto total operado).
+    - Estado activo por defecto en **"Solo personales"**, garantizando que las métricas de gasto, ahorro y promedios reflejen los consumos puramente propios del usuario.
+    - Indicador informativo dinámico que exhibe la cantidad de movimientos de terceros excluidos en el período seleccionado.
+  - **Motor de Filtrado Reactivo y Soporte Offline (`apps/web/lib/analytics.ts`, `apps/web/lib/ledger/ledger-context.tsx`)**:
+    - Funciones `isThirdPartyTransaction` y `filterTransactionsByScope` para filtrar atómicamente por asignación de personas (`person_id` y catálogo de `people`).
+    - Tolerancia total sin conexión: combina catálogo de personas de servidor con el almacenamiento local `IndexedDB` a través de `useLedger().people`.
+    - Recálculo reactivo instantáneo en cliente de las 5 KPI cards (Gastos, Ingresos, Flujo Neto, Tasa de Ahorro, Promedio Diario), Gastos por Categoría, Flujo de Caja Mensual, Distribución Multi-Moneda y Métodos de Pago.
+  - **Pruebas Automatizadas**:
+    - Nuevos tests unitarios en [`apps/web/lib/analytics.test.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/analytics.test.ts) y [`apps/web/components/AnalyticsDashboard.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/AnalyticsDashboard.test.tsx) validando el comportamiento del Master Switch y la consistencia de totales.
+- **Centro de Ayuda y Documentación (`docs/PRD.md`, `apps/web/lib/help-data.ts`)**:
+  - Actualización de §4.15 del PRD marcando el Master Switch como funcionalidad activa y formalmente implementada.
+  - Enriquecimiento del artículo de la Wiki `wiki-analytics` con sección detallada del Master Switch y nueva FAQ `faq-analytics-scope-switch`.
+
+## [2.21.0] - 2026-11-10
+### Agregado
+- **Rediseño Integral y Modernización del Dashboard Principal (`/dashboard`, `DashboardClient.tsx`, `DashboardKpiGrid.tsx`, `AccountsCardList.tsx`, `CreditCardsSummaryList.tsx`, `ExpensesAnalyticsWidget.tsx`, `QuickLoansWidget.tsx`, `RecentTransactionsWidget.tsx`, `metrics.ts`, PRD §4.1)**:
+  - **Franja Superior de Balances y KPIs (4 Cards Estratégicas)**:
+    - *Patrimonio Neto*: Valor patrimonial consolidado en divisa global (activos líquidos menos pasivos).
+    - *Cash Flow del Período*: Flujo neto ($\text{Ingresos} - \text{Gastos Propios}$), tasa de ahorro y desglose de entradas y salidas.
+    - *Total Adeudado (Cálculo Híbrido)*: Importe principal con la deuda corriente a pagar (tarjetas de crédito y cuotas de préstamos tomados) con badge secundario indicando el importe de cuotas futuras ya comprometidas.
+    - *Por Cobrar*: Cuentas por cobrar acumuladas de terceros (gastos compartidos asumidos con `settled_at is null`) y préstamos otorgados pendientes de cobro, con acceso directo a `/people`.
+  - **Separación Nítida de Cuentas y Tarjetas de Crédito**:
+    - *Cuentas & Efectivo*: Bloque exclusivo para cuentas corrientes, cajas de ahorro, billeteras e inversiones, con cómputo de liquidez total disponible en divisa global y accesos directos.
+    - *Tarjetas de Crédito*: Sección dedicada para plásticos con detección automática de red (VISA, Mastercard, AMEX), saldo corriente a pagar, estado del período contable o alerta destacada para verificar el resumen mensual.
+  - **Switch de Período Rápido (Mes Actual vs. Últimos 30 Días)**:
+    - Selector en la cabecera que permite alternar la ventana de análisis entre el mes calendario en curso y los últimos 30 días móviles, cubriendo la bisagra del cambio de mes.
+  - **Radiografía de Gastos: Consumo Propio vs. Terceros y Gráfico por Categorías**:
+    - Barra comparativa visual del esfuerzo financiero que discrimina gastos personales frente a compras asumidas por cuenta de terceros a cobrar.
+    - Gráfico por categorías estilizado con barras de progreso relativas, iconos semánticos y montos exactos aplicados estrictamente sobre consumos personales.
+  - **Widget de Vista Rápida de Préstamos**:
+    - Resumen compacto de préstamos activos tomados (`borrowed`) y otorgados (`lent`), con alerta destacada de la próxima cuota a vencer (monto, fecha y contraparte).
+  - **Módulo de Métricas Puras y Cobertura de Tests**:
+    - Módulo `apps/web/lib/dashboard/metrics.ts` con funciones puras para cash flow, pasivos híbridos, cuentas a cobrar y resúmenes de préstamos.
+    - Suite de pruebas unitarias exhaustiva en `apps/web/lib/dashboard/metrics.test.ts` y actualización de tests de integración en `DashboardClient.test.tsx` y `page.test.tsx`.
+- **Centro de Ayuda y Wiki (`apps/web/lib/help-data.ts`)**:
+  - Nuevo artículo de wiki `wiki-dashboard` (*Dashboard Principal y Torre de Control*).
+  - Tres nuevas preguntas frecuentes: `faq-dashboard-periods`, `faq-dashboard-third-party`, `faq-dashboard-card-debt`.
+- **Sincronización de Versión SemVer**:
+  - Actualización a `2.21.0` en `apps/web/package.json`, `apps/web/lib/version.ts` y `apps/web/lib/version.test.ts`.
+
+## [2.20.0] - 2026-11-10
+### Agregado
+- **Paginación en Vistas con Histórico de Movimientos (`PaginationControl.tsx`, `TransactionsList.tsx`, `AccountDetailClient.tsx`, `PersonDetailClient.tsx`, PRD §4.2, §4.3, §4.5)**:
+  - **Componente Reutilizable `PaginationControl.tsx`**:
+    - Control accesible con ARIA (`aria-label`, `aria-current`), números de página dinámicos con elipsis, botones *Anterior* y *Siguiente*, diseño responsive para móviles y cifras monetarias y de conteo con `font-mono tabular-nums`.
+    - Cumplimiento total de tokens del sistema de diseño (`--surface-1`, `--surface-2`, `--border`, `--text-primary`, `--text-muted`, `--accent`).
+    - Suite de pruebas unitarias exhaustiva (`PaginationControl.test.tsx`).
+  - **Paginación en Lista General de Movimientos (`/transactions`, `TransactionsList.tsx`)**:
+    - Paginación local en bloques de 20 movimientos por página, previniendo el scroll infinito y la acumulación desmedida de nodos en el DOM.
+    - Soporte integrado de carga de lotes remotos en background al alcanzar las páginas finales si existen más movimientos en el servidor (`hasMoreTransactions`).
+    - Pruebas unitarias de navegación y paginado en `TransactionsList.test.tsx`.
+  - **Paginación en Ficha de Cuentas (`/accounts/[id]`, `AccountDetailClient.tsx`)**:
+    - Paginación a 20 movimientos por página sobre `visibleTransactions` tanto en el filtro *"Este período"* como en *"Todos los movimientos"*.
+    - Reajuste y reseteo defensivo automático a la página 1 ante cambios de filtro (`filterMode`), cambio de período contable (`selectedPeriod`) o reducción de lista.
+    - Pruebas unitarias en `AccountDetailClient.test.tsx`.
+  - **Paginación en Ficha de Personas (`/people/[id]`, `PersonDetailClient.tsx`)**:
+    - Paginación a 10 movimientos por página en la sección de *"Historial cobrado"* (`settled`), manteniendo visible y despejado el panel superior de cobros pendientes.
+    - Suite de pruebas unitarias en `PersonDetailClient.test.tsx`.
+  - **Reglas del Proyecto para Agentes (`AGENTS.md`)**:
+    - Incorporación de la regla obligatoria §1: *Presentación Previa Obligatoria de Plan de Implementación e Impacto*, exigiendo presentar objetivo, alcance, análisis de impacto y plan secuencial antes de ejecutar modificaciones de código.
+  - **Centro de Ayuda y Wiki (`apps/web/lib/help-data.ts`)**:
+    - Nueva sección de Wiki en `wiki-ledger` y nueva pregunta frecuente `faq-transactions-pagination` documentando la paginación de movimientos y prevención de scroll infinito.
+
+## [2.19.0] - 2026-11-08
+### Agregado
+- **Carga Rápida y Pegado Mágico para Cuentas Bancarias y Billeteras (`/accounts/[id]/bulk`, `AccountBulkWizard.tsx`, `SmartPasteModal.tsx`, `card-statement-parser.ts`, `bulk-card-actions.ts`, `AccountDetailClient.tsx`, PRD §4.2, §4.12)**:
+  - **Extensión de Carga Rápida a Cuentas no-tarjeta (`/accounts/[id]/bulk`)**: Se eliminó la restricción exclusiva a tarjetas de crédito en la ruta bulk, permitiendo que cualquier cuenta bancaria (cuenta corriente, caja de ahorro, billetera virtual, efectivo o inversión) utilice el asistente de carga rápida en bloque.
+  - **Asistente Especializado `AccountBulkWizard`**:
+    - Grilla spreadsheet-like diseñada para movimientos bancarios con columnas de Fecha, Período Contable, selector de Tipo (`OUTCOME` / Gasto en rojo vs. `INCOME` / Ingreso en verde), Concepto con auto-sugerencia heurística de categorías, Categoría (con modal `CategoryModal` integrado para dar de alta nuevas en el momento), Persona asignada (para imputar gastos compartidos o ingresos), Divisa y Monto.
+    - Tarjeta de Impacto Financiero en vivo que discrimina Total Gastos, Total Ingresos y Saldo Neto Resultante (+/- en la cuenta), alertando además sobre gastos asignados a terceros a cobrar.
+    - Navegación ágil por teclado (Enter en monto agrega fila inmediatamente), botón para limpiar grilla y confirmación visual instantánea.
+  - **Pegado Mágico Adaptado a Home Banking (`SmartPasteModal.tsx`, `card-statement-parser.ts`)**:
+    - Detección de fechas con formato de punto (`DD.MM.AAAA`, `DD.MM.AA`, `DD.MM`) habituales en extractos bancarios de Argentina, Uruguay y Europa.
+    - Heurística de ingresos vs. débitos de home banking: interpreta importes negativos (`-15.000`) o palabras de débito/compra/transferencia enviada como gastos (`OUTCOME`), e importes con signo positivo o palabras clave (sueldo, haberes, acreditación, transferencia recibida, rendimientos, intereses, cobro, reintegro) como ingresos (`INCOME`).
+    - Vista previa con badges interactivos que permiten alternar con 1 clic entre "Gasto" e "Ingreso" antes de volcar las filas a la grilla.
+    - Textos, recordatorios y ejemplos adaptados a extractos bancarios y billeteras electrónicas.
+  - **Acceso Rápido en Ficha de Cuentas (`AccountDetailClient.tsx`)**: Botón *"Carga rápida"* con ícono de chispas en la cabecera de todas las cuentas no-tarjeta junto a *"Ajuste Express"*.
+  - **Acción de Servidor Generalizada (`bulk-card-actions.ts`)**: Soporte de campo `type?: 'OUTCOME' | 'INCOME'` para registro atómico en `master_transactions` y exportación del alias `saveBulkAccountMovementsAction`.
+  - **Centro de Ayuda, Wiki y Recetas Rápidas (`apps/web/lib/help-data.ts`)**:
+    - Nuevo apartado en el artículo de la Wiki `wiki-accounts` sobre Carga Rápida y Pegado Mágico de Home Banking.
+    - Nuevas FAQs `faq-acc-bulk` y `faq-acc-magic-paste`.
+    - Nueva guía paso a paso `guide-account-bulk-ingest`.
+    - Suites de pruebas unitarias (`AccountBulkWizard.test.tsx`, `SmartPasteModal.test.tsx`, `card-statement-parser.test.ts`, `AccountDetailClient.test.tsx`, `help-data.test.ts`).
+
+### Corregido
+- **Falsos positivos de subpalabras cortas en `suggestCategory` (`card-statement-parser.ts`)**: Se corrigió el emparejamiento de subpalabras cortas (ej. `'metro'` de Transporte dentro de `'metrogas'` de Servicios) exigiendo límites de palabra para keywords $\le 5$ caracteres y permitiendo prefijos con límite inicial para palabras compuestas o plurales.
+
+## [2.18.0] - 2026-11-08
+### Agregado
+- **Período Contable en Detalle de Cuentas y Tarjetas (`/accounts/[id]`, `AccountDetailClient.tsx`, `app/(protected)/accounts/[id]/page.tsx`, PRD §4.2, §4.4)**:
+  - **Barra de Control de Período Contable Unificada**: Incorporación del selector de período contable (`Calendar`, botones de anterior/siguiente `ChevronLeft`/`ChevronRight`, mes formateado y acceso rápido *"Volver a [Mes actual]"*), homologando el diseño e interacción de `/cards` y `/people/[id]`.
+  - **Soporte de Parámetro URL (`?period=YYYY-MM`) y Navegación Cruzada**: Conservación automática del período seleccionado al navegar desde el centro de tarjetas (`/cards?period=...`) hacia el detalle individual de cada plástico o viceversa.
+  - **Métricas y Resúmenes Contextuales al Período**:
+    - **Tarjetas de crédito**: Cómputo bimonetario de los consumos del resumen seleccionado (`selectedPeriod`), proyección de compromisos en cuotas posteriores (`> selectedPeriod`) y paso del período al enlace *"Verificar resumen"* (`/accounts/[id]/verify?period=...`) y a `RegisterCardPaymentModal` (`initialPeriod`).
+    - **Cuentas bancarias y efectivo**: El panel lateral calcula ingresos, egresos y balance neto correspondientes al período contable activo.
+  - **Selector de Alcance en el Historial de Movimientos**: Alternador de 1 clic entre *"Este período (N)"* (filtrado por `effectivePeriod === selectedPeriod` para conciliación rápida) y *"Todos (M)"* (auditoría completa del historial).
+  - **Arquitectura Reactiva y Zero-Wait UI (`AccountDetailClient.tsx`)**: Integración con `useOptionalLedger()` para soporte offline-first y reactividad inmediata en IndexedDB.
+- **Centro de Ayuda, Wiki y Pruebas (`apps/web/lib/help-data.ts`, `AccountDetailClient.test.tsx`)**:
+  - Nueva sección en la Wiki (`wiki-accounts`) y nueva FAQ (`faq-acc-period`) explicando la navegación de meses contables en cuentas y tarjetas.
+  - Suite de pruebas unitarias cubriendo conmutación de períodos, filtros y propagación a modales de pago y verificación.
+
+### Modificado
+- **Unificación de Nomenclatura a "Tarjetas de crédito" (`Navigation.tsx`, `CreditCardsDashboard.tsx`, `AccountsClient.tsx`, `RegisterCardPaymentModal.tsx`, `DashboardClient.tsx`, `WelcomeWizard.tsx`, `help-data.ts`, PRD §4.14)**:
+  - **Claridad Terminológica**: Reemplazo de la denominación genérica *"Tarjetas"* por *"Tarjetas de crédito"* en menús principales (desktop y móvil), encabezados de dashboard (`CreditCardsDashboard`), selectores de filtro, botones de acción rápida (`AccountsClient`), modal de pago (`RegisterCardPaymentModal`), banners de resumen (`DashboardClient`), asistente inicial (`WelcomeWizard`) y Centro de Ayuda (`help-data.ts`) para evitar cualquier ambigüedad con tarjetas de débito.
+
 ## [2.17.0] - 2026-11-05
 ### Agregado
 - **Módulo Integral de Presupuesto y Gastos Fijos (`/budget`, `BudgetClient.tsx`, `BudgetEstimateModal.tsx`, `lib/budget/calculations.ts`, `budget/actions.ts`, PRD §4.6)**:
