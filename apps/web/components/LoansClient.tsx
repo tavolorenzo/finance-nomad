@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import {
   Landmark,
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { LoanCard } from './LoanCard'
 import { formatMoney } from '@/lib/currency'
+import { useOptionalLedger } from '@/lib/ledger/ledger-context'
 import type { Account, LoanWithInstallments } from '@/lib/types'
 
 interface LoansClientProps {
@@ -25,12 +26,31 @@ interface LoansClientProps {
 type FilterTab = 'ALL' | 'BORROWED' | 'LENT' | 'INTERMEDIATED' | 'PAID'
 
 export function LoansClient({ loans, accounts, displayCurrency }: LoansClientProps) {
+  const ledger = useOptionalLedger()
   const [activeTab, setActiveTab] = useState<FilterTab>('ALL')
   const [searchTerm, setSearchTerm] = useState('')
 
+  // Sembrar datos iniciales en LedgerContext si vinieron del servidor
+  useEffect(() => {
+    if (loans.length > 0 && ledger?.seedInitialData) {
+      ledger.seedInitialData({ loans })
+    }
+  }, [loans, ledger])
+
+  // Préstamos y cuentas reactivos tolerantes a desconexión
+  const activeLoans = useMemo(() => {
+    if (loans.length > 0) return loans
+    return ledger?.loans ?? []
+  }, [loans, ledger?.loans])
+
+  const activeAccounts = useMemo(() => {
+    if (accounts.length > 0) return accounts
+    return (ledger?.accounts ?? []) as typeof accounts
+  }, [accounts, ledger?.accounts])
+
   // Filtrado de préstamos
   const filteredLoans = useMemo(() => {
-    return loans.filter((loan) => {
+    return activeLoans.filter((loan) => {
       // Búsqueda por texto
       if (searchTerm) {
         const query = searchTerm.toLowerCase()
@@ -48,7 +68,7 @@ export function LoansClient({ loans, accounts, displayCurrency }: LoansClientPro
       }
       return loan.status !== 'PAID'
     })
-  }, [loans, activeTab, searchTerm])
+  }, [activeLoans, activeTab, searchTerm])
 
   // KPIs
   const kpis = useMemo(() => {
@@ -56,7 +76,7 @@ export function LoansClient({ loans, accounts, displayCurrency }: LoansClientPro
     let totalLentRemaining = 0
     let nextDueInstallment: { date: string; amount: number; currency: string; loanName: string } | null = null
 
-    for (const loan of loans) {
+    for (const loan of activeLoans) {
       if (loan.status === 'PAID') continue
       const installments = loan.installments || []
       const next = installments
@@ -90,7 +110,7 @@ export function LoansClient({ loans, accounts, displayCurrency }: LoansClientPro
       totalLentRemaining,
       nextDueInstallment
     }
-  }, [loans])
+  }, [activeLoans])
 
   return (
     <div className="space-y-6">
@@ -212,7 +232,7 @@ export function LoansClient({ loans, accounts, displayCurrency }: LoansClientPro
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
-            Finalizados ({loans.filter((l) => l.status === 'PAID').length})
+            Finalizados ({activeLoans.filter((l) => l.status === 'PAID').length})
           </button>
         </div>
 
@@ -233,7 +253,7 @@ export function LoansClient({ loans, accounts, displayCurrency }: LoansClientPro
       {filteredLoans.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredLoans.map((loan) => (
-            <LoanCard key={loan.id} loan={loan} accounts={accounts} />
+            <LoanCard key={loan.id} loan={loan} accounts={activeAccounts} />
           ))}
         </div>
       ) : (

@@ -12,6 +12,30 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.23.0] - 2026-11-10
+### Agregado
+- **Soporte PWA Completo y Resiliencia Offline con Service Worker (`apps/web/public/sw.js`, `manifest.ts`, `ServiceWorkerRegister.tsx`, `layout.tsx`)**:
+  - **Service Worker Nativo (`public/sw.js`)**:
+    - Estrategia `CacheFirst` para assets inmutables de Next.js (`/_next/static/*`, fuentes `.woff2`, iconos y estilos).
+    - Estrategia `NetworkFirst` con timeout de 2.5s y fallback a caché para navegación HTML, evitando la pantalla nativa de error del navegador ante recargas (F5) o pérdida repentina de conexión a internet.
+    - Exclusión estricta de peticiones con método distinto a `GET` (Server Actions `POST`), endpoints de autenticación (`/auth/*`, Supabase Auth) y el endpoint `/api/bootstrap` para no interferir con la sincronización controlada de datos.
+    - Página de contingencia offline elegante en caso de intentar acceder sin red a una ruta no visitada previamente.
+  - **Manifiesto Web PWA (`apps/web/app/manifest.ts`)**:
+    - Configuración nativa de Next.js MetadataRoute: `display: 'standalone'`, orientación portrait, colores `--surface-0` (`#09090b`) y `--accent` (`#3b82f6`), apto para instalación en Android, iOS y escritorio.
+  - **Componente de Registro (`ServiceWorkerRegister.tsx`)**:
+    - Registro optimizado tras el evento `window.load` para no competir con el TTI (Time to Interactive).
+- **Integración de Préstamos en Almacenamiento Local IndexedDB (`apps/web/app/api/bootstrap/route.ts`, `ledger-context.tsx`, `LoansClient.tsx`)**:
+  - **Préstamos en Snapshot de Arranque (`/api/bootstrap`)**: Inclusión de la consulta optimizada a `loans` y `loan_installments` activos junto a instituciones y personas en el payload inicial.
+  - **Persistencia en `LedgerContext` e IndexedDB**: Almacenamiento de `loans` en `app_snapshot` para disponibilidad en 0 ms y exposición reactiva en `useLedger()` / `useOptionalLedger()`.
+  - **Hidratación Offline en `/loans` (`LoansClient.tsx`)**: Si la conexión con Supabase falla por corte de red, `LoansClient` detecta la lista vacía del servidor y se hidrata automáticamente desde `useOptionalLedger()`, manteniendo visibles los préstamos, cuotas y KPIs.
+  - **Protección Online-First en Creación de Préstamos (`LoanForm.tsx`)**: Se mantiene la deshabilitación del submit y el aviso preventivo cuando `!isOnline`.
+- **Pruebas Automatizadas**:
+  - [`apps/web/components/ServiceWorkerRegister.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/ServiceWorkerRegister.test.tsx): Pruebas de registro en ventana y tolerancia en entornos sin Service Worker.
+  - [`apps/web/components/LoansClient.test.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/LoansClient.test.tsx): Pruebas de renderizado inicial, sembrado en ledger e hidratación offline desde `useOptionalLedger()`.
+- **Documentación y Centro de Ayuda (`docs/architecture.md`, `AGENTS.md`, `apps/web/lib/help-data.ts`)**:
+  - Enriquecimiento del artículo `wiki-offline` y nueva FAQ `faq-offline-pwa` sobre instalación PWA, comportamiento ante F5 y consulta de préstamos sin conexión.
+  - Formalización en [`docs/architecture.md`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/docs/architecture.md) y [`AGENTS.md`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/AGENTS.md) de la directiva de mantenimiento continuo de la arquitectura PWA/offline ante nuevos módulos o cambios de entidades.
+
 ## [2.22.0] - 2026-11-10
 ### Agregado
 - **Master Switch en Análisis y Datos (`/analytics`, `AnalyticsDashboard.tsx`, `page.tsx`, `lib/analytics.ts`, PRD §4.15)**:

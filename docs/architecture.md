@@ -20,9 +20,28 @@ El sistema implementa una arquitectura híbrida intencional que distingue entre 
    - **Alcance**: Gastos (`INCOME`/`OUTCOME`), cuotas con tarjeta, transferencias entre cuentas y ajustes de saldo.
    - **Comportamiento**: 100% tolerante a desconexión (*Offline-Ready*). Los UUIDs se generan en el cliente (`crypto.randomUUID()`), el delta de saldo se aplica en memoria en $< 16\text{ ms}$, la mutación se encola en el *Outbox* (IndexedDB) y se despacha asíncronamente en segundo plano.
 2. **Capa Estructural / Catálogos Maestros** — *Online-First*:
-   - **Alcance**: Creación y edición de Instituciones, Cuentas bancarias, Personas y Ajustes de usuario.
-   - **Comportamiento**: Requiere conectividad activa. Se gestiona mediante Server Actions síncronas directas a Supabase para garantizar integridad referencial (Foreign Keys), reglas de negocio atómicas (ej. creación automática de cuenta en efectivo asociada a la institución) y triggers de seguridad (`prevent_account_hard_delete`).
-   - **Protección UI**: Si el usuario está offline (`navigator.onLine === false`), los formularios muestran feedback preventivo rioplatense y deshabilitan el envío para evitar fallos de red confusos.
+   - **Alcance**: Creación y edición de Instituciones, Cuentas bancarias, Personas, Préstamos y Ajustes de usuario.
+   - **Comportamiento**: Requiere conectividad activa. Se gestiona mediante Server Actions síncronas directas a Supabase para garantizar integridad referencial (Foreign Keys), reglas de negocio atómicas (ej. creación automática de cuenta en efectivo asociada a la institución o cálculo de cuadro de marcha) y triggers de seguridad (`prevent_account_hard_delete`).
+   - **Protección UI**: Si el usuario está offline (`navigator.onLine === false`), los formularios (`InstitutionForm`, `PersonForm`, `AccountForm`, `LoanForm`) muestran feedback preventivo rioplatense y deshabilitan el envío para evitar fallos de red confusos.
+
+### 1.2. PWA, Service Worker y Resiliencia ante Recargas (F5)
+
+Para garantizar la disponibilidad en cualquier circunstancia de viaje:
+1. **Service Worker Nativo (`public/sw.js`)**:
+   - Cachea inmutablemente los recursos estáticos del shell (`/_next/static/*`, fuentes, iconos) con estrategia `CacheFirst`.
+   - Aplica estrategia `NetworkFirst` con timeout de 2.5s para navegación de documentos HTML: si la conexión se corta o el usuario presiona F5, el navegador sirve el cascarón de la app desde la memoria caché en lugar de mostrar el error nativo del navegador.
+   - Excluye llamadas `POST` (Server Actions), rutas de autenticación (`/auth/*`) y `/api/bootstrap` para preservar el control del ledger.
+2. **Manifiesto Web (`manifest.ts`)**:
+   - Permite instalar Finance Nomad en la pantalla de inicio de smartphones (iOS/Android) y escritorios como Progressive Web App `standalone`.
+
+### 1.3. Directiva de Mantenimiento de Entidades en Snapshot Local
+
+> [!IMPORTANT]
+> **Obligación de Mantenimiento Continuo de la Arquitectura Offline**:
+> Cada vez que se agregue un nuevo módulo de lectura o entidad al sistema (ej. inversiones, suscripciones, nuevos pasivos), es **obligatorio** mantener actualizada esta arquitectura en 3 puntos clave:
+> 1. Extender `/api/bootstrap/route.ts` para incluir la entidad en la consulta inicial paralela.
+> 2. Incorporar el tipado y estado en `BootstrapData`, `LedgerContextType` y `seedInitialData` dentro de `apps/web/lib/ledger/ledger-context.tsx` para persistirla en `app_snapshot` de IndexedDB (`outbox-db.ts`).
+> 3. En el cliente de la vista correspondiente, implementar hidratación de contingencia consumiendo `useOptionalLedger()` si las props de servidor vienen vacías por corte de red, y validar conectividad con `useOnlineStatus()` en formularios de alta.
 
 ---
 

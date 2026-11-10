@@ -382,9 +382,18 @@ export const WIKI_ARTICLES: WikiArticle[] = [
         title: 'Catálogos Maestros Online-First',
         content: 'Por seguridad e integridad, la creación inicial de nuevas instituciones, cuentas bancarias y personas requiere conexión activa. Si estás offline, los formularios de catálogo te avisarán para proteger la estructura.',
         tip: 'Apenas recuperes señal de WiFi o datos, la cola Outbox se vacía en background sin que tengas que hacer nada.'
+      },
+      {
+        title: 'PWA y Resiliencia con Service Worker',
+        content: 'Finance Nomad es una Progressive Web App (PWA) instalable en tu celular o computadora. Un Service Worker nativo cachea los archivos estáticos y las vistas navegadas. Si recargás la pantalla (F5) o abrís la app sin conexión, no verás la pantalla de error del navegador: la app responderá directamente con los datos locales guardados en IndexedDB.',
+        tip: 'Podés agregar Finance Nomad a la pantalla de inicio desde el menú de opciones de Safari (Compartir > Agregar a pantalla de inicio) o Chrome (Instalar aplicación).'
+      },
+      {
+        title: 'Consulta de Préstamos Offline',
+        content: 'Tus deudas bancarias, préstamos otorgados y cuadros de marcha en /loans se persisten en el snapshot de arranque en tu dispositivo. Podés consultar cuotas, saldos remanentes y vencimientos futuros sin conexión.'
       }
     ],
-    relatedFaqIds: ['faq-offline-airplane', 'faq-offline-sync']
+    relatedFaqIds: ['faq-offline-airplane', 'faq-offline-sync', 'faq-offline-pwa']
   },
   {
     id: 'wiki-loans',
@@ -680,6 +689,15 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'offline',
     categoryLabel: 'Offline & Datos',
     tags: ['badge', 'sincronización', 'indicador', 'conexión'],
+    relatedWikiSlug: 'modo-offline-y-sincronizacion'
+  },
+  {
+    id: 'faq-offline-pwa',
+    question: '¿Qué pasa si recargo la página (F5) o abro la app sin internet?',
+    answer: 'Gracias al Service Worker nativo y al manifiesto PWA, Finance Nomad no muestra la pantalla de error del navegador. El cascarón de la app se sirve desde la caché del navegador y los saldos, movimientos y préstamos se hidratan automáticamente desde tu base de datos local IndexedDB.',
+    category: 'offline',
+    categoryLabel: 'Offline & Datos',
+    tags: ['pwa', 'service worker', 'f5', 'recarga', 'offline', 'pantalla de inicio'],
     relatedWikiSlug: 'modo-offline-y-sincronizacion'
   },
   {

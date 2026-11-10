@@ -1,5 +1,6 @@
 import { Inter, Space_Grotesk, IBM_Plex_Mono } from 'next/font/google'
 import './globals.css'
+import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -22,7 +23,13 @@ const ibmPlexMono = IBM_Plex_Mono({
 
 export const metadata = {
   title: 'Finance Nomad',
-  description: 'Finanzas personales multi-moneda para vida nómada'
+  description: 'Finanzas personales multi-moneda para vida nómada',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Finance Nomad'
+  }
 }
 
 const themeScript = `
@@ -44,6 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className={`${inter.variable} ${spaceGrotesk.variable} ${ibmPlexMono.variable} font-sans`} suppressHydrationWarning>
+        <ServiceWorkerRegister />
         {children}
       </body>
     </html>

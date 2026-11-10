@@ -74,7 +74,13 @@ Este archivo contiene las directivas y restricciones obligatorias para cualquier
 * **Ledger Bundles**: Toda operación contable generada en la UI debe encapsularse en un `LedgerBundle` con UUIDs asignados mediante `crypto.randomUUID()` en el cliente. Queda prohibido persistir o sincronizar filas huérfanas de cuotas o transferencias.
 * **Cálculo de Saldos (Baseline + Delta)**: No descargar historiales completos para computar saldos en memoria de Node o browser. Usar siempre el baseline provisto por el backend más los deltas de las filas locales `COMPLETED`.
 * **Zero-Wait UI (Exclusivo Ledger Transaccional)**: Los formularios y acciones de registro contable (`master_transactions`) no deben congelar la UI esperando respuestas de red. Las mutaciones se reflejan al instante en la memoria local y se encolan en el Outbox para su respaldo en background.
-* **Catálogos Maestros (Online-First)**: La creación y edición de instituciones, cuentas y personas se procesa de forma síncrona mediante Server Actions contra Supabase. En formularios de catálogo (`InstitutionForm`, `PersonForm`, `AccountForm`), se debe validar conectividad con `useOnlineStatus()` mostrando feedback preventivo y deshabilitando el botón de submit si el usuario está offline para evitar fallos de red silenciosos.
+* **Catálogos Maestros (Online-First)**: La creación y edición de instituciones, cuentas, personas y préstamos se procesa de forma síncrona mediante Server Actions contra Supabase. En formularios de catálogo (`InstitutionForm`, `PersonForm`, `AccountForm`, `LoanForm`), se debe validar conectividad con `useOnlineStatus()` mostrando feedback preventivo y deshabilitando el botón de submit si el usuario está offline para evitar fallos de red silenciosos.
+* **Mantenimiento Obligatorio de Arquitectura PWA y Persistencia Offline**:
+  - Ante cualquier nuevo módulo, vista o entidad contable (ej. inversiones, pasivos, suscripciones):
+    1. **Snapshot de arranque**: Extender `apps/web/app/api/bootstrap/route.ts` para devolver la entidad activa en paralelo.
+    2. **Persistencia en IndexedDB**: Incorporar la entidad en `BootstrapData`, `LedgerContextType` y `seedInitialData` dentro de `apps/web/lib/ledger/ledger-context.tsx` para persistirla en `app_snapshot` (`outbox-db.ts`).
+    3. **Hidratación en cliente**: El componente cliente de la vista debe consumir `useOptionalLedger()` y montar los datos locales si el servidor devuelve lista vacía por desconexión.
+    4. **Service Worker (`sw.js`)**: Mantener el cacheo de assets estáticos y navegación `NetworkFirst` con fallback a caché y exclusión estricta de llamadas mutables (`POST`) o autenticación.
 
 ---
 

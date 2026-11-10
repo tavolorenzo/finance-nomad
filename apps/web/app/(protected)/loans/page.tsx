@@ -37,7 +37,7 @@ export default async function LoansPage() {
       displayCurrency = settingsRes.data.display_currency
     }
   } catch {
-    // Si falla la red, la lista se renderiza vacía
+    // Si la conexión falla (offline), LoansClient hidrata préstamos y cuentas desde LedgerContext (IndexedDB).
   }
 
   return (
