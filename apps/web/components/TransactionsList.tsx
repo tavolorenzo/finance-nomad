@@ -8,14 +8,17 @@ import {
   SlidersHorizontal,
   ArrowRightLeft,
   Loader2,
-  ChevronDown
+  ChevronDown,
+  Edit2,
+  Tag
 } from 'lucide-react'
 import { formatMoney } from '@/lib/currency'
 import { ConfirmTransactionButton } from '@/components/ConfirmTransactionButton'
 import { DeleteTransactionButton } from '@/components/DeleteTransactionButton'
+import { EditTransactionModal } from '@/components/EditTransactionModal'
 import { PaginationControl } from '@/components/PaginationControl'
 import { useLedger } from '@/lib/ledger/ledger-context'
-import type { MasterTransaction } from '@/lib/types'
+import type { Category, MasterTransaction, Person } from '@/lib/types'
 
 const PAGE_SIZE = 20
 
@@ -24,10 +27,29 @@ export function TransactionsList({
 }: {
   initialTransactions?: MasterTransaction[]
 }) {
-  const { recentTransactions, hasMoreTransactions, loadMoreTransactions, isInitialized } =
-    useLedger()
+  const {
+    recentTransactions,
+    categories = [],
+    people = [],
+    hasMoreTransactions,
+    loadMoreTransactions,
+    isInitialized
+  } = useLedger()
   const [loadingMore, setLoadingMore] = useState(false)
   const [currentPage, setCurrentPage] = useState<number>(1)
+  const [editingTx, setEditingTx] = useState<MasterTransaction | null>(null)
+
+  const categoriesById = useMemo(() => {
+    const map = new Map<string, Category>()
+    for (const c of categories ?? []) map.set(c.id, c)
+    return map
+  }, [categories])
+
+  const peopleById = useMemo(() => {
+    const map = new Map<string, Person>()
+    for (const p of people ?? []) map.set(p.id, p)
+    return map
+  }, [people])
 
   const transactions = isInitialized
     ? recentTransactions
@@ -83,6 +105,10 @@ export function TransactionsList({
           const isPositiveAdj = isAdjustment && t.amount_account >= 0
           const isTransferIn = isTransfer && t.amount_account >= 0
           const isPending = t.status === 'PENDING'
+          const category = t.category_id ? categoriesById.get(t.category_id) : null
+          const person = t.person_id ? peopleById.get(t.person_id) : null
+          const isThirdParty = Boolean(person && person.name.trim().toLowerCase() !== 'personal')
+          const needsCategory = (isOutcome || isIncome) && !t.category_id
 
           return (
             <div key={t.id} className="flex items-center justify-between py-3">
@@ -129,8 +155,31 @@ export function TransactionsList({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <p className="text-xs text-text-muted">{t.date}</p>
+                    {category && (
+                      <>
+                        <span className="text-xs text-text-muted">·</span>
+                        <span className="text-xs text-text-secondary">{category.name}</span>
+                      </>
+                    )}
+                    {needsCategory && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingTx(t)}
+                        className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-pending/15 text-pending border border-pending/30 hover:bg-pending/25 transition"
+                        title="Asignar categoría a este movimiento"
+                      >
+                        <Tag size={10} />
+                        <span>+ Sin categoría</span>
+                      </button>
+                    )}
+                    {isThirdParty && person && (
+                      <>
+                        <span className="text-xs text-text-muted">·</span>
+                        <span className="text-xs font-medium text-accent">{person.name}</span>
+                      </>
+                    )}
                     {t.installment_total > 1 && (
                       <span className="text-[10px] font-medium bg-pending/15 text-pending px-2 py-0.5 rounded-full">
                         Cuota {t.installment_current} de {t.installment_total}
@@ -167,6 +216,15 @@ export function TransactionsList({
                     : '+'}
                   {formatMoney(Math.abs(t.amount_account), t.currency_account)}
                 </p>
+                <button
+                  type="button"
+                  onClick={() => setEditingTx(t)}
+                  aria-label="Editar movimiento"
+                  title="Editar movimiento"
+                  className="p-1.5 rounded-control text-text-muted hover:text-accent hover:bg-surface-2 transition"
+                >
+                  <Edit2 size={14} />
+                </button>
                 <DeleteTransactionButton transactionId={t.id} />
               </div>
             </div>
@@ -209,6 +267,13 @@ export function TransactionsList({
         <p className="text-center text-xs text-text-muted pt-2">
           No hay más movimientos anteriores para mostrar.
         </p>
+      )}
+
+      {editingTx && (
+        <EditTransactionModal
+          transaction={editingTx}
+          onClose={() => setEditingTx(null)}
+        />
       )}
     </div>
   )

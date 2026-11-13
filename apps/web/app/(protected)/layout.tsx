@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthenticatedUser } from '@/lib/supabase/auth-helper'
 import { Navigation } from '@/components/Navigation'
+import { VersionUpdateBanner } from '@/components/VersionUpdateBanner'
 import { LedgerProvider } from '@/lib/ledger/ledger-context'
 
 export default async function ProtectedLayout({
@@ -22,7 +23,10 @@ export default async function ProtectedLayout({
     <LedgerProvider>
       <div>
         <Navigation />
-        <div className="md:pl-56 pb-20 md:pb-0">{children}</div>
+        <div className="md:pl-56 pb-20 md:pb-0">
+          <VersionUpdateBanner />
+          {children}
+        </div>
         {/* Wrapper estable: @modal a veces es null y Next inyecta un placeholder
             distinto en servidor vs cliente si el slot queda suelto. */}
         <div>{modal}</div>

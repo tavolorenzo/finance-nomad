@@ -4,7 +4,8 @@ import {
   applyBundleDelta,
   calculatePendingDelta,
   applyDeletionDelta,
-  applyConfirmationDelta
+  applyConfirmationDelta,
+  applyUpdateDelta
 } from './balance'
 import { buildTransactionBundle, buildTransferBundle } from './builder'
 import type { AccountBalance } from './types'
@@ -392,5 +393,82 @@ describe('applyConfirmationDelta', () => {
     const acc1 = updated.find((b) => b.accountId === 'acc-1')
     // 1000 - 80 = 920
     expect(acc1?.balance).toBe(920)
+  })
+})
+
+describe('applyUpdateDelta', () => {
+  it('adjusts balance when COMPLETED OUTCOME amount changes', () => {
+    const balances: AccountBalance[] = [
+      { accountId: 'acc-1', currency: 'EUR', balance: 950 }
+    ]
+    const oldRow = {
+      id: 'tx-1',
+      parent_transaction_id: null,
+      date: '2026-10-09',
+      type: 'OUTCOME' as const,
+      amount_original: 50,
+      currency_original: 'EUR',
+      fee_amount: 0,
+      exchange_rate: 1,
+      rate_overridden: false,
+      amount_account: 50,
+      currency_account: 'EUR',
+      institution_id: 'inst-1',
+      account_id: 'acc-1',
+      category_id: null,
+      person_id: null,
+      installment_current: 1,
+      installment_total: 1,
+      status: 'COMPLETED' as const,
+      notes: 'Cena',
+      settled_at: null
+    }
+    const newRow = {
+      ...oldRow,
+      amount_original: 80,
+      amount_account: 80,
+      category_id: 'cat-1'
+    }
+
+    const updated = applyUpdateDelta(balances, oldRow, newRow)
+    const acc1 = updated.find((b) => b.accountId === 'acc-1')
+    // Antes descontó 50 (saldo 950). Ahora descuenta 80 -> diferencia -30 -> saldo 920
+    expect(acc1?.balance).toBe(920)
+  })
+
+  it('returns same balances when only category or notes change', () => {
+    const balances: AccountBalance[] = [
+      { accountId: 'acc-1', currency: 'EUR', balance: 950 }
+    ]
+    const oldRow = {
+      id: 'tx-1',
+      parent_transaction_id: null,
+      date: '2026-10-09',
+      type: 'OUTCOME' as const,
+      amount_original: 50,
+      currency_original: 'EUR',
+      fee_amount: 0,
+      exchange_rate: 1,
+      rate_overridden: false,
+      amount_account: 50,
+      currency_account: 'EUR',
+      institution_id: 'inst-1',
+      account_id: 'acc-1',
+      category_id: null,
+      person_id: null,
+      installment_current: 1,
+      installment_total: 1,
+      status: 'COMPLETED' as const,
+      notes: 'Cena',
+      settled_at: null
+    }
+    const newRow = {
+      ...oldRow,
+      category_id: 'cat-food',
+      notes: 'Cena con amigos'
+    }
+
+    const updated = applyUpdateDelta(balances, oldRow, newRow)
+    expect(updated).toBe(balances)
   })
 })

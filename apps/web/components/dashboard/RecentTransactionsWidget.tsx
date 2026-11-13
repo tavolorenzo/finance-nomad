@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowDownLeft,
@@ -7,20 +8,26 @@ import {
   SlidersHorizontal,
   ArrowRightLeft,
   Plus,
-  ArrowRight
+  ArrowRight,
+  Edit2,
+  Tag
 } from 'lucide-react'
 import { formatMoney } from '@/lib/currency'
-import type { MasterTransaction, Person } from '@/lib/types'
+import { EditTransactionModal } from '@/components/EditTransactionModal'
+import type { Category, MasterTransaction, Person } from '@/lib/types'
 
 interface RecentTransactionsWidgetProps {
   transactions: MasterTransaction[]
   peopleById: Map<string, Person>
+  categoriesById?: Map<string, Category>
 }
 
 export function RecentTransactionsWidget({
   transactions,
-  peopleById
+  peopleById,
+  categoriesById
 }: RecentTransactionsWidgetProps) {
+  const [editingTx, setEditingTx] = useState<MasterTransaction | null>(null)
   return (
     <div className="bg-surface-1 border border-border rounded-card p-5 space-y-4">
       <div className="flex items-center justify-between">
@@ -73,6 +80,8 @@ export function RecentTransactionsWidget({
             const isThirdParty = Boolean(
               person && person.name.trim().toLowerCase() !== 'personal'
             )
+            const category = t.category_id ? categoriesById?.get(t.category_id) ?? null : null
+            const needsCategory = (isOutcome || isIncome) && !t.category_id
 
             return (
               <div key={t.id} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
@@ -120,11 +129,30 @@ export function RecentTransactionsWidget({
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-text-muted mt-0.5">{t.date}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      <p className="text-[11px] text-text-muted">{t.date}</p>
+                      {category && (
+                        <>
+                          <span className="text-[11px] text-text-muted">·</span>
+                          <span className="text-[11px] text-text-secondary">{category.name}</span>
+                        </>
+                      )}
+                      {needsCategory && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingTx(t)}
+                          className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.2 rounded bg-pending/15 text-pending border border-pending/30 hover:bg-pending/25 transition"
+                          title="Asignar categoría a este movimiento"
+                        >
+                          <Tag size={9} />
+                          <span>+ Sin categoría</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="text-right shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <p
                     className={`font-mono amount text-xs font-semibold tabular-nums ${
                       isOutcome || (isAdjustment && !isPositiveAdj) || (isTransfer && !isTransferIn)
@@ -145,11 +173,27 @@ export function RecentTransactionsWidget({
                           : '+'}
                     {formatMoney(Math.abs(t.amount_account), t.currency_account)}
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => setEditingTx(t)}
+                    aria-label="Editar movimiento"
+                    title="Editar movimiento"
+                    className="p-1 rounded-control text-text-muted hover:text-accent hover:bg-surface-2 transition"
+                  >
+                    <Edit2 size={13} />
+                  </button>
                 </div>
               </div>
             )
           })}
         </div>
+      )}
+
+      {editingTx && (
+        <EditTransactionModal
+          transaction={editingTx}
+          onClose={() => setEditingTx(null)}
+        />
       )}
     </div>
   )

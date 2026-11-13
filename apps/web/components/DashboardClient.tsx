@@ -508,6 +508,7 @@ export function DashboardClient({
           <RecentTransactionsWidget
             transactions={allTransactions}
             peopleById={peopleById}
+            categoriesById={categoriesById}
           />
         </div>
       </div>

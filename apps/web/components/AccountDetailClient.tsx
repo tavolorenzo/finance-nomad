@@ -16,7 +16,8 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
-  Filter
+  Filter,
+  Tag
 } from 'lucide-react'
 import { formatMoney } from '@/lib/currency'
 import { calculateAccountingPeriod, formatAccountingPeriodLabel } from '@/lib/ledger/builder'
@@ -26,8 +27,9 @@ import { ExpressAdjustModal } from '@/components/ExpressAdjustModal'
 import { RegisterCardPaymentModal } from '@/components/RegisterCardPaymentModal'
 import { DeleteTransactionButton } from '@/components/DeleteTransactionButton'
 import { ConfirmTransactionButton } from '@/components/ConfirmTransactionButton'
+import { EditTransactionModal } from '@/components/EditTransactionModal'
 import { PaginationControl } from '@/components/PaginationControl'
-import type { Account, Institution, MasterTransaction, UserSettings } from '@/lib/types'
+import type { Account, Category, Institution, MasterTransaction, Person, UserSettings } from '@/lib/types'
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   checking: 'Cuenta corriente',
@@ -67,29 +69,46 @@ export function AccountDetailClient({
 
   const [selectedPeriod, setSelectedPeriod] = useState<string>(initialPeriod)
   const [filterMode, setFilterMode] = useState<'period' | 'all'>('period')
+  const [editingTx, setEditingTx] = useState<TransactionWithRelations | null>(null)
+  const [localEdits, setLocalEdits] = useState<Record<string, Partial<TransactionWithRelations>>>({})
+
+  const categoriesById = useMemo(() => {
+    const map = new Map<string, Category>()
+    for (const c of ledger?.categories ?? []) map.set(c.id, c)
+    return map
+  }, [ledger?.categories])
+
+  const peopleById = useMemo(() => {
+    const map = new Map<string, Person>()
+    for (const p of ledger?.people ?? []) map.set(p.id, p)
+    return map
+  }, [ledger?.people])
 
   // Hidratación reactiva con transacciones locales de LedgerContext
   const transactions = useMemo<TransactionWithRelations[]>(() => {
+    let merged: TransactionWithRelations[] = initialTransactions
     if (ledger && ledger.recentTransactions.length > 0) {
       const localForAccount = ledger.recentTransactions.filter(
         (t) => t.account_id === account.id
       ) as TransactionWithRelations[]
-      if (initialTransactions.length === 0) return localForAccount
-
-      const byId = new Map<string, TransactionWithRelations>()
-      for (const tx of initialTransactions) {
-        byId.set(tx.id, tx)
+      if (initialTransactions.length === 0) {
+        merged = localForAccount
+      } else {
+        const byId = new Map<string, TransactionWithRelations>()
+        for (const tx of initialTransactions) {
+          byId.set(tx.id, tx)
+        }
+        for (const local of localForAccount) {
+          byId.set(local.id, {
+            ...byId.get(local.id),
+            ...local
+          })
+        }
+        merged = Array.from(byId.values()).sort((a, b) => b.date.localeCompare(a.date))
       }
-      for (const local of localForAccount) {
-        byId.set(local.id, {
-          ...byId.get(local.id),
-          ...local
-        })
-      }
-      return Array.from(byId.values()).sort((a, b) => b.date.localeCompare(a.date))
     }
-    return initialTransactions
-  }, [account.id, initialTransactions, ledger])
+    return merged.map((tx) => (localEdits[tx.id] ? { ...tx, ...localEdits[tx.id] } : tx))
+  }, [account.id, initialTransactions, ledger, localEdits])
 
   const userSettings = ledger?.settings || initialUserSettings
   const userDisplayCurrency = userSettings?.display_currency || account.currency_native
@@ -587,6 +606,16 @@ export function AccountDetailClient({
                 const isPositiveAdj = isAdjustment && t.amount_account >= 0
                 const isTransferIn = isTransfer && t.amount_account >= 0
                 const isPending = t.status === 'PENDING'
+                const resolvedCategoryName = t.category_id
+                  ? categoriesById.get(t.category_id)?.name ?? t.categories?.name ?? null
+                  : null
+                const resolvedPersonName = t.person_id
+                  ? peopleById.get(t.person_id)?.name ?? t.people?.name ?? null
+                  : null
+                const isThirdParty = Boolean(
+                  resolvedPersonName && resolvedPersonName.trim().toLowerCase() !== 'personal'
+                )
+                const needsCategory = (isOutcome || isIncome) && !t.category_id
 
                 return (
                   <div key={t.id} className="flex items-center justify-between py-3">
@@ -651,16 +680,27 @@ export function AccountDetailClient({
                               </span>
                             </>
                           )}
-                          {t.categories?.name && (
+                          {resolvedCategoryName && (
                             <>
                               <span>·</span>
-                              <span>{t.categories.name}</span>
+                              <span>{resolvedCategoryName}</span>
                             </>
                           )}
-                          {t.people?.name && (
+                          {needsCategory && (
+                            <button
+                              type="button"
+                              onClick={() => setEditingTx(t)}
+                              className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-pending/15 text-pending border border-pending/30 hover:bg-pending/25 transition"
+                              title="Asignar categoría a este movimiento"
+                            >
+                              <Tag size={10} />
+                              <span>+ Sin categoría</span>
+                            </button>
+                          )}
+                          {isThirdParty && resolvedPersonName && (
                             <>
                               <span>·</span>
-                              <span className="text-accent font-medium">{t.people.name}</span>
+                              <span className="text-accent font-medium">{resolvedPersonName}</span>
                             </>
                           )}
                           {t.installment_total > 1 && (
@@ -710,6 +750,15 @@ export function AccountDetailClient({
                           </span>
                         )}
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setEditingTx(t)}
+                        aria-label="Editar movimiento"
+                        title="Editar movimiento"
+                        className="p-1.5 rounded-control text-text-muted hover:text-accent hover:bg-surface-2 transition"
+                      >
+                        <Edit2 size={14} />
+                      </button>
                       <DeleteTransactionButton transactionId={t.id} />
                     </div>
                   </div>
@@ -792,6 +841,26 @@ export function AccountDetailClient({
           </div>
         </div>
       </div>
+
+      {editingTx && (
+        <EditTransactionModal
+          transaction={editingTx}
+          onClose={() => setEditingTx(null)}
+          onSaved={(updated) => {
+            setLocalEdits((prev) => ({
+              ...prev,
+              [updated.transactionId]: {
+                ...(updated.categoryId !== undefined ? { category_id: updated.categoryId } : {}),
+                ...(updated.personId !== undefined ? { person_id: updated.personId } : {}),
+                ...(updated.notes !== undefined ? { notes: updated.notes } : {}),
+                ...(updated.date !== undefined ? { date: updated.date } : {}),
+                ...(updated.amountOriginal !== undefined ? { amount_original: updated.amountOriginal } : {}),
+                ...(updated.amountAccount !== undefined ? { amount_account: updated.amountAccount } : {})
+              }
+            }))
+          }}
+        />
+      )}
     </div>
   )
 }

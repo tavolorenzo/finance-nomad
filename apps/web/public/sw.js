@@ -42,12 +42,13 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // 3. Excluir llamadas de autenticación, Supabase y el bootstrap dinámico
+  // 3. Excluir llamadas de autenticación, Supabase, el bootstrap dinámico y el chequeo de versión
   if (
     url.hostname.includes('supabase.co') ||
     url.pathname.startsWith('/auth') ||
     url.pathname.startsWith('/api/auth') ||
-    url.pathname === '/api/bootstrap'
+    url.pathname === '/api/bootstrap' ||
+    url.pathname === '/api/version'
   ) {
     return
   }

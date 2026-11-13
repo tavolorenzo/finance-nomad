@@ -2,6 +2,7 @@ export type AppEnvironment = 'development' | 'staging' | 'production'
 
 export interface EnvironmentInfo {
   version: string
+  commitSha: string | null
   env: AppEnvironment
   label: string
   description: string
@@ -11,8 +12,53 @@ export interface EnvironmentInfo {
   supabaseHost: string
 }
 
+export interface RemoteVersionPayload {
+  version?: string
+  commitSha?: string | null
+  env?: AppEnvironment
+  timestamp?: string
+}
+
 export function getAppVersion(): string {
-  return process.env.NEXT_PUBLIC_APP_VERSION || '2.24.0'
+  return process.env.NEXT_PUBLIC_APP_VERSION || '2.26.0'
+}
+
+export function getCommitSha(): string | null {
+  const raw =
+    process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ||
+    process.env.VERCEL_GIT_COMMIT_SHA ||
+    process.env.NEXT_PUBLIC_GIT_COMMIT_SHA ||
+    ''
+  const trimmed = raw.trim()
+  return trimmed ? trimmed.slice(0, 7) : null
+}
+
+/**
+ * Compara la versión e identificador de commit activos en el cliente contra la respuesta de /api/version.
+ * Retorna true si el servidor publicó una versión SemVer diferente o un nuevo commit en el mismo entorno.
+ */
+export function isUpdateAvailable(
+  clientVersion: string,
+  clientCommitSha: string | null | undefined,
+  remote: RemoteVersionPayload | null | undefined
+): boolean {
+  if (!remote) return false
+
+  if (remote.version && remote.version.trim() !== '' && remote.version !== clientVersion) {
+    return true
+  }
+
+  const normalizedClientSha = clientCommitSha?.trim() || null
+  const normalizedRemoteSha = remote.commitSha?.trim() || null
+  if (
+    normalizedClientSha &&
+    normalizedRemoteSha &&
+    normalizedClientSha !== normalizedRemoteSha
+  ) {
+    return true
+  }
+
+  return false
 }
 
 export function getAppEnvironment(): AppEnvironment {
@@ -36,6 +82,7 @@ export function getAppEnvironment(): AppEnvironment {
 export function getEnvironmentInfo(): EnvironmentInfo {
   const env = getAppEnvironment()
   const version = getAppVersion()
+  const commitSha = getCommitSha()
 
   let supabaseHost = 'No configurado'
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -61,6 +108,7 @@ export function getEnvironmentInfo(): EnvironmentInfo {
 
   return {
     version,
+    commitSha,
     env,
     label: labels[env],
     description: descriptions[env],

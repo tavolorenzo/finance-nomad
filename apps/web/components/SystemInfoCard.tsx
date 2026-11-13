@@ -1,8 +1,70 @@
-import { getEnvironmentInfo } from '@/lib/version'
-import { Server, Database, Tag, AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react'
+'use client'
+
+import { useState } from 'react'
+import {
+  getEnvironmentInfo,
+  isUpdateAvailable,
+  type RemoteVersionPayload
+} from '@/lib/version'
+import {
+  reloadWithCleanCache,
+  VERSION_DETECTED_EVENT
+} from './VersionUpdateBanner'
+import {
+  Server,
+  Database,
+  Tag,
+  AlertTriangle,
+  CheckCircle2,
+  ShieldAlert,
+  RefreshCw,
+  Sparkles
+} from 'lucide-react'
 
 export function SystemInfoCard() {
   const info = getEnvironmentInfo()
+  const [checking, setChecking] = useState(false)
+  const [checkStatus, setCheckStatus] = useState<'idle' | 'up-to-date' | 'update-available' | 'error'>('idle')
+  const [remoteVersion, setRemoteVersion] = useState<RemoteVersionPayload | null>(null)
+  const [reloading, setReloading] = useState(false)
+
+  const handleCheckUpdate = async () => {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      setCheckStatus('error')
+      return
+    }
+
+    setChecking(true)
+    setCheckStatus('idle')
+    try {
+      const res = await fetch('/api/version', {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { Accept: 'application/json' }
+      })
+      if (!res.ok) {
+        setCheckStatus('error')
+        return
+      }
+      const data = (await res.json()) as RemoteVersionPayload
+      if (isUpdateAvailable(info.version, info.commitSha, data)) {
+        setRemoteVersion(data)
+        setCheckStatus('update-available')
+        window.dispatchEvent(new CustomEvent(VERSION_DETECTED_EVENT, { detail: data }))
+      } else {
+        setCheckStatus('up-to-date')
+      }
+    } catch {
+      setCheckStatus('error')
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  const handleReload = async () => {
+    setReloading(true)
+    await reloadWithCleanCache()
+  }
 
   return (
     <div className="bg-surface-1 border border-border rounded-card p-4 space-y-4">
@@ -61,14 +123,57 @@ export function SystemInfoCard() {
 
       {/* Ficha técnica: versión y base de datos */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-        <div className="bg-surface-0 border border-border rounded-control p-3 space-y-1">
-          <div className="flex items-center gap-1.5 text-text-muted text-xs">
-            <Tag size={13} />
-            <span>Versión instalada</span>
+        <div className="bg-surface-0 border border-border rounded-control p-3 space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-text-muted text-xs">
+              <Tag size={13} />
+              <span>Versión instalada</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCheckUpdate}
+              disabled={checking || reloading}
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-accent hover:opacity-80 transition disabled:opacity-50"
+            >
+              <RefreshCw size={11} className={checking ? 'animate-spin' : ''} />
+              {checking ? 'Verificando...' : 'Buscar actualización'}
+            </button>
           </div>
           <p className="font-mono tabular-nums text-text-primary font-medium text-sm">
             v{info.version}
+            {info.commitSha ? (
+              <span className="text-xs text-text-muted font-normal ml-1.5">
+                ({info.commitSha})
+              </span>
+            ) : null}
           </p>
+          {checkStatus === 'up-to-date' && (
+            <p className="text-[11px] text-income flex items-center gap-1">
+              <CheckCircle2 size={12} />
+              Tenés la última versión disponible.
+            </p>
+          )}
+          {checkStatus === 'error' && (
+            <p className="text-[11px] text-pending">
+              No se pudo verificar la versión (revisá tu conexión).
+            </p>
+          )}
+          {checkStatus === 'update-available' && (
+            <div className="pt-1 flex items-center justify-between gap-2">
+              <span className="text-[11px] text-accent font-medium flex items-center gap-1">
+                <Sparkles size={12} />
+                Nueva versión {remoteVersion?.version ? `v${remoteVersion.version}` : 'disponible'}
+              </span>
+              <button
+                type="button"
+                onClick={handleReload}
+                disabled={reloading}
+                className="px-2 py-1 rounded-control bg-accent text-[color:var(--on-accent)] text-[11px] font-medium hover:opacity-90 transition"
+              >
+                {reloading ? 'Actualizando...' : 'Actualizar / Recargar'}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="bg-surface-0 border border-border rounded-control p-3 space-y-1">

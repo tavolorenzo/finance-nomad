@@ -12,6 +12,35 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.26.0] - 2026-11-13
+### Agregado
+- **Edición de Movimientos y Asignación Rápida de Categoría (`EditTransactionModal.tsx`, `TransactionsList.tsx`, `AccountDetailClient.tsx`, `RecentTransactionsWidget.tsx`, `ledger-context.tsx`, `balance.ts`, PRD §4.3)**:
+  - **Chip Interactivo `+ Sin categoría` y Botón de Edición en Listados**:
+    - En `/transactions` ([`TransactionsList.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/TransactionsList.tsx)), `/accounts/[id]` ([`AccountDetailClient.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/AccountDetailClient.tsx)) y `/dashboard` ([`RecentTransactionsWidget.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/dashboard/RecentTransactionsWidget.tsx)), los ingresos y gastos sin categoría muestran un chip interactivo **`+ Sin categoría`** de 1 clic para clasificarlos en el acto, además del botón de edición (`Edit2`) en cada fila.
+    - [`TransactionsList.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/TransactionsList.tsx) y [`RecentTransactionsWidget.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/dashboard/RecentTransactionsWidget.tsx) ahora muestran la categoría asignada y la persona cuando aplica.
+  - **Modal Universal de Edición (`EditTransactionModal.tsx`)**:
+    - Permite actualizar categoría (`category_id`), crear una nueva categoría en el momento integrando [`CategoryModal.tsx`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/components/CategoryModal.tsx), cambiar la persona asignada (`person_id`), editar la descripción (`notes`), la fecha (`date`) y corregir el monto (`amount_original` y `amount_account`) en movimientos simples.
+    - Incluye opción activada por defecto para **propagar categoría, descripción y persona a todas las cuotas del plan** (`installment_total > 1`).
+  - **Actualización Zero-Wait UI y Delta de Saldos (`ledger-context.tsx`, `balance.ts`, `actions.ts`)**:
+    - Nuevo helper puro `applyUpdateDelta` en [`apps/web/lib/ledger/balance.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/ledger/balance.ts) para recalcular el saldo nominal en memoria al modificar el importe de un movimiento `COMPLETED`.
+    - Nuevo método `updateTransaction` en `LedgerContext` que actualiza el estado en memoria en 0ms, sincroniza eventuales trabajos pendientes en la cola `Outbox` local (`IndexedDB`) y ejecuta la Server Action `updateTransaction` en [`apps/web/app/(protected)/transactions/new/actions.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/app/(protected)/transactions/new/actions.ts).
+  - **Centro de Ayuda y Pruebas (`help-data.ts`, `EditTransactionModal.test.tsx`, `balance.test.ts`)**:
+    - Nueva sección en `wiki-ledger`, nueva FAQ `faq-transactions-edit-category`, nueva receta rápida `guide-edit-transaction-category` y pruebas unitarias.
+
+## [2.25.0] - 2026-11-13
+### Agregado
+- **Detección Híbrida de Nueva Versión y Banner de Actualización (`/api/version`, `VersionUpdateBanner.tsx`, `SystemInfoCard.tsx`, `lib/version.ts`, PRD §4.9)**:
+  - **Endpoint Liviano de Versión (`apps/web/app/api/version/route.ts`)**:
+    - Retorna `{ version, commitSha, env, timestamp }` con cabecera `Cache-Control: no-store`.
+    - Excluido en [`middleware.ts`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/lib/supabase/middleware.ts) y [`public/sw.js`](file:///Users/gustavolorenzo/Documents/GitHub/finance-nomad/apps/web/public/sw.js) para responder de inmediato sin invocar sesión en Supabase ni quedar retenido en caché del Service Worker.
+  - **Banner No Intrusivo de Nueva Versión (`VersionUpdateBanner.tsx`, `app/(protected)/layout.tsx`)**:
+    - Verifica discrepancias de versión SemVer o `commitSha` al recuperar el foco/visibilidad de la pestaña (con *cooldown* de 5 minutos) y periódicamente cada 30 minutos cuando el dispositivo está online (`navigator.onLine`).
+    - Botón **"Actualizar / Recargar"** que purga las cachés estáticas `fn-*` del Service Worker (`reloadWithCleanCache`) y recarga la aplicación limpia, más opción para posponer el aviso.
+  - **Verificación Manual en Ajustes (`SystemInfoCard.tsx`)**:
+    - Visualización del hash de commit abreviado (`commitSha`) junto a la versión instalada y botón **"Buscar actualización"** con feedback inmediato en `/settings`.
+  - **Centro de Ayuda y Pruebas (`help-data.ts`, `VersionUpdateBanner.test.tsx`, `version.test.ts`)**:
+    - Nueva sección en `wiki-offline`, nueva FAQ `faq-app-version-update` y pruebas unitarias de detección, limpieza de caché y tolerancia offline.
+
 ## [2.24.0] - 2026-11-11
 ### Agregado
 - **Módulo de Portafolio de Inversiones y Consolidación Patrimonial (`/portfolio`, `PortfolioDashboard.tsx`, `PortfolioOperationModal.tsx`, `calculations.ts`, `quotes.ts`, `0016_portfolio_module.sql`, PRD §4.8)**:

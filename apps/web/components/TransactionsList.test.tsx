@@ -5,7 +5,8 @@ import * as ledgerContext from '@/lib/ledger/ledger-context'
 import type { MasterTransaction } from '@/lib/types'
 
 vi.mock('@/lib/ledger/ledger-context', () => ({
-  useLedger: vi.fn()
+  useLedger: vi.fn(),
+  useOptionalLedger: vi.fn(() => null)
 }))
 
 vi.mock('./ConfirmTransactionButton', () => ({
@@ -120,5 +121,24 @@ describe('TransactionsList', () => {
     expect(screen.getByText('Movimiento general 21')).toBeInTheDocument()
     expect(screen.getByText('Movimiento general 25')).toBeInTheDocument()
     expect(screen.queryByText('Movimiento general 1')).not.toBeInTheDocument()
+  })
+
+  it('muestra el chip "+ Sin categoría" cuando un gasto no tiene categoría y permite abrir el modal de edición', () => {
+    vi.mocked(ledgerContext.useLedger).mockReturnValue({
+      recentTransactions: [mockTx],
+      categories: [{ id: 'cat-1', name: 'Comida', icon: 'utensils', color: 'expense', is_active: true }],
+      people: [],
+      hasMoreTransactions: false,
+      loadMoreTransactions: mockLoadMore,
+      isInitialized: true
+    } as any)
+
+    render(<TransactionsList />)
+    const uncategorizedChip = screen.getByRole('button', { name: /\+ Sin categoría/i })
+    expect(uncategorizedChip).toBeInTheDocument()
+
+    fireEvent.click(uncategorizedChip)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText('Asignar categoría y editar')).toBeInTheDocument()
   })
 })

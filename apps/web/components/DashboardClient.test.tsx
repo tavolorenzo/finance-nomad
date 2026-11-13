@@ -6,7 +6,8 @@ import type { Account, MasterTransaction } from '@/lib/types'
 import type { AccountBalance } from '@/lib/ledger/types'
 
 vi.mock('@/lib/ledger/ledger-context', () => ({
-  useLedger: vi.fn()
+  useLedger: vi.fn(),
+  useOptionalLedger: vi.fn(() => null)
 }))
 
 vi.mock('./OnboardingTour', () => ({

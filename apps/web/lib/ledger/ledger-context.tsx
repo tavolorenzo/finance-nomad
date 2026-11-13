@@ -7,11 +7,12 @@ import type {
   BuildPersonSettlementInput,
   BuildTransactionInput,
   BuildTransferInput,
-  LedgerBundle
+  LedgerBundle,
+  UpdateTransactionInput
 } from './types'
 import { buildTransactionBundle, buildTransferBundle } from './builder'
 import { buildPersonSettlementBundle } from './settlement'
-import { applyBundleDelta, applyDeletionDelta, applyConfirmationDelta } from './balance'
+import { applyBundleDelta, applyDeletionDelta, applyConfirmationDelta, applyUpdateDelta } from './balance'
 import { syncEngine, type SyncState } from '../sync/sync-engine'
 import { getCachedSnapshot, saveCachedSnapshot } from '../storage/outbox-db'
 
@@ -47,6 +48,7 @@ interface LedgerContextType {
   addTransaction: (input: BuildTransactionInput) => Promise<LedgerBundle>
   addTransfer: (input: BuildTransferInput) => Promise<LedgerBundle>
   addPersonSettlement: (input: BuildPersonSettlementInput) => Promise<LedgerBundle>
+  updateTransaction: (input: UpdateTransactionInput) => Promise<void>
   deleteTransaction: (transactionId: string) => Promise<void>
   confirmTransaction: (transactionId: string) => Promise<void>
   loadMoreTransactions: () => Promise<void>
@@ -407,6 +409,132 @@ export function LedgerProvider({
     [recentTransactions, loadBootstrap]
   )
 
+  // Actualizar una transacción existente (categoría, persona, notas, fecha y/o monto) con Zero-Wait UI
+  const updateTransaction = useCallback(
+    async (input: UpdateTransactionInput): Promise<void> => {
+      const target = recentTransactions.find((t) => t.id === input.transactionId)
+
+      const buildUpdatedRow = (row: MasterTransaction, isTarget: boolean): MasterTransaction => {
+        const next: MasterTransaction = { ...row }
+        if (input.categoryId !== undefined) {
+          next.category_id = input.categoryId || null
+        }
+        if (input.notes !== undefined) {
+          next.notes = input.notes?.trim() || null
+        }
+        if (input.personId !== undefined && (isTarget || !row.settled_at)) {
+          next.person_id = input.personId || null
+        }
+        if (isTarget) {
+          if (input.date !== undefined && input.date.trim()) {
+            next.date = input.date.trim()
+          }
+          if (
+            row.type !== 'TRANSFER' &&
+            (row.installment_total ?? 1) <= 1 &&
+            typeof input.amountOriginal === 'number' &&
+            input.amountOriginal > 0 &&
+            typeof input.amountAccount === 'number' &&
+            input.amountAccount > 0
+          ) {
+            const sign = row.type === 'ADJUSTMENT' && Number(row.amount_account) < 0 ? -1 : 1
+            const orig = Math.abs(input.amountOriginal)
+            const acc = Math.abs(input.amountAccount)
+            const rate = orig > 0 ? Math.round((acc / orig) * 1000000) / 1000000 : 1
+            next.amount_original = row.type === 'ADJUSTMENT' ? orig * sign : orig
+            next.amount_account = row.type === 'ADJUSTMENT' ? acc * sign : acc
+            next.exchange_rate = rate
+            if (input.currencyOriginal) {
+              next.currency_original = input.currencyOriginal
+            }
+          }
+        }
+        return next
+      }
+
+      if (target) {
+        const updatedTarget = buildUpdatedRow(target, true)
+        setBalances((prev) => applyUpdateDelta(prev, target, updatedTarget))
+
+        const rootId = target.parent_transaction_id || target.id
+        const shouldPropagate = Boolean(
+          input.propagateToInstallments && (target.installment_total ?? 1) > 1
+        )
+
+        setRecentTransactions((prev) =>
+          prev.map((t) => {
+            if (t.id === target.id) {
+              return updatedTarget
+            }
+            if (
+              shouldPropagate &&
+              (t.id === rootId || t.parent_transaction_id === rootId) &&
+              !t.settled_at
+            ) {
+              return buildUpdatedRow(t, false)
+            }
+            return t
+          })
+        )
+      }
+
+      // Si el movimiento aún estaba en la cola local Outbox, actualizar su fila para no pisar el cambio
+      let wasUpdatedInPendingOutbox = false
+      try {
+        const { getPendingOutboxJobs, saveOutboxJob } = await import('../storage/outbox-db')
+        const pendingJobs = await getPendingOutboxJobs()
+        for (const job of pendingJobs) {
+          const rootId = target?.parent_transaction_id || target?.id || input.transactionId
+          const shouldPropagate = Boolean(
+            input.propagateToInstallments && ((target?.installment_total ?? 1) > 1)
+          )
+          let touched = false
+          const nextRows = job.bundle.rows.map((r) => {
+            if (r.id === input.transactionId) {
+              touched = true
+              return buildUpdatedRow(r, true)
+            }
+            if (
+              shouldPropagate &&
+              (r.id === rootId || r.parent_transaction_id === rootId) &&
+              !r.settled_at
+            ) {
+              touched = true
+              return buildUpdatedRow(r, false)
+            }
+            return r
+          })
+          if (touched) {
+            wasUpdatedInPendingOutbox = true
+            await saveOutboxJob({
+              ...job,
+              bundle: {
+                ...job.bundle,
+                rows: nextRows
+              }
+            })
+          }
+        }
+      } catch {}
+
+      // Persistir en servidor
+      try {
+        const { updateTransaction: updateAction } = await import(
+          '@/app/(protected)/transactions/new/actions'
+        )
+        await updateAction(input)
+      } catch (err) {
+        // Si la fila recién creada aún estaba únicamente en el Outbox local, no fallar
+        if (!wasUpdatedInPendingOutbox) {
+          throw err
+        }
+      }
+
+      loadBootstrap().catch(() => {})
+    },
+    [recentTransactions, loadBootstrap]
+  )
+
   const retrySync = useCallback(async () => {
     await syncEngine.dispatch()
   }, [])
@@ -430,6 +558,7 @@ export function LedgerProvider({
         addTransaction,
         addTransfer,
         addPersonSettlement,
+        updateTransaction,
         deleteTransaction,
         confirmTransaction,
         loadMoreTransactions,

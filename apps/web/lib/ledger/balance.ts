@@ -118,3 +118,34 @@ export function applyConfirmationDelta(
 
   return Array.from(map.values())
 }
+
+// Aplica la diferencia de saldo nominal cuando una transacción existente se edita (ej. cambio de monto)
+export function applyUpdateDelta(
+  currentBalances: AccountBalance[],
+  oldRow: MasterTransaction,
+  newRow: MasterTransaction
+): AccountBalance[] {
+  const oldDelta = calculateRowDelta(oldRow)
+  const newDelta = calculateRowDelta(newRow)
+  const netAdjustment = Math.round((newDelta - oldDelta) * 100) / 100
+
+  if (netAdjustment === 0) return currentBalances
+
+  const map = new Map<string, AccountBalance>()
+  for (const b of currentBalances) {
+    map.set(b.accountId, { ...b })
+  }
+
+  const existing = map.get(newRow.account_id)
+  if (existing) {
+    existing.balance = Math.round((existing.balance + netAdjustment) * 100) / 100
+  } else {
+    map.set(newRow.account_id, {
+      accountId: newRow.account_id,
+      currency: newRow.currency_account,
+      balance: netAdjustment
+    })
+  }
+
+  return Array.from(map.values())
+}

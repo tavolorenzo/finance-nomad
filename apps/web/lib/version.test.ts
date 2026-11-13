@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { getAppVersion, getAppEnvironment, getEnvironmentInfo } from './version'
+import {
+  getAppVersion,
+  getAppEnvironment,
+  getEnvironmentInfo,
+  getCommitSha,
+  isUpdateAvailable
+} from './version'
 
 describe('version and environment utility', () => {
   const originalEnv = process.env
@@ -13,9 +19,31 @@ describe('version and environment utility', () => {
   })
 
   it('obtiene la versión por defecto o de variable de entorno', () => {
-    expect(getAppVersion()).toBe('2.24.0')
-    process.env.NEXT_PUBLIC_APP_VERSION = '2.24.0'
-    expect(getAppVersion()).toBe('2.24.0')
+    expect(getAppVersion()).toBe('2.26.0')
+    process.env.NEXT_PUBLIC_APP_VERSION = '2.26.0'
+    expect(getAppVersion()).toBe('2.26.0')
+  })
+
+  it('extrae commitSha abreviado a 7 caracteres cuando está configurado', () => {
+    delete process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA
+    delete process.env.VERCEL_GIT_COMMIT_SHA
+    expect(getCommitSha()).toBeNull()
+
+    process.env.VERCEL_GIT_COMMIT_SHA = 'abcdef1234567890'
+    expect(getCommitSha()).toBe('abcdef1')
+  })
+
+  it('detecta actualización disponible por versión SemVer o por commitSha', () => {
+    expect(isUpdateAvailable('2.25.0', null, null)).toBe(false)
+    expect(isUpdateAvailable('2.25.0', null, { version: '2.25.0' })).toBe(false)
+    expect(isUpdateAvailable('2.25.0', null, { version: '2.26.0' })).toBe(true)
+
+    // Misma versión SemVer pero nuevo commit desplegado en producción
+    expect(isUpdateAvailable('2.25.0', 'abc1234', { version: '2.25.0', commitSha: 'abc1234' })).toBe(false)
+    expect(isUpdateAvailable('2.25.0', 'abc1234', { version: '2.25.0', commitSha: 'def5678' })).toBe(true)
+
+    // Si el cliente no tiene commitSha embebido en build, no dispara falso positivo por commitSha remoto
+    expect(isUpdateAvailable('2.25.0', null, { version: '2.25.0', commitSha: 'def5678' })).toBe(false)
   })
 
   it('detecta entorno development por defecto', () => {

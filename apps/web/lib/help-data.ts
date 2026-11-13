@@ -269,9 +269,14 @@ export const WIKI_ARTICLES: WikiArticle[] = [
         title: 'Paginación de Historial y Prevención de Scroll Infinito',
         content: 'Para evitar listas interminables y acelerar la navegación en dispositivos móviles, tanto la vista general de Movimientos (/transactions) como las fichas de Cuentas y Personas presentan paginación automática (en bloques de 20 movimientos y 10 en cobros históricos). Podés avanzar o retroceder entre páginas al instante y solicitar más movimientos del servidor cuando llegues al final de los registros ya cargados.',
         tip: 'El control de paginación te muestra en todo momento el rango exacto visible y el total de movimientos registrados.'
+      },
+      {
+        title: 'Edición de Movimientos y Asignación Rápida de Categoría',
+        content: 'Si guardaste un gasto o ingreso rápido sin categoría (o lo importaste con Pegado Mágico y quedó sin clasificar), verás el chip interactivo "+ Sin categoría" directamente en la fila del movimiento tanto en Movimientos (/transactions), como en el Dashboard y en el detalle de cada cuenta (/accounts/{id}). Al tocarlo (o desde el ícono de lápiz de edición), se abre el modal para asignarle categoría (o crear una nueva en el acto), cambiar la persona asignada, corregir la nota, fecha o el monto. Si es una compra en cuotas, podés propagar la categoría y descripción a todas las cuotas del plan con un solo check.',
+        tip: 'Al categorizar un movimiento pendiente de clasificación, tus gráficos del Dashboard, Presupuesto y Análisis se actualizan al instante en 0ms.'
       }
     ],
-    relatedFaqIds: ['faq-ledger-types', 'faq-ledger-speed', 'faq-offline-sync', 'faq-transactions-pagination']
+    relatedFaqIds: ['faq-ledger-types', 'faq-ledger-speed', 'faq-offline-sync', 'faq-transactions-pagination', 'faq-transactions-edit-category']
   },
   {
     id: 'wiki-analytics',
@@ -392,9 +397,14 @@ export const WIKI_ARTICLES: WikiArticle[] = [
       {
         title: 'Consulta de Préstamos Offline',
         content: 'Tus deudas bancarias, préstamos otorgados y cuadros de marcha en /loans se persisten en el snapshot de arranque en tu dispositivo. Podés consultar cuotas, saldos remanentes y vencimientos futuros sin conexión.'
+      },
+      {
+        title: 'Detección de Nueva Versión y Actualización Limpia',
+        content: 'Cuando estás conectado y se publica una nueva versión de Finance Nomad, la app lo detecta en segundo plano al recuperar el foco de la pestaña (o desde el botón "Buscar actualización" en Ajustes) y te muestra un aviso superior no intrusivo. Al tocar "Actualizar / Recargar", el sistema renueva la caché del Service Worker y carga las mejoras al instante sin afectar tus datos locales.',
+        tip: 'En Ajustes > Sistema y entorno podés ver la versión instalada y verificar actualizaciones manualmente cuando quieras.'
       }
     ],
-    relatedFaqIds: ['faq-offline-airplane', 'faq-offline-sync', 'faq-offline-pwa']
+    relatedFaqIds: ['faq-offline-airplane', 'faq-offline-sync', 'faq-offline-pwa', 'faq-app-version-update']
   },
   {
     id: 'wiki-loans',
@@ -735,6 +745,15 @@ export const FAQ_ITEMS: FaqItem[] = [
     relatedWikiSlug: 'modo-offline-y-sincronizacion'
   },
   {
+    id: 'faq-app-version-update',
+    question: '¿Cómo me entero cuando hay una nueva versión de Finance Nomad publicada?',
+    answer: 'La aplicación verifica automáticamente en segundo plano al volver a la pestaña (si tenés conexión) si se publicó una versión más reciente. Cuando hay una actualización disponible, aparece un aviso discreto en la parte superior con el botón "Actualizar / Recargar", que limpia la caché del navegador y aplica los cambios en un toque. También podés verificarlo manualmente desde Ajustes > Sistema y entorno.',
+    category: 'offline',
+    categoryLabel: 'Offline & Datos',
+    tags: ['versión', 'actualización', 'recargar', 'nueva versión', 'pwa', 'ajustes'],
+    relatedWikiSlug: 'modo-offline-y-sincronizacion'
+  },
+  {
     id: 'faq-transactions-pagination',
     question: '¿Por qué los movimientos se muestran paginados en lugar de una lista interminable?',
     answer: 'Para prevenir el scroll infinito y mantener la interfaz ágil incluso con cientos o miles de operaciones registradas. Al paginar en bloques de 20 movimientos (y 10 en cobros de personas), el navegador consume menos memoria y renderiza fluidamente en cualquier teléfono. Podés recorrer las páginas con los botones Anterior/Siguiente o los números de página, y cargar lotes más antiguos cuando llegues al final.',
@@ -910,6 +929,15 @@ export const FAQ_ITEMS: FaqItem[] = [
     categoryLabel: 'Portafolio & Inversiones',
     tags: ['portafolio', 'patrimonio neto', 'dashboard', 'toggle', 'consolidación'],
     relatedWikiSlug: 'portafolio-de-inversiones'
+  },
+  {
+    id: 'faq-transactions-edit-category',
+    question: 'Guardé un movimiento sin categoría o me equivoqué en el detalle, ¿puedo actualizarlo sin borrarlo?',
+    answer: 'Sí. En el listado de Movimientos (/transactions), en el Dashboard y en el detalle de cada cuenta (/accounts/{id}), los ingresos y gastos sin clasificar muestran el botón "+ Sin categoría" y cada fila incluye el ícono de lápiz ("Editar movimiento"). Desde ahí podés asignar o crear una categoría al instante, cambiar la persona asignada, editar la descripción, la fecha o corregir el monto en movimientos simples. Si el gasto es en cuotas, el sistema te permite aplicar el cambio de categoría y nota a todas las cuotas del plan automáticamente.',
+    category: 'transactions',
+    categoryLabel: 'Movimientos & Ledger',
+    tags: ['editar', 'actualizar', 'sin categoría', 'categoría', 'movimiento', 'corregir', 'cuotas'],
+    relatedWikiSlug: 'libro-diario-y-zero-wait-ui'
   }
 ]
 
@@ -1114,6 +1142,21 @@ export const QUICK_GUIDES: QuickGuide[] = [
       'Ingresá la cantidad de unidades, el precio unitario de la operación y la divisa.',
       'Si querés descontar la compra o acreditar la venta en una cuenta bancaria, activá la casilla opcional y elegí la cuenta.',
       'Guardá la operación: verás tu Costo Promedio Ponderado (PPC), tu rendimiento abierto y el valor consolidado en el Patrimonio Neto del Dashboard.'
+    ]
+  },
+  {
+    id: 'guide-edit-transaction-category',
+    title: 'Asignar categoría o corregir un movimiento ya guardado',
+    description: 'Clasificá en 1 clic los gastos o ingresos que guardaste rápido sin categoría o corregí su nota, persona o importe.',
+    iconName: 'Tags',
+    route: '/transactions',
+    routeLabel: 'Ir a Movimientos',
+    steps: [
+      'Ubicá el movimiento en Movimientos (/transactions), en el widget del Dashboard o dentro de la ficha de su cuenta (/accounts/{id}).',
+      'Tocá directamente el chip "+ Sin categoría" (o el ícono de lápiz a la derecha del monto).',
+      'Elegí la categoría correspondiente en el selector (o tocá "+ Crear categoría..." para dar de alta una nueva en el acto).',
+      'Si querés, ajustá también la descripción, la fecha, la persona asignada o el importe.',
+      'Si es una compra en cuotas, dejá marcada la casilla "Aplicar a todas las cuotas del plan" y tocá "Guardar cambios".'
     ]
   }
 ]

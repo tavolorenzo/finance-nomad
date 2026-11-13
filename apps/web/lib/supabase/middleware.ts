@@ -11,6 +11,12 @@ export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const path = request.nextUrl.pathname
+
+  // Atajo 0: Endpoint liviano de versión de la app -> Responder de inmediato sin consultar sesión en Supabase
+  if (path === '/api/version') {
+    return supabaseResponse
+  }
+
   const isProtected = PROTECTED_PREFIXES.some((p) => path.startsWith(p))
   const cookies = request.cookies.getAll()
   const hasAuthCookie = cookies.some((c) => c.name.startsWith('sb-') && c.name.includes('-auth-token'))

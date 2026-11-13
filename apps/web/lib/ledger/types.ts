@@ -102,3 +102,15 @@ export interface OutboxJob {
   lastAttemptAt?: number
   errorMessage?: string
 }
+
+export interface UpdateTransactionInput {
+  transactionId: string
+  categoryId?: string | null
+  personId?: string | null
+  notes?: string | null
+  date?: string
+  amountOriginal?: number
+  currencyOriginal?: string
+  amountAccount?: number
+  propagateToInstallments?: boolean
+}

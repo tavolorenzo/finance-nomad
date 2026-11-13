@@ -98,6 +98,7 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
 * Categoría & Descripción.
 * Asignación a Persona (Por defecto: *Personal*).
 * Selector de Cuotas (N Pagos — Habilitado para Tarjetas, distribuidas mes a mes).
+* **Edición de Movimientos y Asignación Rápida de Categoría (`EditTransactionModal`):** Capacidad de editar un movimiento ya registrado o asignarle/modificarle su categoría (`category_id`), persona (`person_id`), descripción (`notes`), fecha (`date`) e importe (en movimientos individuales) directamente desde el listado general de movimientos (`TransactionsList` en `/transactions`), desde el widget del Dashboard (`RecentTransactionsWidget` en `/dashboard`) y desde el detalle de cuentas (`AccountDetailClient` en `/accounts/[id]`). Los ingresos y gastos sin categoría muestran el chip interactivo **`+ Sin categoría`** de 1 clic, e incluyen opción de propagar categoría, nota y persona a todas las cuotas de un mismo plan (`installment_total > 1`).
 
 ### 4.4. Transferencias (Locales & Overseas)
 * Selector de Cuenta Origen y Cuenta Destino.
@@ -155,8 +156,8 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
 * Selector de tema visual Claro / Oscuro con persistencia en preferencias (`ThemeToggle`).
 * Envío de correo para restablecimiento de contraseña (`SendResetLinkButton` y flujo `/auth/update-password`).
 * Acceso directo al Centro de Ayuda & Wiki y disparador del Onboarding Tour (`TourTriggerButton`).
-* Ficha de Información del Sistema (`SystemInfoCard`): versión actual de la aplicación, commit de Git, rama activa y entorno de ejecución.
-* **Detección de Nueva Versión y Banner de Actualización (Pendiente de implementación):** Verificación periódica (o al recuperar el foco de la ventana/pestaña) comparando la versión en ejecución en la pestaña del navegador contra la última versión publicada en producción (Vercel) mediante un endpoint liviano (`/api/version`). Si se detecta discrepancia, se despliega un banner de aviso no intrusivo con un botón de acción directa (**"Actualizar / Recargar"**) para refrescar la aplicación y asegurar que el usuario opere siempre con el código y esquema más reciente.
+* Ficha de Información del Sistema (`SystemInfoCard`): versión actual de la aplicación, commit de Git abreviado, entorno de ejecución y botón manual **"Buscar actualización"**.
+* **Detección de Nueva Versión y Banner de Actualización (`VersionUpdateBanner`, `/api/version`):** Verificación híbrida (`version` SemVer + `commitSha`) periódica y al recuperar el foco de la ventana/pestaña (con *cooldown* de 5 minutos y respeto del estado online) comparando la versión en ejecución en la pestaña del navegador contra la última versión publicada en el servidor mediante `/api/version`. Si se detecta discrepancia, se despliega un banner de aviso no intrusivo con un botón de acción directa (**"Actualizar / Recargar"**) que purga la caché estática del Service Worker (`fn-*`) y recarga la aplicación para asegurar que el usuario opere siempre con el código y esquema más reciente.
 * **Baja de Cuenta / Eliminar Usuario (Pendiente de implementación Frontend):** Sección de zona de peligro (*Danger Zone*) en `/settings` con función en el frontend y confirmación explícita de seguridad para que el usuario pueda darse de baja definitiva del sistema, limpiando la base local (`IndexedDB`) y ejecutando el borrado en cascada de su usuario en `auth.users` junto con todos sus registros financieros.
 
 ### 4.10. Centro de Ayuda, FAQ y Wiki (`/help`)
