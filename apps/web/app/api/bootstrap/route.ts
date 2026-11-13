@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getAuthenticatedUser } from '@/lib/supabase/auth-helper'
 import { getAccountBalances } from '@/lib/networth'
 import { getRatesMatrix } from '@/lib/fx'
-import type { Account, Category, Institution, MasterTransaction, Person, UserSettings, LoanWithInstallments } from '@/lib/types'
+import type { Account, Category, Institution, MasterTransaction, Person, UserSettings, LoanWithInstallments, PortfolioTransaction } from '@/lib/types'
 import type { AccountBalance } from '@/lib/ledger/types'
 
 export const dynamic = 'force-dynamic'
@@ -28,6 +28,7 @@ export async function GET() {
     { data: people },
     { data: estimates },
     { data: loans },
+    { data: portfolioTransactions },
     { data: recentTransactions },
     rpcBalancesResult
   ] = await Promise.all([
@@ -71,6 +72,16 @@ export async function GET() {
       `)
       .eq('is_active', true)
       .order('created_at', { ascending: false }),
+
+    supabase
+      .from('portfolio_transactions')
+      .select(`
+        *,
+        account:funding_account_id (id, name, currency_native)
+      `)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .returns<PortfolioTransaction[]>(),
 
     // Transacciones de los últimos 10 días o hasta 30 recientes
     supabase
@@ -136,6 +147,7 @@ export async function GET() {
     people: people ?? [],
     estimates: estimates ?? [],
     loans: (loans as unknown as LoanWithInstallments[]) ?? [],
+    portfolioTransactions: portfolioTransactions ?? [],
     balances,
     recentTransactions: recentTransactions ?? [],
     fxRates

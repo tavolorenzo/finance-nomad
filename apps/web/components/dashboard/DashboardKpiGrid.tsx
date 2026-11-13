@@ -12,6 +12,9 @@ interface DashboardKpiGridProps {
   liabilities: LiabilitiesMetrics
   receivables: ReceivablesMetrics
   periodLabel: string
+  portfolioValue?: number
+  includePortfolio?: boolean
+  onTogglePortfolio?: (include: boolean) => void
 }
 
 export function DashboardKpiGrid({
@@ -20,9 +23,15 @@ export function DashboardKpiGrid({
   cashFlow,
   liabilities,
   receivables,
-  periodLabel
+  periodLabel,
+  portfolioValue = 0,
+  includePortfolio = true,
+  onTogglePortfolio
 }: DashboardKpiGridProps) {
   const isCashFlowPositive = cashFlow.netCashFlow >= 0
+  const effectiveNetWorth = Math.round(
+    ((includePortfolio ? netWorth + portfolioValue : netWorth) + Number.EPSILON) * 100
+  ) / 100
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -30,17 +39,41 @@ export function DashboardKpiGrid({
       <div className="bg-surface-1 border border-border rounded-card p-4 flex flex-col justify-between">
         <div className="flex items-center justify-between text-text-secondary mb-1">
           <span className="text-xs font-medium uppercase tracking-wider">Patrimonio Neto</span>
-          <span className="p-1.5 rounded-full bg-accent/10 text-accent">
-            <Wallet size={16} />
-          </span>
+          <div className="flex items-center gap-2">
+            {onTogglePortfolio && (
+              <label
+                className="inline-flex items-center gap-1.5 cursor-pointer select-none text-[11px] text-text-secondary hover:text-text-primary"
+                title="Consolidar el valor estimado del portafolio en el Patrimonio Neto"
+              >
+                <input
+                  type="checkbox"
+                  checked={includePortfolio}
+                  onChange={(e) => onTogglePortfolio(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-[color:var(--accent)] rounded"
+                  aria-label="Incluir portafolio en Patrimonio Neto"
+                />
+                <span>+ Portafolio</span>
+              </label>
+            )}
+            <span className="p-1.5 rounded-full bg-accent/10 text-accent">
+              <Wallet size={16} />
+            </span>
+          </div>
         </div>
         <div>
           <p className="font-mono amount text-2xl lg:text-3xl font-semibold text-text-primary mt-1">
-            {formatMoney(netWorth, displayCurrency)}
+            {formatMoney(effectiveNetWorth, displayCurrency)}
           </p>
-          <p className="text-xs text-text-muted mt-1">
-            Activos líquidos menos deuda consolidada
-          </p>
+          {includePortfolio && portfolioValue > 0 ? (
+            <p className="text-xs text-text-muted mt-1 truncate">
+              Cuentas {formatMoney(netWorth, displayCurrency)} · Portafolio est.{' '}
+              {formatMoney(portfolioValue, displayCurrency)}
+            </p>
+          ) : (
+            <p className="text-xs text-text-muted mt-1">
+              Activos líquidos menos deuda consolidada
+            </p>
+          )}
         </div>
       </div>
 

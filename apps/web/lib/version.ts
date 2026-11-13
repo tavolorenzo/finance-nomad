@@ -12,7 +12,7 @@ export interface EnvironmentInfo {
 }
 
 export function getAppVersion(): string {
-  return process.env.NEXT_PUBLIC_APP_VERSION || '2.23.0'
+  return process.env.NEXT_PUBLIC_APP_VERSION || '2.24.0'
 }
 
 export function getAppEnvironment(): AppEnvironment {

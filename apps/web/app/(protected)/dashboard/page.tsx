@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getAuthenticatedUser } from '@/lib/supabase/auth-helper'
 import { getAccountBalances, convertToDisplayCurrency } from '@/lib/networth'
 import { DashboardClient } from '@/components/DashboardClient'
-import type { Account, MasterTransaction, UserSettings, LoanWithInstallments, Person, Category } from '@/lib/types'
+import type { Account, MasterTransaction, UserSettings, LoanWithInstallments, Person, Category, PortfolioTransaction } from '@/lib/types'
 import type { AccountBalance } from '@/lib/ledger/types'
 
 function monthRange(date = new Date()) {
@@ -29,6 +29,7 @@ export default async function DashboardPage() {
   let loans: LoanWithInstallments[] = []
   let people: Person[] = []
   let categories: Category[] = []
+  let portfolioTransactions: PortfolioTransaction[] = []
   let balances: AccountBalance[] = []
   let netWorth = 0
   let realSpent = 0
@@ -43,6 +44,7 @@ export default async function DashboardPage() {
       loansRes,
       peopleRes,
       categoriesRes,
+      portfolioRes,
       balancesRes
     ] = await Promise.all([
       supabase
@@ -86,6 +88,11 @@ export default async function DashboardPage() {
         .select('id, name, icon, color')
         .order('name', { ascending: true })
         .returns<Category[]>(),
+      supabase
+        .from('portfolio_transactions')
+        .select('*')
+        .order('date', { ascending: false })
+        .returns<PortfolioTransaction[]>(),
       getAccountBalances(supabase, today)
     ])
 
@@ -96,6 +103,7 @@ export default async function DashboardPage() {
     loans = (loansRes.data as unknown as LoanWithInstallments[]) ?? []
     people = peopleRes.data ?? []
     categories = categoriesRes.data ?? []
+    portfolioTransactions = portfolioRes?.data ?? []
     balances = balancesRes
 
     // Redirección inteligente al asistente de bienvenida si no hay cuentas configuradas
@@ -187,6 +195,7 @@ export default async function DashboardPage() {
       initialLoans={loans}
       initialPeople={people}
       initialCategories={categories}
+      initialPortfolioTransactions={portfolioTransactions}
       initialCustomRates={customRates}
       displayCurrency={displayCurrency}
       initialNetWorth={netWorth}

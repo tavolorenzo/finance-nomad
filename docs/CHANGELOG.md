@@ -12,6 +12,25 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+## [2.24.0] - 2026-11-11
+### Agregado
+- **Módulo de Portafolio de Inversiones y Consolidación Patrimonial (`/portfolio`, `PortfolioDashboard.tsx`, `PortfolioOperationModal.tsx`, `calculations.ts`, `quotes.ts`, `0016_portfolio_module.sql`, PRD §4.8)**:
+  - **Disclaimer Informativo Permanente**: Banner visible en `/portfolio` aclarando que las cotizaciones provienen de fuentes públicas gratuitas y que el módulo es exclusivamente informativo para seguimiento personal de capital invertido y consolidación estimada.
+  - **Motor de Cotizaciones Multi-Fuente (`/api/portfolio/quotes`, `lib/portfolio/quotes.ts`)**:
+    - Modo `auto`: Integración pública sin API keys pagas (Yahoo Finance chart API + fallback a CoinGecko para criptomonedas) con caché en servidor de 15 minutos y persistencia local (`localStorage`) para disponibilidad offline.
+    - Modo `manual`: Soporte para instrumentos locales sin ticker internacional (bonos, letras, plazos fijos, fondos) con edición rápida in-line del precio manual desde la tabla de tenencias.
+  - **Cálculo de Costo Promedio Ponderado (PPC) y Rendimiento (`lib/portfolio/calculations.ts`)**:
+    - 4 KPIs consolidados en divisa global: *Valor Estimado Actual*, *Capital Invertido*, *Rendimiento Abierto (P&L No Realizado en $ y %)* y *Resultado Realizado Histórico*.
+    - Desglose de composición por tipo de activo (`STOCK`, `ETF`, `CRYPTO`, `FIXED_INCOME`, `LOCAL`) e historial paginado con `PaginationControl`.
+  - **Registro de Compras (`BUY`) y Ventas (`SELL`) con Impacto Opcional en Cuenta (`PortfolioOperationModal.tsx`, `actions.ts`)**:
+    - Permite cargar operaciones en modo *"Solo trackeo"* (tenencias históricas) o activar el vínculo opcional para descontar la compra o acreditar el producido de la venta en una cuenta bancaria mediante un asiento `ADJUSTMENT` (sin distorsionar los gastos de consumo en `/budget` ni `/analytics`).
+  - **Consolidación en Patrimonio Neto del Dashboard con Toggle (`DashboardKpiGrid.tsx`, `DashboardClient.tsx`)**:
+    - Toggle **`+ Portafolio`** activo por defecto en la tarjeta de Patrimonio Neto con desglose en vivo (`Cuentas · Portafolio est.`).
+  - **Persistencia Offline e Integración en Bootstrap (`/api/bootstrap`, `ledger-context.tsx`)**:
+    - Inclusión de `portfolioTransactions` en el snapshot inicial e hidratación automática desde `IndexedDB`.
+  - **Centro de Ayuda y Pruebas (`help-data.ts`, `calculations.test.ts`)**:
+    - Nuevo artículo `wiki-portfolio`, 4 FAQs (`faq-portfolio-*`) y guía paso a paso `guide-portfolio`.
+
 ## [2.23.0] - 2026-11-10
 ### Agregado
 - **Soporte PWA Completo y Resiliencia Offline con Service Worker (`apps/web/public/sw.js`, `manifest.ts`, `ServiceWorkerRegister.tsx`, `layout.tsx`)**:

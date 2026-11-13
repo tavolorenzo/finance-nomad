@@ -138,12 +138,17 @@ Las mutaciones se empaquetan en el cliente como **Ledger Bundles** atómicos e i
   - Generación de Ledger Bundle atómico con dos filas ligadas: amortización de capital (reduce el pasivo sin computar como consumo) e intereses (+ IVA) imputados a la categoría de gastos financieros para su reflejo en `/analytics` y `/budget`.
 * **Cancelación Secuencial Estricta**: Pago correlativo cuota por cuota (1 a N) con modal interactivo `PayLoanInstallmentModal` y estado de préstamo (`ACTIVE` / `PAID`).
 
-### 4.8. Portafolio de Inversiones (Portfolio)
-* Integración de cotizaciones y valor de mercado.
-* Operaciones de **Compra (BUY)** y **Venta (SELL)** que transfieren capital hacia/desde las cuentas bancarias.
-* KPIs: Valor de Mercado Total, Inversión Inicial, Ganancia/Pérdida No Realizada ($/%).
-* Tabla de Activos (Tickers, Unidades, Costo Medio, Precio Actual, Rendimiento).
-* Historial de Transacciones de Inversión.
+### 4.8. Portafolio de Inversiones (`/portfolio`)
+* **Aviso / Disclaimer Informativo Permanente**: Banner visible aclarando que las cotizaciones provienen de fuentes públicas gratuitas (Yahoo / Google Finance y CoinGecko) con posibles demoras y que el módulo tiene fines exclusivamente **informativos, de seguimiento personal y consolidación patrimonial estimada**.
+* **Doble Modalidad de Cotización (`quote_mode`)**:
+  - `auto`: Consulta pública por ticker (acciones, CEDEARs, ETFs, criptomonedas) mediante `/api/portfolio/quotes` con caché de 15 minutos y respaldo en `localStorage` para uso offline.
+  - `manual`: Soporte completo para instrumentos locales (bonos locales, letras, plazos fijos, fondos) con edición rápida en 1 clic desde la tabla de tenencias.
+* **Operaciones de Compra (`BUY`) y Venta (`SELL`) con Impacto Opcional en Cuenta**:
+  - Permite registrar operaciones en modo **"Solo trackeo"** (sin afectar saldos bancarios, ideal para tenencias históricas) o activando el switch opcional para debitar el capital invertido (`BUY`) o acreditar el cobro neto (`SELL`) en una cuenta mediante un asiento `ADJUSTMENT` enlazado por `linked_transaction_id` (sin inflar los gastos de consumo en `/budget` ni `/analytics`).
+* **Cálculo de Costo Promedio Ponderado (PPC / WAC) y 4 KPIs**:
+  - Valor Estimado Actual, Capital Invertido, Rendimiento Abierto No Realizado ($ y %) y Resultado Realizado Histórico en la divisa global del usuario.
+* **Consolidación en Dashboard con Toggle**:
+  - La tarjeta de **Patrimonio Neto** en `/dashboard` incluye el toggle **`+ Portafolio`** (activo por defecto) para sumar o excluir en tiempo real el valor estimado del portafolio y exhibir su desglose (`Cuentas · Portafolio est.`).
 
 ### 4.9. Ajustes y Sistema (`/settings`)
 * Selector de divisa global preferida (`display_currency`).

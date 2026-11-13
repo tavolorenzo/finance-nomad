@@ -31,7 +31,8 @@ import { ExpensesAnalyticsWidget } from './dashboard/ExpensesAnalyticsWidget'
 import { QuickLoansWidget } from './dashboard/QuickLoansWidget'
 import { RecentTransactionsWidget } from './dashboard/RecentTransactionsWidget'
 import { OnboardingTour } from './OnboardingTour'
-import type { Account, MasterTransaction, LoanWithInstallments, Person, Category } from '@/lib/types'
+import { computePortfolioSummary } from '@/lib/portfolio/calculations'
+import type { Account, MasterTransaction, LoanWithInstallments, Person, Category, PortfolioTransaction, TickerQuote } from '@/lib/types'
 import type { AccountBalance } from '@/lib/ledger/types'
 
 // Determina si la fecha cae en la ventana de verificación de resumen de tarjeta (primeros 5 o últimos 5 días)
@@ -57,6 +58,7 @@ interface DashboardClientProps {
   initialLoans: LoanWithInstallments[]
   initialPeople: Person[]
   initialCategories: Category[]
+  initialPortfolioTransactions?: PortfolioTransaction[]
   initialCustomRates: Record<string, number>
   displayCurrency: string
   initialNetWorth: number
@@ -73,6 +75,7 @@ export function DashboardClient({
   initialLoans = [],
   initialPeople = [],
   initialCategories = [],
+  initialPortfolioTransactions = [],
   initialCustomRates = {},
   displayCurrency = 'EUR',
   initialNetWorth = 0,
@@ -84,6 +87,7 @@ export function DashboardClient({
     balances: ledgerBalances,
     accounts: ledgerAccounts,
     recentTransactions: ledgerTransactions,
+    portfolioTransactions: ledgerPortfolioTransactions,
     isInitialized,
     seedInitialData
   } = useLedger()
@@ -92,6 +96,8 @@ export function DashboardClient({
   const [tourOpen, setTourOpen] = useState(false)
   const [showTourBanner, setShowTourBanner] = useState(false)
   const [dismissedCardBanner, setDismissedCardBanner] = useState(false)
+  const [includePortfolio, setIncludePortfolio] = useState(true)
+  const [cachedQuotes, setCachedQuotes] = useState<Record<string, TickerQuote>>({})
 
   const todayStr = useMemo(() => formatDateStr(new Date()), [])
 
@@ -101,19 +107,37 @@ export function DashboardClient({
       if (!completed) {
         setShowTourBanner(true)
       }
+      const savedInclude = localStorage.getItem('finance_nomad_include_portfolio_nw')
+      if (savedInclude !== null) {
+        setIncludePortfolio(savedInclude !== 'false')
+      }
+      const rawQuotes = localStorage.getItem('finance_nomad_portfolio_quotes_v1')
+      if (rawQuotes) {
+        setCachedQuotes(JSON.parse(rawQuotes))
+      }
     } catch {
       // Ignore
     }
   }, [])
+
+  const handleTogglePortfolio = (next: boolean) => {
+    setIncludePortfolio(next)
+    try {
+      localStorage.setItem('finance_nomad_include_portfolio_nw', String(next))
+    } catch {
+      // Ignore
+    }
+  }
 
   // Sembrar datos iniciales de servidor en LedgerContext para disponibilidad inmediata
   useEffect(() => {
     seedInitialData({
       accounts: initialAccounts,
       balances: initialBalances,
-      recentTransactions: initialTransactions
+      recentTransactions: initialTransactions,
+      portfolioTransactions: initialPortfolioTransactions
     })
-  }, [initialAccounts, initialBalances, initialTransactions, seedInitialData])
+  }, [initialAccounts, initialBalances, initialTransactions, initialPortfolioTransactions, seedInitialData])
 
   // Cuentas reactivas combinando SSR con mutaciones en IndexedDB
   const accounts = useMemo(() => {
@@ -280,6 +304,21 @@ export function DashboardClient({
     return computeQuickLoansSummary(initialLoans, todayStr)
   }, [initialLoans, todayStr])
 
+  // Valor estimado del Portafolio para consolidar en Patrimonio Neto
+  const effectivePortfolioTxs = useMemo(() => {
+    if (initialPortfolioTransactions.length > 0) return initialPortfolioTransactions
+    return ledgerPortfolioTransactions ?? []
+  }, [initialPortfolioTransactions, ledgerPortfolioTransactions])
+
+  const portfolioSummary = useMemo(() => {
+    return computePortfolioSummary({
+      transactions: effectivePortfolioTxs,
+      quotes: cachedQuotes,
+      displayCurrency,
+      convert
+    })
+  }, [effectivePortfolioTxs, cachedQuotes, displayCurrency, convert])
+
   // Alerta de ventana de resumen de tarjeta
   const showCardVerifyBanner =
     creditCardAccounts.length > 0 && isStatementVerificationWindow() && !dismissedCardBanner
@@ -429,6 +468,9 @@ export function DashboardClient({
         liabilities={liabilities}
         receivables={receivables}
         periodLabel={periodRange.label}
+        portfolioValue={portfolioSummary.totalMarketValueInDisplay}
+        includePortfolio={includePortfolio}
+        onTogglePortfolio={handleTogglePortfolio}
       />
 
       {/* Grilla Principal en 2 Columnas Responsivas */}

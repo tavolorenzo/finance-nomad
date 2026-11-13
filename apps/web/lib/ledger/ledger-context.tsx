@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import type { Account, Category, MasterTransaction, Person, UserSettings, LoanWithInstallments } from '../types'
+import type { Account, Category, MasterTransaction, Person, UserSettings, LoanWithInstallments, PortfolioTransaction } from '../types'
 import type {
   AccountBalance,
   BuildPersonSettlementInput,
@@ -24,6 +24,7 @@ interface BootstrapData {
   people: Person[]
   estimates: unknown[]
   loans?: LoanWithInstallments[]
+  portfolioTransactions?: PortfolioTransaction[]
   balances: AccountBalance[]
   recentTransactions: MasterTransaction[]
   fxRates?: Record<string, number>
@@ -39,6 +40,7 @@ interface LedgerContextType {
   categories: Category[]
   people: Person[]
   loans: LoanWithInstallments[]
+  portfolioTransactions: PortfolioTransaction[]
   syncState: SyncState
   hasMoreTransactions: boolean
   getBalance: (accountId: string) => number
@@ -58,6 +60,7 @@ interface LedgerContextType {
     categories?: Category[]
     people?: Person[]
     loans?: LoanWithInstallments[]
+    portfolioTransactions?: PortfolioTransaction[]
   }) => void
 }
 
@@ -81,6 +84,9 @@ export function LedgerProvider({
   const [categories, setCategories] = useState<Category[]>(initialData?.categories ?? [])
   const [people, setPeople] = useState<Person[]>(initialData?.people ?? [])
   const [loans, setLoans] = useState<LoanWithInstallments[]>(initialData?.loans ?? [])
+  const [portfolioTransactions, setPortfolioTransactions] = useState<PortfolioTransaction[]>(
+    initialData?.portfolioTransactions ?? []
+  )
   const [syncState, setSyncState] = useState<SyncState>(syncEngine.getState())
   const [hasMoreTransactions, setHasMoreTransactions] = useState(true)
 
@@ -108,6 +114,11 @@ export function LedgerProvider({
           if (cached.loans && Array.isArray(cached.loans)) {
             setLoans((prev) => (prev.length === 0 ? cached.loans! : prev))
           }
+          if (cached.portfolioTransactions && Array.isArray(cached.portfolioTransactions)) {
+            setPortfolioTransactions((prev) =>
+              prev.length === 0 ? cached.portfolioTransactions! : prev
+            )
+          }
           setIsInitialized(true)
           setIsLoading(false)
         }
@@ -123,6 +134,9 @@ export function LedgerProvider({
         setPeople(fresh.people)
         if (fresh.loans && Array.isArray(fresh.loans)) {
           setLoans(fresh.loans)
+        }
+        if (fresh.portfolioTransactions && Array.isArray(fresh.portfolioTransactions)) {
+          setPortfolioTransactions(fresh.portfolioTransactions)
         }
 
         // Combinar con cualquier mutación del Outbox que aún no haya sincronizado
@@ -285,6 +299,7 @@ export function LedgerProvider({
       categories?: Category[]
       people?: Person[]
       loans?: LoanWithInstallments[]
+      portfolioTransactions?: PortfolioTransaction[]
     }) => {
       if (data.accounts && data.accounts.length > 0) {
         setAccounts((prev) => (prev.length === 0 ? data.accounts! : prev))
@@ -303,6 +318,11 @@ export function LedgerProvider({
       }
       if (data.loans && data.loans.length > 0) {
         setLoans((prev) => (prev.length === 0 ? data.loans! : prev))
+      }
+      if (data.portfolioTransactions && data.portfolioTransactions.length > 0) {
+        setPortfolioTransactions((prev) =>
+          prev.length === 0 ? data.portfolioTransactions! : prev
+        )
       }
       if (data.settings) {
         setSettings((prev) => prev ?? data.settings!)
@@ -403,6 +423,7 @@ export function LedgerProvider({
         categories,
         people,
         loans,
+        portfolioTransactions,
         syncState,
         hasMoreTransactions,
         getBalance,

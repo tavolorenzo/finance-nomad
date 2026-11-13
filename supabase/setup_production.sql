@@ -153,12 +153,18 @@ create table if not exists portfolio_transactions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   ticker text not null,
+  asset_name text,
+  asset_type text not null default 'STOCK' check (asset_type in ('STOCK','ETF','CRYPTO','FIXED_INCOME','LOCAL')),
   type text not null check (type in ('BUY','SELL')),
-  units numeric(14,4) not null,
-  price_per_unit numeric(12,2) not null,
+  units numeric(18,6) not null,
+  price_per_unit numeric(16,4) not null,
   fee_amount numeric(12,2) not null default 0,
   currency text not null,
-  funding_account_id uuid not null references accounts(id) on delete cascade,
+  quote_mode text not null default 'auto' check (quote_mode in ('auto','manual')),
+  manual_price numeric(16,4),
+  funding_account_id uuid references accounts(id) on delete set null,
+  linked_transaction_id uuid references master_transactions(id) on delete set null,
+  notes text,
   date date not null,
   created_at timestamptz not null default now()
 );
@@ -200,6 +206,8 @@ create index if not exists idx_loans_counterparty_inst on loans (counterparty_in
 create index if not exists idx_loans_beneficiary_person on loans (beneficiary_person_id);
 create index if not exists idx_loan_installments_loan_period on loan_installments (loan_id, period);
 create index if not exists idx_loan_installments_paid on loan_installments (loan_id, paid);
+create index if not exists idx_portfolio_transactions_user_date on portfolio_transactions (user_id, date desc);
+create index if not exists idx_portfolio_transactions_user_ticker on portfolio_transactions (user_id, ticker);
 
 -- ==============================================================================
 -- 4. TRIGGERS DE PROTECCIÓN (SOFT DELETE)

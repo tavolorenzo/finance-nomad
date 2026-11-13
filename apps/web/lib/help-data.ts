@@ -8,7 +8,7 @@ export interface WikiArticle {
   id: string
   slug: string
   title: string
-  category: 'core' | 'accounts' | 'transactions' | 'cards' | 'people' | 'budget' | 'analytics' | 'offline' | 'loans'
+  category: 'core' | 'accounts' | 'transactions' | 'cards' | 'people' | 'budget' | 'analytics' | 'offline' | 'loans' | 'portfolio'
   categoryLabel: string
   iconName: string
   summary: string
@@ -23,7 +23,7 @@ export interface FaqItem {
   id: string
   question: string
   answer: string
-  category: 'core' | 'accounts' | 'cards' | 'people' | 'budget' | 'offline' | 'loans' | 'transactions' | 'analytics'
+  category: 'core' | 'accounts' | 'cards' | 'people' | 'budget' | 'offline' | 'loans' | 'transactions' | 'analytics' | 'portfolio'
   categoryLabel: string
   tags: string[]
   relatedWikiSlug?: string
@@ -44,6 +44,7 @@ export const HELP_CATEGORIES = [
   { id: 'core', label: 'Multi-moneda (FX)' },
   { id: 'cards', label: 'Tarjetas de crédito & Cuotas' },
   { id: 'loans', label: 'Préstamos & Marcha' },
+  { id: 'portfolio', label: 'Portafolio & Inversiones' },
   { id: 'people', label: 'Personas & Cobros' },
   { id: 'accounts', label: 'Cuentas & Bancos' },
   { id: 'transactions', label: 'Movimientos & Ledger' },
@@ -426,6 +427,39 @@ export const WIKI_ARTICLES: WikiArticle[] = [
       }
     ],
     relatedFaqIds: ['faq-loans-calc', 'faq-loans-ledger', 'faq-loans-intermediary', 'faq-loans-extraordinary']
+  },
+  {
+    id: 'wiki-portfolio',
+    slug: 'portafolio-de-inversiones',
+    title: 'Portafolio de Inversiones y Capital Invertido',
+    category: 'portfolio',
+    categoryLabel: 'Portafolio & Inversiones',
+    iconName: 'TrendingUp',
+    badge: 'Trackeo & Consolidación',
+    targetRoute: '/portfolio',
+    targetLabel: 'Ir a Portafolio',
+    summary: 'Seguimiento informativo de tus acciones, ETFs, criptomonedas e instrumentos locales con cálculo de Costo Promedio Ponderado (PPC) y consolidación estimada en tu Patrimonio Neto.',
+    sections: [
+      {
+        title: 'Carácter Informativo y Consolidación Estimada',
+        content: 'El módulo de Portafolio (/portfolio) es una herramienta de seguimiento personal y consolidación patrimonial estimada. Las cotizaciones automáticas provienen de proveedores públicos gratuitos (Yahoo / Google Finance y CoinGecko) y pueden presentar demoras o diferencias respecto a tu broker; los valores tienen fines exclusivamente informativos y no constituyen asesoramiento financiero ni recomendación de inversión.',
+        tip: 'En la tarjeta de Patrimonio Neto del Dashboard contás con el switch "+ Portafolio" (activo por defecto) para incluir o excluir el valor estimado de tus inversiones cuando quieras.'
+      },
+      {
+        title: 'Cotización Automática por Ticker vs. Instrumentos Locales Manuales',
+        content: 'Al registrar un activo podés elegir entre dos modos:\n• Ticker de mercado (Auto): Ideal para acciones internacionales, CEDEARs, ETFs y criptomonedas (ej. AAPL, SPY, TSLA, BTC-USD). La app consulta el precio actual automáticamente.\n• Instrumento local (Manual): Pensado para bonos locales, letras, plazos fijos o fondos sin ticker internacional. Definís su valor unitario manualmente y podés actualizarlo en 1 clic desde el ícono de lápiz en la tabla de tenencias.'
+      },
+      {
+        title: 'Histórico de Compras/Ventas (BUY / SELL) y Costo Promedio (PPC)',
+        content: 'Cada compra (BUY) suma unidades y recalcula tu Costo Promedio Ponderado (PPC) incluyendo comisiones. Cada venta (SELL) reduce tus unidades abiertas manteniendo el PPC de las restantes y calcula automáticamente tu ganancia o pérdida realizada histórica.'
+      },
+      {
+        title: 'Vínculo Opcional con Cuenta Bancaria o Broker',
+        content: 'Al cargar una operación podés elegir si querés impactar o no una cuenta bancaria:\n• Desactivado (Solo trackeo): Registra la tenencia en el portafolio sin tocar el saldo de tus cuentas actuales (ideal para cargar inversiones históricas).\n• Activado: Descuenta el monto invertido de la cuenta elegida (si es compra) o acredita el cobro neto (si es venta) mediante un asiento patrimonial ADJUSTMENT que no distorsiona tus gastos de consumo mensual.',
+        tip: 'Si eliminás una operación vinculada desde el historial del portafolio, el movimiento contable asociado en tu cuenta se revierte automáticamente.'
+      }
+    ],
+    relatedFaqIds: ['faq-portfolio-disclaimer', 'faq-portfolio-account-impact', 'faq-portfolio-manual-price', 'faq-portfolio-networth-toggle']
   }
 ]
 
@@ -840,6 +874,42 @@ export const FAQ_ITEMS: FaqItem[] = [
     categoryLabel: 'Préstamos & Marcha',
     tags: ['pagos extraordinarios', 'adelanto', 'orden secuencial', 'cuotas'],
     relatedWikiSlug: 'prestamos-y-amortizaciones'
+  },
+  {
+    id: 'faq-portfolio-disclaimer',
+    question: '¿De dónde salen las cotizaciones del Portafolio y qué precisión tienen?',
+    answer: 'Las cotizaciones automáticas se consultan en fuentes públicas gratuitas (Yahoo / Google Finance para acciones y ETFs, y CoinGecko para criptomonedas) con caché inteligente y respaldo local para modo offline. Como indica el aviso informativo del módulo, los precios pueden tener demoras y se brindan exclusivamente para seguimiento personal y consolidación estimada.',
+    category: 'portfolio',
+    categoryLabel: 'Portafolio & Inversiones',
+    tags: ['portafolio', 'cotizaciones', 'tickers', 'google finance', 'yahoo', 'coingecko', 'disclaimer', 'informativo'],
+    relatedWikiSlug: 'portafolio-de-inversiones'
+  },
+  {
+    id: 'faq-portfolio-account-impact',
+    question: 'Al cargar una compra o venta de inversión, ¿se descuenta o acredita en mi cuenta bancaria?',
+    answer: 'Es opcional y vos lo elegís en cada operación. Si cargás inversiones que ya tenías de antes, dejá desmarcada la casilla de impacto en cuenta para que solo queden en el seguimiento del portafolio. Si estás comprando o vendiendo hoy con plata de una cuenta, activá la casilla: la app descontará el capital invertido (en compras) o acreditará lo cobrado (en ventas) sin inflar tus gastos de consumo del mes.',
+    category: 'portfolio',
+    categoryLabel: 'Portafolio & Inversiones',
+    tags: ['portafolio', 'compra', 'venta', 'buy', 'sell', 'cuenta bancaria', 'acreditar', 'descontar'],
+    relatedWikiSlug: 'portafolio-de-inversiones'
+  },
+  {
+    id: 'faq-portfolio-manual-price',
+    question: '¿Cómo cargo un instrumento local (bono, plazo fijo o fondo) que no tiene ticker público?',
+    answer: 'Al abrir "Registrar operación" en Portafolio, seleccioná "Instrumento local (Manual)". Ingresá un código identificatorio (ej. BONO-UY o PF-ITAU), las unidades, tu precio de compra y el valor unitario actual. Podés actualizar ese valor manual en cualquier momento tocando el ícono de lápiz junto al precio actual en la tabla de tenencias.',
+    category: 'portfolio',
+    categoryLabel: 'Portafolio & Inversiones',
+    tags: ['portafolio', 'manual', 'instrumento local', 'bonos', 'plazo fijo', 'fondos', 'precio manual'],
+    relatedWikiSlug: 'portafolio-de-inversiones'
+  },
+  {
+    id: 'faq-portfolio-networth-toggle',
+    question: '¿El valor de mi portafolio se suma al Patrimonio Neto del Dashboard?',
+    answer: 'Sí, por defecto se consolida automáticamente en la tarjeta de Patrimonio Neto del Dashboard mostrando el desglose entre tus cuentas líquidas y el valor estimado del portafolio. Si querés ver únicamente tu liquidez sin inversiones, podés desmarcar el toggle "+ Portafolio" en la misma tarjeta.',
+    category: 'portfolio',
+    categoryLabel: 'Portafolio & Inversiones',
+    tags: ['portafolio', 'patrimonio neto', 'dashboard', 'toggle', 'consolidación'],
+    relatedWikiSlug: 'portafolio-de-inversiones'
   }
 ]
 
@@ -1029,6 +1099,21 @@ export const QUICK_GUIDES: QuickGuide[] = [
       'Presioná "Pegado Mágico" y pegá las líneas copiadas de tu home banking (o tocá "Cargar ejemplo" para ver el formato).',
       'Revisá la vista previa: el detector clasifica automáticamente si es Gasto o Ingreso y sugiere categorías.',
       'Hacé clic en "Volcar a la grilla", revisá el impacto financiero en vivo y tocá "Guardar movimientos".'
+    ]
+  },
+  {
+    id: 'guide-portfolio',
+    title: 'Registrar tus inversiones y consolidarlas en tu Patrimonio Neto',
+    description: 'Llevá el control de tus acciones, ETFs, cripto o instrumentos locales y decidí cuándo impactar tus cuentas bancarias.',
+    iconName: 'TrendingUp',
+    route: '/portfolio',
+    routeLabel: 'Ir a Portafolio',
+    steps: [
+      'Entrá a "Portafolio" (/portfolio) desde el menú lateral y tocá "Registrar operación".',
+      'Elegí si es una Compra (BUY) o Venta (SELL), y seleccioná "Ticker de mercado (Auto)" para activos públicos (ej. AAPL, SPY, BTC-USD) o "Instrumento local (Manual)" para bonos y fondos propios.',
+      'Ingresá la cantidad de unidades, el precio unitario de la operación y la divisa.',
+      'Si querés descontar la compra o acreditar la venta en una cuenta bancaria, activá la casilla opcional y elegí la cuenta.',
+      'Guardá la operación: verás tu Costo Promedio Ponderado (PPC), tu rendimiento abierto y el valor consolidado en el Patrimonio Neto del Dashboard.'
     ]
   }
 ]

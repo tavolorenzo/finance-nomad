@@ -152,6 +152,64 @@ export interface BudgetEstimate {
   accounts?: { id?: string; name: string; currency_native: string; institution_id?: string } | null
 }
 
+export type PortfolioTransactionType = 'BUY' | 'SELL'
+export type PortfolioAssetType = 'STOCK' | 'ETF' | 'CRYPTO' | 'FIXED_INCOME' | 'LOCAL'
+export type PortfolioQuoteMode = 'auto' | 'manual'
+
+export interface PortfolioTransaction {
+  id: string
+  user_id?: string
+  ticker: string
+  asset_name?: string | null
+  asset_type: PortfolioAssetType
+  type: PortfolioTransactionType
+  units: number
+  price_per_unit: number
+  fee_amount: number
+  currency: string
+  quote_mode: PortfolioQuoteMode
+  manual_price?: number | null
+  funding_account_id?: string | null
+  linked_transaction_id?: string | null
+  notes?: string | null
+  date: string
+  created_at?: string
+  account?: { id: string; name: string; currency_native: string } | null
+}
+
+export interface TickerQuote {
+  ticker: string
+  price: number
+  currency: string
+  changePercent?: number
+  name?: string
+  source: 'yahoo' | 'google' | 'coingecko' | 'manual' | 'fallback'
+  updatedAt: string
+}
+
+export interface PortfolioPosition {
+  ticker: string
+  assetName: string
+  assetType: PortfolioAssetType
+  currency: string
+  quoteMode: PortfolioQuoteMode
+  units: number
+  averageCost: number
+  investedCapital: number
+  currentPrice: number
+  marketValue: number
+  unrealizedPnL: number
+  unrealizedPnLPct: number
+  realizedPnL: number
+  marketValueInDisplay: number
+  investedInDisplay: number
+  unrealizedPnLInDisplay: number
+  realizedPnLInDisplay: number
+  quoteSource: TickerQuote['source']
+  quoteUpdatedAt?: string
+  dayChangePct?: number
+}
+
 // Placeholder de Database para que createBrowserClient<Database> tipe bien.
 // Se reemplaza por el tipo generado (`supabase gen types typescript`) cuando
 // el proyecto ya esté linkeado — ver SETUP.md.
